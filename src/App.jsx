@@ -27,6 +27,7 @@ const DIFFICULTY_LEVELS = {
   basic:    { name: '三和弦', en: 'Triads',    types: ['', 'm', 'dim', 'aug', 'sus2', 'sus4'] },
   seventh:  { name: '七和弦', en: 'Sevenths',  types: ['maj7', 'm7', '7', 'm7b5', 'dim7'] },
   extended: { name: '延伸',   en: 'Extended',  types: ['7b9', '9', 'maj9'] },
+  all:      { name: '全混合', en: 'All',        types: ['', 'm', 'dim', 'aug', 'sus2', 'sus4', 'maj7', 'm7', '7', 'm7b5', 'dim7', '7b9', '9', 'maj9'] },
 };
 
 const FULL_START = 36; // C2
@@ -196,6 +197,7 @@ export default function ChordTrainer() {
     setLockedCorrect(new Set());
     setFeedback(null);
     setStreak(0);
+    setShowSettings(false); // auto-close after selection
   };
 
   const shiftKeyboard = (dir) => {
@@ -322,18 +324,21 @@ export default function ChordTrainer() {
 
         {/* Difficulty panel */}
         {showSettings && (
-          <div className="mt-2 mb-1 p-3 rounded-2xl chord-name backdrop-blur-md" style={{
-            background: 'rgba(20, 24, 36, 0.5)', border: '1px solid rgba(255,255,255,0.06)',
+          <div className="mt-2 mb-1 p-3 rounded-2xl chord-name backdrop-blur-md overflow-hidden" style={{
+            background: 'rgba(20, 24, 36, 0.92)',
+            border: '1px solid rgba(255,255,255,0.06)',
+            position: 'relative',
+            zIndex: 20,
           }}>
             <div className="text-[10px] text-slate-500 uppercase tracking-[0.3em] mb-2.5 font-semibold">Difficulty</div>
-            <div className="flex gap-1.5">
+            <div className="grid grid-cols-2 gap-1.5">
               {Object.entries(DIFFICULTY_LEVELS).map(([key, val]) => {
                 const active = difficulty === key;
                 return (
                   <button
                     key={key}
                     onClick={() => changeDifficulty(key)}
-                    className="flex-1 py-2.5 rounded-xl text-sm transition-all"
+                    className="py-2.5 rounded-xl text-sm transition-all"
                     style={{
                       background: active
                         ? 'linear-gradient(135deg, rgba(122,162,247,0.25), rgba(122,162,247,0.1))'
