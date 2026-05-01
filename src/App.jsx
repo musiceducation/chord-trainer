@@ -208,7 +208,10 @@ export default function ChordTrainer() {
   };
 
   const accuracy = score.total > 0 ? Math.round((score.correct / score.total) * 100) : 0;
-  const formatChord = (name) => name.replace(/b/g, '♭').replace(/#/g, '♯');
+  const formatChord = (name) => {
+    // Capitalize first letter, rest lowercase
+    return name.charAt(0).toUpperCase() + name.slice(1).toLowerCase();
+  };
   const isKeyLocked = (midi) => lockedCorrect.has(midi % 12) && pressed.has(midi);
 
   return (
