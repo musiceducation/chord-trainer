@@ -37,7 +37,8 @@ export const DIFFICULTY_LEVELS = {
 
 export const FULL_START = 36;
 export const FULL_END = 84;
-export const VISIBLE_WHITE_KEYS = 8;
+/** ~1.5 octaves of white keys (C → F of next+), enough for common chord voicings */
+export const VISIBLE_WHITE_KEYS = 11;
 
 export const ALL_KEYS = [];
 for (let m = FULL_START; m <= FULL_END; m++) {

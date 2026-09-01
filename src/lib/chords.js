@@ -47,14 +47,11 @@ export function buildChordVoicing(rootName, chordType, baseMidi = 60) {
   const rootPc = NOTE_TO_PC[rootName];
   if (rootPc === undefined) return [60, 64, 67];
   const intervals = getIntervals(chordType);
+  const rootMidi = baseMidi - (baseMidi % 12) + rootPc;
   const midis = [];
-  let last = baseMidi + rootPc - (baseMidi % 12);
-  intervals.forEach((interval, index) => {
-    if (index === 0) {
-      midis.push(last);
-      return;
-    }
-    let note = last + interval;
+  let last = -Infinity;
+  intervals.forEach((interval) => {
+    let note = rootMidi + interval;
     while (note <= last) note += 12;
     midis.push(note);
     last = note;

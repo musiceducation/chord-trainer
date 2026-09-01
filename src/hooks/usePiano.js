@@ -2,7 +2,7 @@ import { useRef, useCallback, useEffect } from 'react';
 
 const MAX_VOICES = 12;
 
-export function usePiano(enabled, audioUnlocked) {
+export function usePiano(enabled) {
   const ctxRef = useRef(null);
   const activeVoicesRef = useRef(0);
 
@@ -64,15 +64,15 @@ export function usePiano(enabled, audioUnlocked) {
   }, []);
 
   const playNote = useCallback(async (midi) => {
-    if (!enabled || !audioUnlocked) return false;
+    if (!enabled) return false;
     const ctx = await ensureCtx();
     if (!ctx) return false;
     playOne(ctx, midi);
     return true;
-  }, [enabled, audioUnlocked, ensureCtx, playOne]);
+  }, [enabled, ensureCtx, playOne]);
 
   const playChord = useCallback(async (midis, strum = true) => {
-    if (!enabled || !audioUnlocked) return false;
+    if (!enabled) return false;
     const ctx = await ensureCtx();
     if (!ctx) return false;
     const sorted = [...midis].sort((a, b) => a - b);
@@ -80,12 +80,7 @@ export function usePiano(enabled, audioUnlocked) {
       playOne(ctx, m, strum ? i * 0.015 : 0, 2.2, 0.14);
     });
     return true;
-  }, [enabled, audioUnlocked, ensureCtx, playOne]);
+  }, [enabled, ensureCtx, playOne]);
 
-  const unlock = useCallback(async () => {
-    const ctx = await ensureCtx();
-    return Boolean(ctx && ctx.state === 'running');
-  }, [ensureCtx]);
-
-  return { playNote, playChord, unlock };
+  return { playNote, playChord };
 }

@@ -19,7 +19,8 @@ export function Keyboard({
     if (!endWhite) {
       return ALL_KEYS.filter((k) => k.midi >= start && k.midi <= FULL_END);
     }
-    const end = Math.min(endWhite.midi + 12, FULL_END);
+    // Include black key after last white if present (e.g. Bb after A)
+    const end = Math.min(endWhite.midi + 1, FULL_END);
     return ALL_KEYS.filter((k) => k.midi >= start && k.midi <= end);
   }, [keyboardStart]);
 
@@ -28,10 +29,12 @@ export function Keyboard({
   const isHinted = (midi) => hintNotes && hintNotes.has(midi % 12) && !lockedCorrect.has(midi % 12);
 
   const keyLabel = (key) => `${key.name}${key.octave}`;
+  const startOct = Math.floor(keyboardStart / 12) - 1;
+  const endOct = startOct + 1;
 
   return (
     <section aria-label="鋼琴鍵盤" className="keyboard-section">
-      <div className="flex items-center justify-between mb-2 px-1">
+      <div className="keyboard-octave-bar">
         <button
           type="button"
           aria-label="移動到較低音域"
@@ -42,14 +45,14 @@ export function Keyboard({
           <ChevronLeft size={12} className="text-slate-400" aria-hidden="true" />
           <span className="text-[10px] text-slate-500 tracking-wider uppercase">Lower</span>
         </button>
-        <div className="text-[10px] tracking-[0.3em] text-slate-600 uppercase font-medium">
-          Octave {Math.floor(keyboardStart / 12) - 1} – {Math.floor((keyboardStart + 12) / 12) - 1}
+        <div className="keyboard-octave-label">
+          {startOct}–{endOct} · 1.5 oct
         </div>
         <button
           type="button"
           aria-label="移動到較高音域"
           onClick={() => onShiftKeyboard(1)}
-          disabled={disabled || keyboardStart + 12 >= FULL_END - 11}
+          disabled={disabled || keyboardStart + 18 >= FULL_END}
           className="btn-octave disabled:opacity-30 touch-none"
         >
           <span className="text-[10px] text-slate-500 tracking-wider uppercase">Higher</span>
@@ -57,8 +60,8 @@ export function Keyboard({
         </button>
       </div>
 
-      <div className="relative w-full mb-3 keyboard-shell">
-        <div className="absolute inset-0 rounded-2xl p-2 sm:p-2.5 keyboard-frame">
+      <div className="relative w-full keyboard-shell">
+        <div className="absolute inset-0 rounded-2xl p-1.5 sm:p-2 keyboard-frame">
           <div className="relative w-full h-full flex">
             {visibleWhites.map((key) => {
               const locked = isKeyLocked(key.midi);
@@ -72,7 +75,7 @@ export function Keyboard({
                   disabled={disabled}
                   onMouseDown={() => onKey(key.midi)}
                   onTouchStart={(e) => { e.preventDefault(); onKey(key.midi); }}
-                  className={`flex-1 relative rounded-b-xl transition-all duration-100 touch-none active:scale-[0.98] ${locked ? 'key-locked-white' : ''} ${isWrong ? 'wrong-shake' : ''} ${hinted ? 'key-hint-white' : ''}`}
+                  className={`flex-1 relative rounded-b-lg transition-all duration-100 touch-none active:scale-[0.98] ${locked ? 'key-locked-white' : ''} ${isWrong ? 'wrong-shake' : ''} ${hinted ? 'key-hint-white' : ''}`}
                   style={{
                     background: isWrong
                       ? 'linear-gradient(180deg, #F7768E 0%, #c44e64 100%)'
@@ -83,8 +86,8 @@ export function Keyboard({
                       : 'linear-gradient(180deg, #F0EEE8 0%, #D8D4CA 95%, #B8B4AA 100%)',
                     border: locked ? '1px solid rgba(122,220,200,0.6)' : '1px solid rgba(0,0,0,0.4)',
                     borderTop: locked ? '1px solid rgba(184,242,216,0.8)' : '1px solid rgba(255,255,255,0.5)',
-                    marginRight: '2px',
-                    boxShadow: locked ? undefined : 'inset 0 -8px 0 rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.6), 0 2px 4px rgba(0,0,0,0.3)',
+                    marginRight: '1.5px',
+                    boxShadow: locked ? undefined : 'inset 0 -6px 0 rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.6), 0 2px 4px rgba(0,0,0,0.3)',
                   }}
                 />
               );
@@ -106,9 +109,10 @@ export function Keyboard({
                       disabled={disabled}
                       onMouseDown={() => onKey(blackKey.midi)}
                       onTouchStart={(e) => { e.preventDefault(); onKey(blackKey.midi); }}
-                      className={`absolute pointer-events-auto rounded-b-lg transition-all duration-100 touch-none active:scale-[0.98] ${locked ? 'key-locked-black' : ''} ${isWrong ? 'wrong-shake' : ''} ${hinted ? 'key-hint-black' : ''}`}
+                      className={`absolute pointer-events-auto rounded-b-md transition-all duration-100 touch-none active:scale-[0.98] ${locked ? 'key-locked-black' : ''} ${isWrong ? 'wrong-shake' : ''} ${hinted ? 'key-hint-black' : ''}`}
                       style={{
-                        width: '64%', height: '63%', right: '-32%', top: 0, zIndex: 10,
+                        // Wider/taller black keys for easier Ab / C# / Eb taps
+                        width: '72%', height: '58%', right: '-36%', top: 0, zIndex: 10,
                         background: isWrong
                           ? 'linear-gradient(180deg, #F7768E 0%, #8a3d4f 100%)'
                           : locked

@@ -5,8 +5,6 @@ import {
 import { TestMode } from './components/TestMode.jsx';
 import { EarMode } from './components/EarMode.jsx';
 import { StatsMode } from './components/StatsMode.jsx';
-import { AudioUnlockOverlay } from './components/AudioUnlockOverlay.jsx';
-import { usePiano } from './hooks/usePiano.js';
 import { DIFFICULTY_LEVELS, TABS } from './lib/constants.js';
 import { loadStats, saveStats } from './lib/stats.js';
 
@@ -23,8 +21,6 @@ export default function App() {
   const [showSettings, setShowSettings] = useState(false);
   const [stats, setStatsState] = useState(() => loadStats());
   const [scoreInfo, setScoreInfo] = useState({ streak: 0, correct: 0, total: 0 });
-  const [audioUnlocked, setAudioUnlocked] = useState(false);
-  const { unlock } = usePiano(soundOn, audioUnlocked);
 
   const setStats = useCallback((updater) => {
     setStatsState((prev) => {
@@ -33,11 +29,6 @@ export default function App() {
       return next;
     });
   }, []);
-
-  const handleUnlock = async () => {
-    const ok = await unlock();
-    if (ok) setAudioUnlocked(true);
-  };
 
   const sessionAccuracy = scoreInfo.total > 0
     ? Math.round((scoreInfo.correct / scoreInfo.total) * 100)
@@ -50,8 +41,6 @@ export default function App() {
 
   return (
     <div lang="zh-Hant" className="app-shell w-full text-slate-200 select-none relative overflow-hidden bg-[#070912]">
-      {!audioUnlocked && <AudioUnlockOverlay onUnlock={handleUnlock} />}
-
       <div
         className="absolute top-[-20%] left-[-10%] w-[500px] h-[500px] rounded-full ambient-glow float-orb pointer-events-none ambient-orb"
         style={{
@@ -171,7 +160,6 @@ export default function App() {
           <TestMode
             difficulty={difficulty}
             soundOn={soundOn}
-            audioUnlocked={audioUnlocked}
             stats={stats}
             setStats={setStats}
             onScoreChange={setScoreInfo}
@@ -180,7 +168,6 @@ export default function App() {
           <EarMode
             difficulty={difficulty}
             soundOn={soundOn}
-            audioUnlocked={audioUnlocked}
             stats={stats}
             setStats={setStats}
             onScoreChange={setScoreInfo}

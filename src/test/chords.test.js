@@ -21,11 +21,15 @@ describe('chords', () => {
     expect(q.name).not.toBe('Cm');
   });
 
-  it('builds ascending voicing intervals', () => {
-    const midis = buildChordVoicing('C', 'maj7');
-    for (let i = 1; i < midis.length; i++) {
-      expect(midis[i]).toBeGreaterThan(midis[i - 1]);
-    }
+  it('builds voicing from the root, not stacked from the previous note', () => {
+    const major = buildChordVoicing('C', '');
+    expect(major[1] - major[0]).toBe(4);
+    expect(major[2] - major[0]).toBe(7);
+
+    const maj7 = buildChordVoicing('C', 'maj7');
+    expect(maj7[1] - maj7[0]).toBe(4);
+    expect(maj7[2] - maj7[0]).toBe(7);
+    expect(maj7[3] - maj7[0]).toBe(11);
   });
 
   it('formats chord names', () => {

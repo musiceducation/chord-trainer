@@ -21,7 +21,6 @@ import { FULL_END, FULL_START } from '../lib/constants.js';
 export function EarMode({
   difficulty,
   soundOn,
-  audioUnlocked,
   stats: _stats,
   setStats,
   onScoreChange,
@@ -39,17 +38,17 @@ export function EarMode({
   const [liveMessage, setLiveMessage] = useState('');
   const streakRef = useRef(0);
   const hasFailedRef = useRef(false);
-  const { playNote, playChord } = usePiano(soundOn, audioUnlocked);
+  const { playNote, playChord } = usePiano(soundOn);
   const { schedule, clearAll } = useTimeoutCleanup();
 
   useEffect(() => { streakRef.current = streak; }, [streak]);
   useEffect(() => { hasFailedRef.current = hasFailed; }, [hasFailed]);
 
   const replayChord = useCallback(async () => {
-    if (!soundOn || !audioUnlocked) return false;
+    if (!soundOn) return false;
     const midis = buildChordVoicing(question.root, question.type);
     return playChord(midis);
-  }, [soundOn, audioUnlocked, question.root, question.type, playChord]);
+  }, [soundOn, question.root, question.type, playChord]);
 
   useEffect(() => {
     clearAll();
@@ -64,8 +63,9 @@ export function EarMode({
   }, [difficulty, clearAll]);
 
   useEffect(() => {
+    if (hidden) return;
     onScoreChange({ streak, correct: score.correct, total: score.total });
-  }, [streak, score, onScoreChange]);
+  }, [hidden, streak, score, onScoreChange]);
 
   useEffect(() => {
     if (feedback || hidden) return;
@@ -154,7 +154,7 @@ export function EarMode({
         <button
           type="button"
           aria-label="播放和弦"
-          disabled={!soundOn || !audioUnlocked}
+          disabled={!soundOn}
           onClick={replayChord}
           className="relative transition-transform touch-none active:scale-95 disabled:opacity-40 ear-play-btn"
         >
@@ -211,7 +211,7 @@ export function EarMode({
         <button
           type="button"
           onClick={replayChord}
-          disabled={!soundOn || !audioUnlocked}
+          disabled={!soundOn}
           className="btn-action btn-ear disabled:opacity-40 touch-none"
         >
           <Play size={13} className="text-emerald-300" aria-hidden="true" />

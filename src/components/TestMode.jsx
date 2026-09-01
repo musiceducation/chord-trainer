@@ -21,7 +21,6 @@ import { FULL_END, FULL_START } from '../lib/constants.js';
 export function TestMode({
   difficulty,
   soundOn,
-  audioUnlocked,
   stats: _stats,
   setStats,
   onScoreChange,
@@ -40,7 +39,7 @@ export function TestMode({
   const [liveMessage, setLiveMessage] = useState('');
   const streakRef = useRef(0);
   const hasFailedRef = useRef(false);
-  const { playNote, playChord } = usePiano(soundOn, audioUnlocked);
+  const { playNote, playChord } = usePiano(soundOn);
   const { schedule, clearAll } = useTimeoutCleanup();
 
   useEffect(() => { streakRef.current = streak; }, [streak]);
@@ -60,8 +59,9 @@ export function TestMode({
   }, [difficulty, clearAll]);
 
   useEffect(() => {
+    if (hidden) return;
     onScoreChange({ streak, correct: score.correct, total: score.total });
-  }, [streak, score, onScoreChange]);
+  }, [hidden, streak, score, onScoreChange]);
 
   useEffect(() => {
     if (feedback || hidden) return;
