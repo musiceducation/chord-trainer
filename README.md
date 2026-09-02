@@ -11,6 +11,7 @@ Interactive chord recognition and ear training for web, iPhone, and iPad.
 - **Ear training** — listen and reproduce chords
 - **Difficulty levels** — triads, sevenths, extended, all
 - **On-device stats** — accuracy, streaks, weak chords, achievements
+- **Optional tip jar** — 支持一下 (consumable IAP; training stays free)
 - **Offline-first** — PWA + Capacitor iOS, no account required
 
 ## Development
@@ -29,6 +30,7 @@ npm run cap:open   # open Xcode
 - Bundle ID: `com.musiceducation.chordtrainer`
 - Xcode workspace: `ios/App/App.xcworkspace`
 - Submission docs: `docs/app-store/`
+- Tip jar / IAP product IDs: `docs/app-store/iap-tip-jar.md`
 - Assets: `resources/`
 
 See [submission checklist](docs/app-store/submission-checklist.md) for full release steps.

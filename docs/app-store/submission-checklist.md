@@ -6,6 +6,7 @@
 - [ ] Register bundle ID `com.musiceducation.chordtrainer` in Certificates, Identifiers & Profiles
 - [ ] Create App Store Connect app record
 - [ ] Host privacy policy and support pages (see `privacy-policy.html`, `support.html`)
+- [ ] Before any IAP-enabled build can be reviewed: Paid Apps Agreement + consumable products in ASC (see `iap-tip-jar.md`). This repo does not create those ASC records.
 
 ## Local build steps
 

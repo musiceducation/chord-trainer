@@ -1,12 +1,14 @@
 import { useState, useCallback } from 'react';
 import {
-  Volume2, VolumeX, Flame, Settings, Sparkles, Headphones, BarChart3,
+  Volume2, VolumeX, Flame, Settings, Sparkles, Headphones, BarChart3, Coffee,
 } from 'lucide-react';
 import { TestMode } from './components/TestMode.jsx';
 import { EarMode } from './components/EarMode.jsx';
 import { StatsMode } from './components/StatsMode.jsx';
+import { TipJar } from './components/TipJar.jsx';
 import { DIFFICULTY_LEVELS, TABS } from './lib/constants.js';
 import { loadStats, saveStats } from './lib/stats.js';
+import { TIP_COPY } from './lib/iap.js';
 
 const TAB_ICONS = {
   test: Sparkles,
@@ -19,6 +21,7 @@ export default function App() {
   const [difficulty, setDifficulty] = useState('basic');
   const [soundOn, setSoundOn] = useState(true);
   const [showSettings, setShowSettings] = useState(false);
+  const [showTipJar, setShowTipJar] = useState(false);
   const [stats, setStatsState] = useState(() => loadStats());
   const [scoreInfo, setScoreInfo] = useState({ streak: 0, correct: 0, total: 0 });
 
@@ -37,6 +40,11 @@ export default function App() {
   const changeDifficulty = (d) => {
     setDifficulty(d);
     setShowSettings(false);
+  };
+
+  const openTipJar = () => {
+    setShowSettings(false);
+    setShowTipJar(true);
   };
 
   return (
@@ -87,6 +95,19 @@ export default function App() {
             </button>
             <button
               type="button"
+              aria-label={TIP_COPY.title}
+              aria-pressed={showTipJar}
+              onClick={openTipJar}
+              className="chip p-2 rounded-full transition active:scale-95 touch-none"
+              style={{
+                background: showTipJar ? 'rgba(255, 215, 130, 0.15)' : undefined,
+                borderColor: showTipJar ? 'rgba(255, 215, 130, 0.4)' : undefined,
+              }}
+            >
+              <Coffee size={13} className={showTipJar ? 'text-amber-300' : 'text-slate-300'} />
+            </button>
+            <button
+              type="button"
               aria-label="難度設定"
               aria-pressed={showSettings}
               onClick={() => setShowSettings((s) => !s)}
@@ -126,33 +147,49 @@ export default function App() {
           })}
         </nav>
 
-        {showSettings && tab !== 'stats' && (
-          <section aria-label="難度設定" className="mb-3 p-3 rounded-2xl chord-name panel-solid relative z-20">
-            <div className="text-[10px] text-slate-500 uppercase tracking-[0.3em] mb-2.5 font-semibold">Difficulty</div>
-            <div className="grid grid-cols-2 gap-1.5">
-              {Object.entries(DIFFICULTY_LEVELS).map(([key, val]) => {
-                const active = difficulty === key;
-                return (
-                  <button
-                    key={key}
-                    type="button"
-                    onClick={() => changeDifficulty(key)}
-                    className="py-2.5 rounded-xl text-sm transition-all touch-none active:scale-[0.98]"
-                    style={{
-                      background: active
-                        ? 'linear-gradient(135deg, rgba(122,162,247,0.25), rgba(122,162,247,0.1))'
-                        : 'rgba(255,255,255,0.02)',
-                      border: `1px solid ${active ? 'rgba(122,162,247,0.5)' : 'rgba(255,255,255,0.05)'}`,
-                      color: active ? '#C0CAF5' : '#565F89',
-                      fontWeight: active ? 700 : 500,
-                    }}
-                  >
-                    <div>{val.name}</div>
-                    <div className="text-[9px] tracking-wider mt-0.5 opacity-60">{val.en}</div>
-                  </button>
-                );
-              })}
-            </div>
+        {showSettings && (
+          <section aria-label="設定" className="mb-3 p-3 rounded-2xl chord-name panel-solid relative z-20">
+            {tab !== 'stats' && (
+              <>
+                <div className="text-[10px] text-slate-500 uppercase tracking-[0.3em] mb-2.5 font-semibold">Difficulty</div>
+                <div className="grid grid-cols-2 gap-1.5">
+                  {Object.entries(DIFFICULTY_LEVELS).map(([key, val]) => {
+                    const active = difficulty === key;
+                    return (
+                      <button
+                        key={key}
+                        type="button"
+                        onClick={() => changeDifficulty(key)}
+                        className="py-2.5 rounded-xl text-sm transition-all touch-none active:scale-[0.98]"
+                        style={{
+                          background: active
+                            ? 'linear-gradient(135deg, rgba(122,162,247,0.25), rgba(122,162,247,0.1))'
+                            : 'rgba(255,255,255,0.02)',
+                          border: `1px solid ${active ? 'rgba(122,162,247,0.5)' : 'rgba(255,255,255,0.05)'}`,
+                          color: active ? '#C0CAF5' : '#565F89',
+                          fontWeight: active ? 700 : 500,
+                        }}
+                      >
+                        <div>{val.name}</div>
+                        <div className="text-[9px] tracking-wider mt-0.5 opacity-60">{val.en}</div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </>
+            )}
+            <button
+              type="button"
+              onClick={openTipJar}
+              className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm text-slate-300 transition-all touch-none active:scale-[0.98] ${tab !== 'stats' ? 'mt-3' : ''}`}
+              style={{
+                background: 'rgba(255,215,130,0.06)',
+                border: '1px solid rgba(255,215,130,0.18)',
+              }}
+            >
+              <Coffee size={14} className="text-amber-300" aria-hidden="true" />
+              <span>{TIP_COPY.title}</span>
+            </button>
           </section>
         )}
 
@@ -176,6 +213,7 @@ export default function App() {
           <StatsMode stats={stats} setStats={setStats} hidden={tab !== 'stats'} />
         </main>
       </div>
+      <TipJar open={showTipJar} onClose={() => setShowTipJar(false)} />
     </div>
   );
 }

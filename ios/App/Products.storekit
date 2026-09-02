@@ -1,0 +1,55 @@
+{
+  "identifier" : "Products",
+  "nonRenewingSubscriptions" : [],
+  "products" : [
+    {
+      "displayPrice" : "0.99",
+      "familyShareable" : false,
+      "internalID" : "A8E2C4B1D6F94E0A9C3B7F2158E4D0AA",
+      "localizations" : [
+        {
+          "description" : "Optional tip to support Chord Trainer. All training features stay free.",
+          "displayName" : "Iced lemon tea",
+          "locale" : "en_US"
+        },
+        {
+          "description" : "支持 Chord Trainer 開發。訓練功能仍然全部免費。",
+          "displayName" : "請飲杯凍檸茶",
+          "locale" : "zh_Hant"
+        }
+      ],
+      "productID" : "com.musiceducation.chordtrainer.tip.lemontea",
+      "referenceName" : "Lemon Tea Tip",
+      "type" : "Consumable"
+    },
+    {
+      "displayPrice" : "4.99",
+      "familyShareable" : false,
+      "internalID" : "B9F3D5C2E7A05F1B0D4C8A3269F5E1BB",
+      "localizations" : [
+        {
+          "description" : "Optional tip to support Chord Trainer. All training features stay free.",
+          "displayName" : "Coffee",
+          "locale" : "en_US"
+        },
+        {
+          "description" : "支持 Chord Trainer 開發。訓練功能仍然全部免費。",
+          "displayName" : "請飲杯啡",
+          "locale" : "zh_Hant"
+        }
+      ],
+      "productID" : "com.musiceducation.chordtrainer.tip.coffee",
+      "referenceName" : "Coffee Tip",
+      "type" : "Consumable"
+    }
+  ],
+  "settings" : {
+    "_failTransactionsEnabled" : false,
+    "_storeKitErrors" : []
+  },
+  "subscriptionGroups" : [],
+  "version" : {
+    "major" : 3,
+    "minor" : 0
+  }
+}
