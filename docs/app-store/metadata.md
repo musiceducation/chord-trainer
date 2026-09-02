@@ -57,7 +57,8 @@ chord,piano,music,ear training,theory,keyboard,triad,七和弦,聽音,練習
 ## Review Notes
 
 - No login required
-- No in-app purchases
+- Optional tip jar only (consumable IAP); all training features remain free — no paywall
+- Product IDs: `com.musiceducation.chordtrainer.tip.lemontea`, `com.musiceducation.chordtrainer.tip.coffee` (see `iap-tip-jar.md`)
 - No ads or tracking
 - Audio uses synthesized Web Audio (no microphone)
 - Progress stored locally only in `localStorage`

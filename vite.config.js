@@ -8,6 +8,9 @@ export default defineConfig({
     outDir: 'dist',
     sourcemap: false,
   },
+  optimizeDeps: {
+    exclude: ['@capgo/native-purchases'],
+  },
   test: {
     environment: 'node',
   },
