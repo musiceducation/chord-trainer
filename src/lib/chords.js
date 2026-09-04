@@ -39,7 +39,30 @@ export function generateQuestion(difficulty, lastName, random = Math.random) {
 }
 
 export function formatChord(name) {
+  if (!name) return '';
+  // Progression labels like "Bb: I-V-vi-IV" — preserve roman numeral case
+  if (name.includes(': ')) return name;
   return name.charAt(0).toUpperCase() + name.slice(1).toLowerCase();
+}
+
+export function chordTypeI18nKey(chordType) {
+  const map = {
+    '': 'chordType.major',
+    m: 'chordType.minor',
+    dim: 'chordType.dim',
+    aug: 'chordType.aug',
+    sus2: 'chordType.sus2',
+    sus4: 'chordType.sus4',
+    maj7: 'chordType.maj7',
+    m7: 'chordType.m7',
+    '7': 'chordType.dom7',
+    m7b5: 'chordType.m7b5',
+    dim7: 'chordType.dim7',
+    '7b9': 'chordType.dom7b9',
+    '9': 'chordType.dom9',
+    maj9: 'chordType.maj9',
+  };
+  return map[chordType] || 'chordType.major';
 }
 
 /** Build a properly spaced chord voicing around MIDI 60 */

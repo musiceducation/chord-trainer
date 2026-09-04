@@ -11,3 +11,4 @@ ios/App/DerivedData/
 **/xcuserdata/
 *.xcworkspace/xcuserdata/
 .vercel/
+build/

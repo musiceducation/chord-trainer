@@ -12,14 +12,31 @@ export const DEFAULT_STATS = {
   achievements: [],
 };
 
+function normalizeHistoryEntry(raw) {
+  if (!raw || typeof raw !== 'object') {
+    return { correct: 0, wrong: 0, kind: 'chord' };
+  }
+  return {
+    correct: Number(raw.correct) || 0,
+    wrong: Number(raw.wrong) || 0,
+    kind: raw.kind === 'progression' ? 'progression' : 'chord',
+  };
+}
+
 export function normalizeStats(raw) {
   if (!raw || typeof raw !== 'object') return { ...DEFAULT_STATS };
+  const chordHistory = {};
+  if (raw.chordHistory && typeof raw.chordHistory === 'object') {
+    Object.entries(raw.chordHistory).forEach(([name, entry]) => {
+      chordHistory[name] = normalizeHistoryEntry(entry);
+    });
+  }
   return {
     totalCorrect: Number(raw.totalCorrect) || 0,
     totalAnswered: Number(raw.totalAnswered) || 0,
     bestStreak: Number(raw.bestStreak) || 0,
     earCorrect: Number(raw.earCorrect) || 0,
-    chordHistory: raw.chordHistory && typeof raw.chordHistory === 'object' ? { ...raw.chordHistory } : {},
+    chordHistory,
     achievements: Array.isArray(raw.achievements) ? [...raw.achievements] : [],
   };
 }
@@ -50,12 +67,21 @@ export function computeAccuracy(stats) {
   return Math.round((stats.totalCorrect / stats.totalAnswered) * 100);
 }
 
-export function recordWrongAttempt(stats, chordName) {
+export function isProgressionHistoryKey(name) {
+  return typeof name === 'string' && name.includes(': ');
+}
+
+export function recordWrongAttempt(stats, chordName, { kind } = {}) {
   const ns = normalizeStats(stats);
   ns.totalAnswered += 1;
   ns.chordHistory = { ...ns.chordHistory };
-  const ch = ns.chordHistory[chordName] || { correct: 0, wrong: 0 };
-  ns.chordHistory[chordName] = { ...ch, wrong: ch.wrong + 1 };
+  const resolvedKind = kind || (isProgressionHistoryKey(chordName) ? 'progression' : 'chord');
+  const ch = normalizeHistoryEntry(ns.chordHistory[chordName]);
+  ns.chordHistory[chordName] = {
+    ...ch,
+    wrong: ch.wrong + 1,
+    kind: resolvedKind,
+  };
   return ns;
 }
 
@@ -69,7 +95,8 @@ export function recordCorrectAttempt(stats, {
   chordName,
   newStreak,
   isEarMode = false,
-}) {
+  kind,
+} = {}) {
   const ns = normalizeStats(stats);
   ns.totalCorrect += 1;
   ns.totalAnswered += 1;
@@ -77,8 +104,13 @@ export function recordCorrectAttempt(stats, {
   if (newStreak > ns.bestStreak) ns.bestStreak = newStreak;
 
   ns.chordHistory = { ...ns.chordHistory };
-  const ch = ns.chordHistory[chordName] || { correct: 0, wrong: 0 };
-  ns.chordHistory[chordName] = { ...ch, correct: ch.correct + 1 };
+  const resolvedKind = kind || (isProgressionHistoryKey(chordName) ? 'progression' : 'chord');
+  const ch = normalizeHistoryEntry(ns.chordHistory[chordName]);
+  ns.chordHistory[chordName] = {
+    ...ch,
+    correct: ch.correct + 1,
+    kind: resolvedKind,
+  };
 
   ns.achievements = [...(ns.achievements || [])];
   ACHIEVEMENTS.forEach((a) => {
@@ -97,4 +129,25 @@ export function computeStreakAfterSuccess(streak, hasFailed) {
 
 export function computeStreakAfterWrong() {
   return 0;
+}
+
+/** Weakest chord list — excludes progression entries. */
+export function getWeakestChords(stats, limit = 5, minAttempts = 3) {
+  return Object.entries(stats.chordHistory || {})
+    .map(([name, h]) => {
+      const entry = normalizeHistoryEntry(h);
+      return {
+        name,
+        correct: entry.correct,
+        wrong: entry.wrong,
+        total: entry.correct + entry.wrong,
+        rate: (entry.correct + entry.wrong) > 0
+          ? entry.correct / (entry.correct + entry.wrong)
+          : 1,
+        kind: entry.kind,
+      };
+    })
+    .filter((c) => c.kind !== 'progression' && c.total >= minAttempts)
+    .sort((a, b) => a.rate - b.rate)
+    .slice(0, limit);
 }

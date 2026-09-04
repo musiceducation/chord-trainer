@@ -1,4 +1,6 @@
-export function ConfirmDialog({ open, title, message, confirmLabel, cancelLabel, onConfirm, onCancel }) {
+export function ConfirmDialog({
+  open, title, message, confirmLabel, cancelLabel, closeLabel = 'Close dialog', onConfirm, onCancel,
+}) {
   if (!open) return null;
 
   return (
@@ -11,7 +13,7 @@ export function ConfirmDialog({ open, title, message, confirmLabel, cancelLabel,
       <button
         type="button"
         className="absolute inset-0 bg-black/60"
-        aria-label="關閉對話框"
+        aria-label={closeLabel}
         onClick={onCancel}
       />
       <div className="relative w-full max-w-sm rounded-2xl p-5 panel-solid">

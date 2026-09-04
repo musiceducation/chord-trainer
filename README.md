@@ -9,9 +9,11 @@ Interactive chord recognition and ear training for web, iPhone, and iPad.
 
 - **Recognition mode** — read a chord name, play it on the piano
 - **Ear training** — listen and reproduce chords
+- **Progressions** — hear a diatonic progression and identify I–VII
 - **Difficulty levels** — triads, sevenths, extended, all
 - **On-device stats** — accuracy, streaks, weak chords, achievements
 - **Offline-first** — PWA + Capacitor iOS, no account required
+- **Optional tips** — $0.99 / $4.99 Support IAP on iOS; all training stays free
 
 ## Development
 

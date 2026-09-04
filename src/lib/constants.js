@@ -25,12 +25,10 @@ export const CHORD_FORMULAS = {
 export const ROOTS = ['C', 'D', 'E', 'F', 'G', 'A', 'B', 'C#', 'Eb', 'F#', 'Ab', 'Bb'];
 
 export const DIFFICULTY_LEVELS = {
-  basic: { name: '三和弦', en: 'Triads', types: ['', 'm', 'dim', 'aug', 'sus2', 'sus4'] },
-  seventh: { name: '七和弦', en: 'Sevenths', types: ['maj7', 'm7', '7', 'm7b5', 'dim7'] },
-  extended: { name: '延伸', en: 'Extended', types: ['7b9', '9', 'maj9'] },
+  basic: { types: ['', 'm', 'dim', 'aug', 'sus2', 'sus4'] },
+  seventh: { types: ['maj7', 'm7', '7', 'm7b5', 'dim7'] },
+  extended: { types: ['7b9', '9', 'maj9'] },
   all: {
-    name: '全混合',
-    en: 'All',
     types: ['', 'm', 'dim', 'aug', 'sus2', 'sus4', 'maj7', 'm7', '7', 'm7b5', 'dim7', '7b9', '9', 'maj9'],
   },
 };
@@ -53,17 +51,18 @@ for (let m = FULL_START; m <= FULL_END; m++) {
 }
 
 export const ACHIEVEMENTS = [
-  { id: 'first', name: '初試啼聲', desc: '答對第一題', threshold: 1, type: 'correct' },
-  { id: 'streak10', name: '十連勝', desc: '連續答對 10 題', threshold: 10, type: 'streak' },
-  { id: 'streak25', name: '高手在線', desc: '連續答對 25 題', threshold: 25, type: 'streak' },
-  { id: 'streak50', name: '神乎其技', desc: '連續答對 50 題', threshold: 50, type: 'streak' },
-  { id: 'total50', name: '勤學苦練', desc: '累計答對 50 題', threshold: 50, type: 'correct' },
-  { id: 'total200', name: '百煉成鋼', desc: '累計答對 200 題', threshold: 200, type: 'correct' },
-  { id: 'ear10', name: '耳朵敏銳', desc: '聽音模式答對 10 題', threshold: 10, type: 'ear' },
+  { id: 'first', threshold: 1, type: 'correct' },
+  { id: 'streak10', threshold: 10, type: 'streak' },
+  { id: 'streak25', threshold: 25, type: 'streak' },
+  { id: 'streak50', threshold: 50, type: 'streak' },
+  { id: 'total50', threshold: 50, type: 'correct' },
+  { id: 'total200', threshold: 200, type: 'correct' },
+  { id: 'ear10', threshold: 10, type: 'ear' },
 ];
 
 export const TABS = [
-  { key: 'test', name: '辨識', accent: 'rgba(122,162,247,0.4)' },
-  { key: 'ear', name: '訓練', accent: 'rgba(122,220,200,0.4)' },
-  { key: 'stats', name: '統計', accent: 'rgba(255,215,130,0.4)' },
+  { key: 'test', accent: 'rgba(122,162,247,0.4)' },
+  { key: 'ear', accent: 'rgba(122,220,200,0.4)' },
+  { key: 'progression', accent: 'rgba(122,162,247,0.4)' },
+  { key: 'stats', accent: 'rgba(255,215,130,0.4)' },
 ];

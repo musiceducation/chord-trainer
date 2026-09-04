@@ -9,6 +9,7 @@ import {
   computeStreakAfterSuccess,
   computeStreakAfterWrong,
   computeAccuracy,
+  getWeakestChords,
   DEFAULT_STATS,
 } from '../lib/stats.js';
 
@@ -66,5 +67,32 @@ describe('stats', () => {
 
   it('computes accuracy', () => {
     expect(computeAccuracy({ totalCorrect: 3, totalAnswered: 4 })).toBe(75);
+  });
+
+  it('excludes progression history from weakest chords', () => {
+    let stats = DEFAULT_STATS;
+    for (let i = 0; i < 3; i += 1) {
+      stats = recordWrongAttempt(stats, 'Cmaj7', { kind: 'chord' });
+      stats = recordWrongAttempt(stats, 'C: I-V-vi-IV', { kind: 'progression' });
+    }
+    stats = recordCorrectAttempt(stats, {
+      chordName: 'Am',
+      newStreak: 1,
+      kind: 'chord',
+    });
+    stats = recordCorrectAttempt(stats, {
+      chordName: 'Am',
+      newStreak: 2,
+      kind: 'chord',
+    });
+    stats = recordCorrectAttempt(stats, {
+      chordName: 'Am',
+      newStreak: 3,
+      kind: 'chord',
+    });
+    const weak = getWeakestChords(stats);
+    expect(weak.every((c) => c.kind !== 'progression')).toBe(true);
+    expect(weak.some((c) => c.name === 'Cmaj7')).toBe(true);
+    expect(weak.some((c) => c.name.includes(': '))).toBe(false);
   });
 });

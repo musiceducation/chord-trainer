@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { ALL_KEYS, FULL_END, FULL_START, VISIBLE_WHITE_KEYS } from '../lib/constants.js';
+import { useI18n } from '../hooks/useI18n.jsx';
 
 export function Keyboard({
   pressed,
@@ -28,34 +29,35 @@ export function Keyboard({
   const isKeyLocked = (midi) => lockedCorrect.has(midi % 12) && pressed.has(midi);
   const isHinted = (midi) => hintNotes && hintNotes.has(midi % 12) && !lockedCorrect.has(midi % 12);
 
+  const { t } = useI18n();
   const keyLabel = (key) => `${key.name}${key.octave}`;
   const startOct = Math.floor(keyboardStart / 12) - 1;
   const endOct = startOct + 1;
 
   return (
-    <section aria-label="鋼琴鍵盤" className="keyboard-section">
+    <section aria-label={t('keyboard.piano')} className="keyboard-section">
       <div className="keyboard-octave-bar">
         <button
           type="button"
-          aria-label="移動到較低音域"
+          aria-label={t('keyboard.lower')}
           onClick={() => onShiftKeyboard(-1)}
           disabled={disabled || keyboardStart <= FULL_START}
           className="btn-octave disabled:opacity-30 touch-none"
         >
           <ChevronLeft size={12} className="text-slate-400" aria-hidden="true" />
-          <span className="text-[10px] text-slate-500 tracking-wider uppercase">Lower</span>
+          <span className="text-[10px] text-slate-500 tracking-wider uppercase">{t('keyboard.lowerLabel')}</span>
         </button>
         <div className="keyboard-octave-label">
-          {startOct}–{endOct} · 1.5 oct
+          {t('keyboard.range', { start: startOct, end: endOct })}
         </div>
         <button
           type="button"
-          aria-label="移動到較高音域"
+          aria-label={t('keyboard.higher')}
           onClick={() => onShiftKeyboard(1)}
           disabled={disabled || keyboardStart + 18 >= FULL_END}
           className="btn-octave disabled:opacity-30 touch-none"
         >
-          <span className="text-[10px] text-slate-500 tracking-wider uppercase">Higher</span>
+          <span className="text-[10px] text-slate-500 tracking-wider uppercase">{t('keyboard.higherLabel')}</span>
           <ChevronRight size={12} className="text-slate-400" aria-hidden="true" />
         </button>
       </div>

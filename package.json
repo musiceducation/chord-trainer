@@ -10,14 +10,16 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "eslint src --ext js,jsx",
-    "cap:sync": "npm run build && npx cap sync ios",
-    "cap:open": "npx cap open ios"
+    "cap:sync": "export DEVELOPER_DIR=\"${DEVELOPER_DIR:-/Applications/Xcode.app/Contents/Developer}\" && npm run build && npx cap sync ios",
+    "cap:open": "npx cap open ios",
+    "cap:screenshots": "node scripts/capture-asc-screenshots.mjs"
   },
   "dependencies": {
     "@capacitor/core": "^7.0.0",
     "@capacitor/ios": "^7.0.0",
     "@capacitor/splash-screen": "^7.0.0",
     "@capacitor/status-bar": "^7.0.0",
+    "capacitor-plugin-cdv-purchase": "^13.18.0",
     "lucide-react": "^0.469.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"

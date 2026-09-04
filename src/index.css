@@ -183,6 +183,36 @@ body {
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
+.prog-pad-shell {
+  height: clamp(72px, 12vh, 96px);
+}
+
+.prog-pad-shell-sm {
+  height: clamp(64px, 10vh, 84px);
+  margin-bottom: 0.35rem;
+}
+
+.prog-degree-key {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0 0 0.5rem 0.5rem;
+  background: linear-gradient(180deg, #F0EEE8 0%, #D8D4CA 95%, #B8B4AA 100%);
+  border: 1px solid rgba(0, 0, 0, 0.4);
+  border-top: 1px solid rgba(255, 255, 255, 0.5);
+  color: #1A1D2E;
+  font-size: clamp(1.125rem, 4.2vw, 1.5rem);
+  box-shadow: inset 0 -6px 0 rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.6), 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.prog-degree-key:active:not(:disabled) {
+  transform: translateY(1px) scale(0.98);
+}
+
+.prog-slot-selected {
+  box-shadow: inset 0 -4px 0 rgba(122, 162, 247, 0.85);
+}
+
 .ear-play-btn {
   width: clamp(120px, 28vw, 160px);
   height: clamp(120px, 28vw, 160px);
@@ -312,5 +342,13 @@ body {
 @media (max-height: 700px) {
   .keyboard-shell {
     height: clamp(130px, 24vh, 170px);
+  }
+
+  .prog-pad-shell {
+    height: clamp(60px, 11vh, 80px);
+  }
+
+  .prog-pad-shell-sm {
+    height: clamp(52px, 9vh, 70px);
   }
 }

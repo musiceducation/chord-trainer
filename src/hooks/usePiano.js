@@ -2,31 +2,69 @@ import { useRef, useCallback, useEffect } from 'react';
 
 const MAX_VOICES = 12;
 
-export function usePiano(enabled) {
-  const ctxRef = useRef(null);
-  const activeVoicesRef = useRef(0);
+/** Shared AudioContext across all mode hooks (avoids multiple contexts on iOS). */
+let sharedCtx = null;
+let sharedUsers = 0;
 
-  const ensureCtx = useCallback(async () => {
-    if (typeof window === 'undefined') return null;
-    if (!ctxRef.current) {
-      const AudioCtx = window.AudioContext || window.webkitAudioContext;
-      if (!AudioCtx) return null;
-      ctxRef.current = new AudioCtx();
+async function acquireSharedCtx() {
+  if (typeof window === 'undefined') return null;
+  if (!sharedCtx) {
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if (!AudioCtx) return null;
+    sharedCtx = new AudioCtx();
+  }
+  if (sharedCtx.state === 'suspended') {
+    await sharedCtx.resume();
+  }
+  return sharedCtx;
+}
+
+function releaseSharedCtx() {
+  sharedUsers = Math.max(0, sharedUsers - 1);
+  if (sharedUsers === 0 && sharedCtx) {
+    sharedCtx.close().catch(() => {});
+    sharedCtx = null;
+  }
+}
+
+function isAbortError(err) {
+  return err?.name === 'AbortError';
+}
+
+function wait(ms, signal) {
+  return new Promise((resolve, reject) => {
+    if (signal?.aborted) {
+      reject(new DOMException('Aborted', 'AbortError'));
+      return;
     }
-    if (ctxRef.current.state === 'suspended') {
-      await ctxRef.current.resume();
-    }
-    return ctxRef.current;
-  }, []);
+    const id = window.setTimeout(() => {
+      signal?.removeEventListener('abort', onAbort);
+      resolve();
+    }, ms);
+    const onAbort = () => {
+      window.clearTimeout(id);
+      reject(new DOMException('Aborted', 'AbortError'));
+    };
+    signal?.addEventListener('abort', onAbort, { once: true });
+  });
+}
+
+export function usePiano(enabled) {
+  const activeVoicesRef = useRef(0);
+  const acquiredRef = useRef(false);
 
   useEffect(() => {
+    sharedUsers += 1;
+    acquiredRef.current = true;
     return () => {
-      if (ctxRef.current) {
-        ctxRef.current.close().catch(() => {});
-        ctxRef.current = null;
+      if (acquiredRef.current) {
+        acquiredRef.current = false;
+        releaseSharedCtx();
       }
     };
   }, []);
+
+  const ensureCtx = useCallback(async () => acquireSharedCtx(), []);
 
   const playOne = useCallback((ctx, midi, startOffset = 0, sustain = 1.4, vol = 0.16) => {
     if (activeVoicesRef.current >= MAX_VOICES) return;
@@ -82,5 +120,22 @@ export function usePiano(enabled) {
     return true;
   }, [enabled, ensureCtx, playOne]);
 
-  return { playNote, playChord };
+  const playSequence = useCallback(async (chordMidisList, gapMs = 1100, signal = null) => {
+    if (!enabled) return false;
+    try {
+      for (let i = 0; i < chordMidisList.length; i += 1) {
+        if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
+        await playChord(chordMidisList[i], true);
+        if (i < chordMidisList.length - 1) {
+          await wait(gapMs, signal);
+        }
+      }
+      return true;
+    } catch (err) {
+      if (isAbortError(err)) return false;
+      throw err;
+    }
+  }, [enabled, playChord]);
+
+  return { playNote, playChord, playSequence };
 }

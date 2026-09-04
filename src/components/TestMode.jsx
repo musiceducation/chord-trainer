@@ -4,9 +4,9 @@ import { Keyboard } from './Keyboard.jsx';
 import { usePiano } from '../hooks/usePiano.js';
 import { useTimeoutCleanup } from '../hooks/useTimeoutCleanup.js';
 import {
+  chordTypeI18nKey,
   formatChord,
   generateQuestion,
-  getLabel,
   isCorrectNote,
 } from '../lib/chords.js';
 import {
@@ -17,6 +17,7 @@ import {
   recordWrongAttempt,
 } from '../lib/stats.js';
 import { FULL_END, FULL_START } from '../lib/constants.js';
+import { useI18n } from '../hooks/useI18n.jsx';
 
 export function TestMode({
   difficulty,
@@ -41,6 +42,9 @@ export function TestMode({
   const hasFailedRef = useRef(false);
   const { playNote, playChord } = usePiano(soundOn);
   const { schedule, clearAll } = useTimeoutCleanup();
+  const { t } = useI18n();
+  const tRef = useRef(t);
+  tRef.current = t;
 
   useEffect(() => { streakRef.current = streak; }, [streak]);
   useEffect(() => { hasFailedRef.current = hasFailed; }, [hasFailed]);
@@ -71,7 +75,7 @@ export function TestMode({
     if (!allMatch) return;
 
     setFeedback('correct');
-    setLiveMessage('答對了！');
+    setLiveMessage(tRef.current('live.correct'));
     playChord([...pressed]);
 
     const newStreak = computeStreakAfterSuccess(streakRef.current, hasFailedRef.current);
@@ -112,13 +116,13 @@ export function TestMode({
       });
     } else {
       setWrongFlash(midi);
-      setLiveMessage('音符錯誤，再試一次');
+      setLiveMessage(t('live.wrongNote'));
       schedule(() => setWrongFlash((prev) => (prev === midi ? null : prev)), 350);
       setStreak(computeStreakAfterWrong());
       setHasFailed(true);
       setStats((prev) => recordWrongAttempt(prev, question.name));
     }
-  }, [feedback, playNote, question, schedule, setStats]);
+  }, [feedback, playNote, question, schedule, setStats, t]);
 
   const skip = () => {
     clearAll();
@@ -131,7 +135,7 @@ export function TestMode({
     setFeedback(null);
     setHintNotes(null);
     setHasFailed(false);
-    setLiveMessage('已跳過此題');
+    setLiveMessage(t('live.skipped'));
   };
 
   const showHint = () => {
@@ -155,7 +159,7 @@ export function TestMode({
       <div className="flex-1 flex flex-col items-center justify-center min-h-0 relative overflow-y-auto">
         <div key={question.name} className="chord-name text-center relative">
           <div className="text-[10px] tracking-[0.5em] text-slate-500 uppercase mb-3 font-medium">
-            {getLabel(question.type)}
+            {t(chordTypeI18nKey(question.type))}
           </div>
           <div
             className={`display-font font-black leading-[0.85] tracking-tighter relative ${feedback === 'correct' ? 'chord-success' : 'chord-idle'}`}
@@ -195,10 +199,12 @@ export function TestMode({
         <div className="mt-3 h-5 text-xs tracking-wider">
           {feedback === 'correct' ? (
             <div className="flex items-center gap-1.5 text-emerald-300 font-semibold uppercase">
-              <Check size={12} aria-hidden="true" /><span>Perfect</span>
+              <Check size={12} aria-hidden="true" /><span>{t('action.perfect')}</span>
             </div>
           ) : (
-            <div className="text-slate-600 uppercase">{lockedCorrect.size} / {question.pcs.size} notes</div>
+            <div className="text-slate-600 uppercase">
+              {t('common.notesCount', { n: lockedCorrect.size, total: question.pcs.size })}
+            </div>
           )}
         </div>
       </div>
@@ -222,11 +228,11 @@ export function TestMode({
           className="btn-action btn-hint disabled:opacity-30 touch-none"
         >
           <Lightbulb size={13} className="text-amber-300" aria-hidden="true" />
-          <span className="text-xs text-amber-200 tracking-wider uppercase font-medium">Hint</span>
+          <span className="text-xs text-amber-200 tracking-wider uppercase font-medium">{t('action.hint')}</span>
         </button>
         <button type="button" onClick={skip} className="btn-action btn-neutral touch-none">
           <SkipForward size={13} className="text-slate-400" aria-hidden="true" />
-          <span className="text-xs text-slate-400 tracking-wider uppercase font-medium">Skip</span>
+          <span className="text-xs text-slate-400 tracking-wider uppercase font-medium">{t('action.skip')}</span>
         </button>
       </div>
     </div>

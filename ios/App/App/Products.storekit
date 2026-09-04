@@ -1,0 +1,58 @@
+{
+  "identifier" : "Products",
+  "nonRenewingSubscriptions" : [
+
+  ],
+  "products" : [
+    {
+      "displayPrice" : "0.99",
+      "familyShareable" : false,
+      "internalID" : "7C3E1A92-4B18-4F6D-9C21-0A8E6B4D2F11",
+      "localizations" : [
+        {
+          "description" : "An optional small tip to support Chord Trainer. All features stay free.",
+          "displayName" : "Support Chord Trainer",
+          "locale" : "en_US"
+        },
+        {
+          "description" : "自願小額支持 Chord Trainer。所有練習功能維持免費。",
+          "displayName" : "支持 Chord Trainer",
+          "locale" : "zh_TW"
+        }
+      ],
+      "productID" : "com.musiceducation.chordtrainer.support.small",
+      "referenceName" : "Support Small",
+      "type" : "Consumable"
+    },
+    {
+      "displayPrice" : "4.99",
+      "familyShareable" : false,
+      "internalID" : "9D14B8E0-6A27-4C3F-B815-3E7F1C90A246",
+      "localizations" : [
+        {
+          "description" : "An optional large tip to support Chord Trainer. All features stay free.",
+          "displayName" : "Support Chord Trainer+",
+          "locale" : "en_US"
+        },
+        {
+          "description" : "自願大額支持 Chord Trainer。所有練習功能維持免費。",
+          "displayName" : "支持 Chord Trainer+",
+          "locale" : "zh_TW"
+        }
+      ],
+      "productID" : "com.musiceducation.chordtrainer.support.large",
+      "referenceName" : "Support Large",
+      "type" : "Consumable"
+    }
+  ],
+  "settings" : {
+
+  },
+  "subscriptionGroups" : [
+
+  ],
+  "version" : {
+    "major" : 3,
+    "minor" : 0
+  }
+}

@@ -17,6 +17,7 @@ import {
   recordWrongAttempt,
 } from '../lib/stats.js';
 import { FULL_END, FULL_START } from '../lib/constants.js';
+import { useI18n } from '../hooks/useI18n.jsx';
 
 export function EarMode({
   difficulty,
@@ -40,6 +41,9 @@ export function EarMode({
   const hasFailedRef = useRef(false);
   const { playNote, playChord } = usePiano(soundOn);
   const { schedule, clearAll } = useTimeoutCleanup();
+  const { t } = useI18n();
+  const tRef = useRef(t);
+  tRef.current = t;
 
   useEffect(() => { streakRef.current = streak; }, [streak]);
   useEffect(() => { hasFailedRef.current = hasFailed; }, [hasFailed]);
@@ -75,7 +79,7 @@ export function EarMode({
     if (!allMatch) return;
 
     setFeedback('correct');
-    setLiveMessage(`答對了：${formatChord(question.name)}`);
+    setLiveMessage(tRef.current('live.correctNamed', { name: formatChord(question.name) }));
     replayChord();
 
     const newStreak = computeStreakAfterSuccess(streakRef.current, hasFailedRef.current);
@@ -115,13 +119,13 @@ export function EarMode({
       });
     } else {
       setWrongFlash(midi);
-      setLiveMessage('音符錯誤，再試一次');
+      setLiveMessage(t('live.wrongNote'));
       schedule(() => setWrongFlash((prev) => (prev === midi ? null : prev)), 350);
       setStreak(computeStreakAfterWrong());
       setHasFailed(true);
       setStats((prev) => recordWrongAttempt(prev, question.name));
     }
-  }, [feedback, playNote, question, schedule, setStats]);
+  }, [feedback, playNote, question, schedule, setStats, t]);
 
   const skip = () => {
     clearAll();
@@ -133,7 +137,7 @@ export function EarMode({
     setLockedCorrect(new Set());
     setFeedback(null);
     setHasFailed(false);
-    setLiveMessage('已跳過此題');
+    setLiveMessage(t('live.skipped'));
   };
 
   const shiftKeyboard = (dir) => {
@@ -148,12 +152,12 @@ export function EarMode({
       <div aria-live="polite" className="sr-only">{liveMessage}</div>
       <div className="flex-1 flex flex-col items-center justify-center min-h-0 relative overflow-y-auto">
         <div className="text-[10px] tracking-[0.5em] text-emerald-400/70 uppercase mb-3 font-medium">
-          Listen & Play
+          {t('ear.listenPlay')}
         </div>
 
         <button
           type="button"
-          aria-label="播放和弦"
+          aria-label={t('ear.playChord')}
           disabled={!soundOn}
           onClick={replayChord}
           className="relative transition-transform touch-none active:scale-95 disabled:opacity-40 ear-play-btn"
@@ -163,9 +167,9 @@ export function EarMode({
         </button>
 
         <div className="mt-4 text-center px-4">
-          <div className="text-sm text-slate-300 font-semibold tracking-wider mb-1">點擊播放和弦聲音</div>
-          <div className="text-xs text-slate-500 tracking-wider">在鍵盤上彈出聽到的和弦</div>
-          {!soundOn && <div className="text-xs text-amber-300/80 mt-2">音效已關閉</div>}
+          <div className="text-sm text-slate-300 font-semibold tracking-wider mb-1">{t('ear.tapToHear')}</div>
+          <div className="text-xs text-slate-500 tracking-wider">{t('ear.playOnKeyboard')}</div>
+          {!soundOn && <div className="text-xs text-amber-300/80 mt-2">{t('ear.soundOff')}</div>}
         </div>
 
         <div className="mt-5 flex items-center gap-2.5">
@@ -191,7 +195,9 @@ export function EarMode({
               <Check size={12} aria-hidden="true" /><span>{formatChord(question.name)} ✓</span>
             </div>
           ) : (
-            <div className="text-slate-600 uppercase">{lockedCorrect.size} / {question.pcs.size} notes</div>
+            <div className="text-slate-600 uppercase">
+              {t('common.notesCount', { n: lockedCorrect.size, total: question.pcs.size })}
+            </div>
           )}
         </div>
       </div>
@@ -215,11 +221,11 @@ export function EarMode({
           className="btn-action btn-ear disabled:opacity-40 touch-none"
         >
           <Play size={13} className="text-emerald-300" aria-hidden="true" />
-          <span className="text-xs text-emerald-200 tracking-wider uppercase font-medium">Replay</span>
+          <span className="text-xs text-emerald-200 tracking-wider uppercase font-medium">{t('action.replay')}</span>
         </button>
         <button type="button" onClick={skip} className="btn-action btn-neutral touch-none">
           <SkipForward size={13} className="text-slate-400" aria-hidden="true" />
-          <span className="text-xs text-slate-400 tracking-wider uppercase font-medium">Skip</span>
+          <span className="text-xs text-slate-400 tracking-wider uppercase font-medium">{t('action.skip')}</span>
         </button>
       </div>
     </div>
