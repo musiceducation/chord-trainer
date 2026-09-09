@@ -6,8 +6,6 @@
 - [ ] Register bundle ID `com.musiceducation.chordtrainer` in Certificates, Identifiers & Profiles
 - [ ] Create App Store Connect app record
 - [x] Host privacy policy and support pages — **DONE** (live): Privacy https://chord-trainer-legal.vercel.app/privacy.html · Support https://chord-trainer-legal.vercel.app/support.html · email kennethchan3868@hotmail.com
-- [ ] Sign **Paid Applications** agreement + bank/tax (required for IAP)
-- [ ] Create two consumable IAPs — see `iap.md`
 
 ## Local build steps
 
@@ -23,7 +21,6 @@ npm run cap:open
 In Xcode (`ios/App/App.xcworkspace`):
 
 - [ ] Select your Team under Signing & Capabilities
-- [ ] Add **In-App Purchase** capability if Xcode does not show it
 - [ ] Confirm bundle ID `com.musiceducation.chordtrainer`
 - [ ] Set version (Marketing) = 1.0, build = 2
 - [ ] Build for Any iOS Device (arm64)
@@ -40,7 +37,6 @@ In Xcode (`ios/App/App.xcworkspace`):
 - [ ] Complete age rating questionnaire
 - [ ] Add support and privacy URLs
 - [ ] Export compliance: No non-exempt encryption
-- [ ] Attach IAP products to the version and submit them with the app
 
 ## TestFlight
 

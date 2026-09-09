@@ -12,7 +12,6 @@ import { loadStats, saveStats } from './lib/stats.js';
 import { loadSettings, saveSettings } from './lib/settings.js';
 import { LANGUAGES, htmlLangFor } from './lib/i18n.js';
 import { useI18n } from './hooks/useI18n.jsx';
-import { SupportPanel } from './components/SupportPanel.jsx';
 import { readShotConfig } from './lib/shotMode.js';
 
 const TAB_ICONS = {
@@ -222,7 +221,6 @@ export default function App() {
                 );
               })}
             </div>
-            <SupportPanel />
           </section>
         )}
 

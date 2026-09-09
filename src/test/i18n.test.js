@@ -21,8 +21,8 @@ describe('i18n', () => {
   it('defaults to English', () => {
     expect(DEFAULT_LANG).toBe('en');
     expect(t('en', 'tab.test')).toBe('Identify');
-    expect(t('en', 'settings.support')).toBe('Support the app');
-    expect(t('zh-Hant', 'support.blurb')).toContain('免費');
+    expect(t('en', 'settings.language')).toBe('Language');
+    expect(t('zh-Hant', 'settings.language')).toBe('語言');
   });
 
   it('translates Traditional and Simplified Chinese', () => {
@@ -43,6 +43,17 @@ describe('i18n', () => {
     const enKeys = Object.keys(STRINGS.en).sort();
     for (const lang of LANGUAGES) {
       expect(Object.keys(STRINGS[lang.id]).sort()).toEqual(enKeys);
+    }
+  });
+
+  it('has no tip or donation purchase copy', () => {
+    const banned = /tip|donate|donation|小費|小费|內購|内购/i;
+    for (const lang of LANGUAGES) {
+      for (const [key, value] of Object.entries(STRINGS[lang.id])) {
+        expect(value, `${lang.id}:${key}`).not.toMatch(banned);
+      }
+      expect(Object.keys(STRINGS[lang.id]).some((key) => key.startsWith('support.'))).toBe(false);
+      expect(STRINGS[lang.id]['settings.support']).toBeUndefined();
     }
   });
 
