@@ -26,11 +26,9 @@ All shots use Traditional Chinese and show **four tabs**: 辨識 / 訓練 / 進�
 | `03-ear-training.png` | 訓練 (ear) + piano |
 | `05-progression.png` | 進行 (I–VII) |
 | `04-stats-achievements.png` | 統計 + 成就 (seeded sample stats) |
-| `06-settings-support.png` | Settings open: language + **$0.99 / $4.99** Support tips |
+| `06-settings-support.png` | Settings open: difficulty + language |
 
-IAP review screenshot: use `06-settings-support.png` (settings with the two gold heart buttons and the copy「自願小費。所有練習功能都免費。」).
-
-Recapture locally: `npm run cap:screenshots` (requires full Xcode; the script sets `DEVELOPER_DIR`).
+Recapture locally: `npm run cap:screenshots` (requires full Xcode; the script sets `DEVELOPER_DIR`). Recapture Settings after this change so the shot no longer shows a tip panel.
 
 ## Submit rules
 

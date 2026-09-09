@@ -35,7 +35,6 @@ Chord Trainer 是一款專為音樂學習者設計的和弦訓練 App。
 - 難度分級：三和弦、七和弦、延伸和弦、全混合
 - 本機統計：正確率、連勝紀錄、弱項分析和成就
 - 離線可用：無需帳號，進度儲存在裝置本機
-- 可選支持：設定裡有 $0.99 / $4.99 小費內購，所有功能維持免費
 
 適合鋼琴初學者、音樂 theory 學生，以及想加強和弦聽力的玩家。
 
@@ -50,7 +49,6 @@ Chord Trainer helps musicians practice chord spelling and ear training on a touc
 - Difficulty levels from triads to extended chords
 - On-device stats, streaks, weak-chord insights, and achievements
 - Works offline with no account required
-- Optional Support tips ($0.99 / $4.99) in Settings; all features stay free
 
 ## Keywords (100 chars max, comma-separated)
 
@@ -61,14 +59,11 @@ chord,piano,music,ear training,theory,keyboard,triad,七和弦,聽音,練習
 ## Review Notes
 
 - No login, account, or demo credentials required
-- Optional consumable tips in Settings (not required to use the app):
-  - `com.musiceducation.chordtrainer.support.small` — USD 0.99
-  - `com.musiceducation.chordtrainer.support.large` — USD 4.99
-- All features remain free without purchase. Tips can be bought more than once. No Restore (consumables).
+- All features are free. There are no In-App Purchases, tips, or donations
 - No ads or tracking
 - Audio is synthesized with Web Audio (no microphone, camera, or location)
 - iOS will not play sound until the reviewer taps a piano key or Play / Replay — this is expected
-- Four tabs: Identify, Train, Progress, Stats (gear icon: difficulty, language, key in Progress, and Support tips)
+- Four tabs: Identify, Train, Progress, Stats (gear icon: difficulty, language, and key in Progress)
 - Progress is stored only on-device (no cloud, no analytics)
 - Privacy policy: https://chord-trainer-legal.vercel.app/privacy.html
 - Support: https://chord-trainer-legal.vercel.app/support.html

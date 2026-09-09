@@ -6,7 +6,7 @@ Generated during App Store release preparation. Updated 4 Sep 2026.
 
 | Check | Result |
 |-------|--------|
-| Unit tests (`npm test`) | 38 tests / 7 files |
+| Unit tests (`npm test`) | Passing |
 | Production build (`npm run build`) | Success |
 | Capacitor web copy (`npx cap copy ios`) | Success |
 | Bundle ID | `com.musiceducation.chordtrainer` |
@@ -14,9 +14,9 @@ Generated during App Store release preparation. Updated 4 Sep 2026.
 | Privacy manifest | `ios/App/App/PrivacyInfo.xcprivacy` |
 | Export compliance flag | `ITSAppUsesNonExemptEncryption = false` |
 | Portrait orientations | iPhone + iPad portrait in Info.plist |
-| IAP product IDs | `support.small` / `support.large` in code + StoreKit config |
+| In-App Purchases | None; Settings tip UI removed |
 | Service worker | Registers on web only (`!Capacitor.isNativePlatform()`) |
-| Screenshots | Four-tab set + settings Support tips (iPhone + iPad) |
+| Screenshots | Four-tab set (iPhone + iPad) |
 
 ## Fixes applied from audit
 
@@ -31,16 +31,15 @@ Generated during App Store release preparation. Updated 4 Sep 2026.
 - Safe areas, `100dvh`, touch-action, accessibility labels
 - In-app reset confirmation dialog
 - Stats migration v1 → v2 with validation
-- Support/privacy pages match the four-tab UI and IAP copy
+- Support/privacy pages match the four-tab UI
 - iPad locked to portrait
-- Optional consumable Support tips in Settings ($0.99 / $4.99)
 
 ## Manual verification still required (physical device / TestFlight)
 
 1. Tap a piano key or Play → sound plays (no 「開始練習」 overlay)
 2. All four tabs: 辨識 / 訓練 / 進行 / 統計
 3. Recognition, ear, and progression scoring
-4. Settings: language + Support tips (Sandbox Apple ID)
+4. Settings: difficulty, language, and key in Progress
 5. Stats persist after force-quit
 6. Airplane mode: app launches offline
 7. iPhone SE / iPad layout and safe areas
@@ -52,8 +51,7 @@ Xcode 26.6 is installed at `/Applications/Xcode.app`. `xcode-select` may still p
 | Blocker | Status | Action |
 |---------|--------|--------|
 | Archive / upload | Requires your Apple Team | Xcode Organizer after signing |
-| App Store Connect | Requires your Apple Developer account | Listing, IAP products, Paid Apps agreement |
-| Paid Applications agreement | You must sign | Bank + tax; IAP will fail review without this |
+| App Store Connect | Requires your Apple Developer account | Listing |
 
 ## Commands to finish release
 
