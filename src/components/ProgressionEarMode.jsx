@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Check, SkipForward, Sparkles, Play, Music2, Undo2 } from 'lucide-react';
+import { Check, SkipForward, Sparkles, Play, Music2, Undo2, Lightbulb } from 'lucide-react';
 import { usePiano } from '../hooks/usePiano.js';
 import { useTimeoutCleanup } from '../hooks/useTimeoutCleanup.js';
 import { buildChordVoicing } from '../lib/chords.js';
@@ -50,6 +50,8 @@ export function ProgressionEarMode({
   setStats,
   onScoreChange,
   hidden,
+  autoHint = false,
+  onAutoHintUsed,
 }) {
   const [question, setQuestion] = useState(() => generateProgressionQuestion({
     keyRoot,
@@ -64,9 +66,11 @@ export function ProgressionEarMode({
   const [liveMessage, setLiveMessage] = useState('');
   const [isPlaying, setIsPlaying] = useState(false);
   const [hasHeardProgression, setHasHeardProgression] = useState(false);
+  const [hintDegrees, setHintDegrees] = useState(null);
   const streakRef = useRef(0);
   const hasFailedRef = useRef(false);
   const abortRef = useRef(null);
+  const autoHintUsedRef = useRef(false);
   const { playChord, playSequence } = usePiano(soundOn);
   const { schedule, clearAll } = useTimeoutCleanup();
   const { t } = useI18n();
@@ -121,6 +125,7 @@ export function ProgressionEarMode({
     setFeedback(null);
     setHasFailed(false);
     setHasHeardProgression(false);
+    setHintDegrees(null);
     setLiveMessage('');
     return next;
   }, [keyRoot, difficulty, stopPlayback]);
@@ -136,6 +141,7 @@ export function ProgressionEarMode({
     setFeedback(null);
     setHasFailed(false);
     setHasHeardProgression(false);
+    setHintDegrees(null);
     setLiveMessage('');
   }, [difficulty, keyRoot, clearAll, stopPlayback]);
 
@@ -158,6 +164,19 @@ export function ProgressionEarMode({
     }, 400);
     return () => window.clearTimeout(timer);
   }, [question.label, hidden, soundOn]);
+
+  const flashHintDegrees = useCallback((nums) => {
+    if (!nums.length) return;
+    setHintDegrees(new Set(nums));
+    schedule(() => setHintDegrees(null), 2000);
+  }, [schedule]);
+
+  useEffect(() => {
+    if (hidden || !autoHint || autoHintUsedRef.current) return;
+    autoHintUsedRef.current = true;
+    flashHintDegrees(question.degreeNums);
+    onAutoHintUsed?.();
+  }, [hidden, autoHint, question.degreeNums, flashHintDegrees, onAutoHintUsed]);
 
   const handleWrongAnswer = useCallback(() => {
     setFeedback('wrong');
@@ -240,6 +259,18 @@ export function ProgressionEarMode({
     } else {
       handleWrongAnswer();
     }
+  };
+
+  const showHint = () => {
+    if (feedback) return;
+    const emptyIdx = selectedSlot != null && answer[selectedSlot] == null
+      ? selectedSlot
+      : firstEmptyIndex(answer);
+    if (emptyIdx == null || emptyIdx < 0) {
+      flashHintDegrees(question.degreeNums);
+      return;
+    }
+    flashHintDegrees([question.degreeNums[emptyIdx]]);
   };
 
   const skip = () => {
@@ -380,7 +411,7 @@ export function ProgressionEarMode({
                   aria-label={degree.roman}
                   disabled={disabledInput}
                   onClick={() => pickDegree(degree.num)}
-                  className="prog-degree-key touch-none active:scale-[0.98] disabled:opacity-40"
+                  className={`prog-degree-key touch-none active:scale-[0.98] disabled:opacity-40 ${hintDegrees?.has(degree.num) ? 'prog-degree-hint' : ''}`}
                 >
                   <span className="display-font font-black">{degree.roman}</span>
                 </button>
@@ -398,7 +429,7 @@ export function ProgressionEarMode({
                   aria-label={degree.roman}
                   disabled={disabledInput}
                   onClick={() => pickDegree(degree.num)}
-                  className="prog-degree-key touch-none active:scale-[0.98] disabled:opacity-40"
+                  className={`prog-degree-key touch-none active:scale-[0.98] disabled:opacity-40 ${hintDegrees?.has(degree.num) ? 'prog-degree-hint' : ''}`}
                 >
                   <span className="display-font font-black">{degree.roman}</span>
                 </button>
@@ -408,12 +439,21 @@ export function ProgressionEarMode({
         </div>
       </section>
 
-      <div className="flex justify-center gap-2 pb-2 safe-bottom">
+      <div className="flex justify-center flex-wrap gap-2 pb-2 safe-bottom">
+        <button
+          type="button"
+          onClick={showHint}
+          disabled={feedback !== null}
+          className="btn-action btn-hint disabled:opacity-30 touch-none"
+        >
+          <Lightbulb size={13} className="text-amber-300" aria-hidden="true" />
+          <span className="text-xs text-amber-200 tracking-wider uppercase font-medium">{t('action.hint')}</span>
+        </button>
         <button
           type="button"
           onClick={playTonic}
           disabled={!soundOn || isPlaying}
-          className="btn-action btn-hint disabled:opacity-30 touch-none"
+          className="btn-action btn-neutral disabled:opacity-30 touch-none"
         >
           <Music2 size={13} className="text-amber-300" aria-hidden="true" />
           <span className="text-xs text-amber-200 tracking-wider uppercase font-medium">{t('action.tonic')}</span>

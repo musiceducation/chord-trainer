@@ -22,6 +22,10 @@ describe('i18n', () => {
     expect(DEFAULT_LANG).toBe('en');
     expect(t('en', 'tab.test')).toBe('Identify');
     expect(t('en', 'settings.support')).toBe('Support the app');
+    expect(t('en', 'onboarding.replay')).toBe('Replay beginner guide');
+    expect(t('zh-Hant', 'onboarding.replay')).toBe('重看新手引導');
+    expect(t('zh-Hant', 'pack.name')).toBe('新手 5 題');
+    expect(t('zh-Hant', 'guide.oneLiner.test')).toBe('睇和弦名 → 在鋼琴上彈出');
     expect(t('zh-Hant', 'support.blurb')).toContain('免費');
   });
 

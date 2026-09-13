@@ -5,6 +5,8 @@ import {
   buildChordVoicing,
   formatChord,
   isCorrectNote,
+  questionFromSpec,
+  targetPcsInChordOrder,
 } from '../lib/chords.js';
 
 describe('chords', () => {
@@ -41,5 +43,12 @@ describe('chords', () => {
     const pcs = getChordPitchClasses('C', '');
     expect(isCorrectNote(60, pcs)).toBe(true);
     expect(isCorrectNote(61, pcs)).toBe(false);
+  });
+
+  it('builds a fixed question and chord-tone order', () => {
+    const q = questionFromSpec('A', 'm');
+    expect(q.name).toBe('Am');
+    expect([...q.pcs].sort()).toEqual([0, 4, 9]);
+    expect(targetPcsInChordOrder('C', '')).toEqual([0, 4, 7]);
   });
 });

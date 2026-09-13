@@ -14,11 +14,18 @@ class MemoryStorage {
 
 describe('settings', () => {
   it('defaults and normalizes invalid values', () => {
-    expect(DEFAULT_SETTINGS).toEqual({ difficulty: 'basic', keyRoot: 'C' });
+    expect(DEFAULT_SETTINGS).toEqual({
+      difficulty: 'basic',
+      keyRoot: 'C',
+      onboardingDone: false,
+      firstHintUsed: { identify: false, ear: false, progress: false },
+    });
     expect(normalizeSettings({ difficulty: 'nope', keyRoot: 'Z' })).toEqual(DEFAULT_SETTINGS);
     expect(normalizeSettings({ difficulty: 'seventh', keyRoot: 'Bb' })).toEqual({
       difficulty: 'seventh',
       keyRoot: 'Bb',
+      onboardingDone: false,
+      firstHintUsed: { identify: false, ear: false, progress: false },
     });
   });
 
@@ -26,6 +33,11 @@ describe('settings', () => {
     const storage = new MemoryStorage();
     expect(loadSettings(storage)).toEqual(DEFAULT_SETTINGS);
     expect(saveSettings({ difficulty: 'all', keyRoot: 'Eb' }, storage)).toBe(true);
-    expect(loadSettings(storage)).toEqual({ difficulty: 'all', keyRoot: 'Eb' });
+    expect(loadSettings(storage)).toEqual({
+      difficulty: 'all',
+      keyRoot: 'Eb',
+      onboardingDone: false,
+      firstHintUsed: { identify: false, ear: false, progress: false },
+    });
   });
 });

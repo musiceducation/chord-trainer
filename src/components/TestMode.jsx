@@ -8,6 +8,8 @@ import {
   formatChord,
   generateQuestion,
   isCorrectNote,
+  questionFromSpec,
+  targetPcsInChordOrder,
 } from '../lib/chords.js';
 import {
   computeStreakAfterSuccess,
@@ -17,6 +19,8 @@ import {
   recordWrongAttempt,
 } from '../lib/stats.js';
 import { FULL_END, FULL_START } from '../lib/constants.js';
+import { describeWrongNote } from '../lib/noteDiff.js';
+import { scheduleAllHint, scheduleSequentialHint } from '../lib/hintFlash.js';
 import { useI18n } from '../hooks/useI18n.jsx';
 
 export function TestMode({
@@ -26,8 +30,20 @@ export function TestMode({
   setStats,
   onScoreChange,
   hidden,
+  tutorial = false,
+  fixedQuestion = null,
+  onQuestionComplete,
+  hideSkip = false,
+  forceSequentialHint = false,
+  autoHint = false,
+  onAutoHintUsed,
 }) {
-  const [question, setQuestion] = useState(() => generateQuestion(difficulty, null));
+  const fixedKey = fixedQuestion ? `${fixedQuestion.root}:${fixedQuestion.type}` : null;
+  const [question, setQuestion] = useState(() => (
+    fixedQuestion
+      ? questionFromSpec(fixedQuestion.root, fixedQuestion.type)
+      : generateQuestion(difficulty, null)
+  ));
   const [pressed, setPressed] = useState(new Set());
   const [lockedCorrect, setLockedCorrect] = useState(new Set());
   const [wrongFlash, setWrongFlash] = useState(null);
@@ -38,8 +54,10 @@ export function TestMode({
   const [score, setScore] = useState({ correct: 0, total: 0 });
   const [hasFailed, setHasFailed] = useState(false);
   const [liveMessage, setLiveMessage] = useState('');
+  const [wrongDetail, setWrongDetail] = useState('');
   const streakRef = useRef(0);
   const hasFailedRef = useRef(false);
+  const autoHintUsedRef = useRef(false);
   const { playNote, playChord } = usePiano(soundOn);
   const { schedule, clearAll } = useTimeoutCleanup();
   const { t } = useI18n();
@@ -51,7 +69,9 @@ export function TestMode({
 
   useEffect(() => {
     clearAll();
-    setQuestion(generateQuestion(difficulty, null));
+    setQuestion(fixedKey
+      ? questionFromSpec(...fixedKey.split(':'))
+      : generateQuestion(difficulty, null));
     setPressed(new Set());
     setLockedCorrect(new Set());
     setFeedback(null);
@@ -60,12 +80,26 @@ export function TestMode({
     setHasFailed(false);
     setScore({ correct: 0, total: 0 });
     setLiveMessage('');
-  }, [difficulty, clearAll]);
+    setWrongDetail('');
+  }, [difficulty, fixedKey, clearAll]);
 
   useEffect(() => {
     if (hidden) return;
     onScoreChange({ streak, correct: score.correct, total: score.total });
   }, [hidden, streak, score, onScoreChange]);
+
+  useEffect(() => {
+    if (hidden || feedback) return;
+    if (forceSequentialHint) {
+      scheduleSequentialHint(targetPcsInChordOrder(question.root, question.type), setHintNotes, schedule);
+      return;
+    }
+    if (autoHint && !autoHintUsedRef.current) {
+      autoHintUsedRef.current = true;
+      scheduleAllHint([...question.pcs], setHintNotes, schedule);
+      onAutoHintUsed?.();
+    }
+  }, [hidden, feedback, forceSequentialHint, autoHint, question, schedule, onAutoHintUsed]);
 
   useEffect(() => {
     if (feedback || hidden) return;
@@ -75,19 +109,26 @@ export function TestMode({
     if (!allMatch) return;
 
     setFeedback('correct');
+    setWrongDetail('');
     setLiveMessage(tRef.current('live.correct'));
     playChord([...pressed]);
 
-    const newStreak = computeStreakAfterSuccess(streakRef.current, hasFailedRef.current);
-    setStats((prev) => recordCorrectAttempt(prev, {
-      chordName: question.name,
-      newStreak,
-      isEarMode: false,
-    }));
-    setStreak(newStreak);
-    setScore((s) => ({ correct: s.correct + 1, total: s.total + 1 }));
+    if (!tutorial) {
+      const newStreak = computeStreakAfterSuccess(streakRef.current, hasFailedRef.current);
+      setStats((prev) => recordCorrectAttempt(prev, {
+        chordName: question.name,
+        newStreak,
+        isEarMode: false,
+      }));
+      setStreak(newStreak);
+      setScore((s) => ({ correct: s.correct + 1, total: s.total + 1 }));
+    }
 
     schedule(() => {
+      if (onQuestionComplete) {
+        onQuestionComplete();
+        return;
+      }
       setQuestion((q) => generateQuestion(difficulty, q.name));
       setPressed(new Set());
       setLockedCorrect(new Set());
@@ -95,14 +136,16 @@ export function TestMode({
       setHintNotes(null);
       setHasFailed(false);
       setLiveMessage('');
+      setWrongDetail('');
     }, 1400);
-  }, [lockedCorrect, question, feedback, difficulty, pressed, playChord, setStats, schedule, hidden]);
+  }, [lockedCorrect, question, feedback, difficulty, pressed, playChord, setStats, schedule, hidden, tutorial, onQuestionComplete]);
 
   const handleKey = useCallback(async (midi) => {
     if (feedback === 'correct') return;
     await playNote(midi);
     const pc = midi % 12;
     if (isCorrectNote(midi, question.pcs)) {
+      setWrongDetail('');
       setLockedCorrect((prev) => {
         if (prev.has(pc)) return prev;
         const next = new Set(prev);
@@ -115,32 +158,46 @@ export function TestMode({
         return next;
       });
     } else {
+      const detail = describeWrongNote(midi, lockedCorrect, question.pcs, t);
       setWrongFlash(midi);
-      setLiveMessage(t('live.wrongNote'));
+      setWrongDetail(detail);
+      setLiveMessage(detail);
       schedule(() => setWrongFlash((prev) => (prev === midi ? null : prev)), 350);
-      setStreak(computeStreakAfterWrong());
-      setHasFailed(true);
-      setStats((prev) => recordWrongAttempt(prev, question.name));
+      if (!tutorial) {
+        setStreak(computeStreakAfterWrong());
+        setHasFailed(true);
+        setStats((prev) => recordWrongAttempt(prev, question.name));
+      }
     }
-  }, [feedback, playNote, question, schedule, setStats, t]);
+  }, [feedback, playNote, question, schedule, setStats, t, lockedCorrect, tutorial]);
 
   const skip = () => {
+    if (hideSkip) return;
     clearAll();
-    setStreak(computeStreakAfterWrong());
-    setScore((s) => ({ ...s, total: s.total + 1 }));
-    setStats((prev) => recordSkip(prev));
+    if (!tutorial) {
+      setStreak(computeStreakAfterWrong());
+      setScore((s) => ({ ...s, total: s.total + 1 }));
+      setStats((prev) => recordSkip(prev));
+    }
     setQuestion((q) => generateQuestion(difficulty, q.name));
     setPressed(new Set());
     setLockedCorrect(new Set());
     setFeedback(null);
     setHintNotes(null);
     setHasFailed(false);
+    setWrongDetail('');
     setLiveMessage(t('live.skipped'));
   };
 
   const showHint = () => {
-    const remaining = [...question.pcs].filter((pc) => !lockedCorrect.has(pc));
+    const remaining = forceSequentialHint
+      ? targetPcsInChordOrder(question.root, question.type).filter((pc) => !lockedCorrect.has(pc))
+      : [...question.pcs].filter((pc) => !lockedCorrect.has(pc));
     if (remaining.length === 0) return;
+    if (forceSequentialHint) {
+      scheduleSequentialHint(remaining, setHintNotes, schedule);
+      return;
+    }
     const hintPc = remaining[Math.floor(Math.random() * remaining.length)];
     setHintNotes(new Set([hintPc]));
     schedule(() => setHintNotes(null), 2000);
@@ -196,11 +253,13 @@ export function TestMode({
           })}
         </div>
 
-        <div className="mt-3 h-5 text-xs tracking-wider">
+        <div className="mt-3 min-h-5 text-xs tracking-wider text-center px-3">
           {feedback === 'correct' ? (
-            <div className="flex items-center gap-1.5 text-emerald-300 font-semibold uppercase">
+            <div className="flex items-center justify-center gap-1.5 text-emerald-300 font-semibold uppercase">
               <Check size={12} aria-hidden="true" /><span>{t('action.perfect')}</span>
             </div>
+          ) : wrongDetail ? (
+            <div className="text-rose-300 font-medium normal-case tracking-normal">{wrongDetail}</div>
           ) : (
             <div className="text-slate-600 uppercase">
               {t('common.notesCount', { n: lockedCorrect.size, total: question.pcs.size })}
@@ -230,10 +289,12 @@ export function TestMode({
           <Lightbulb size={13} className="text-amber-300" aria-hidden="true" />
           <span className="text-xs text-amber-200 tracking-wider uppercase font-medium">{t('action.hint')}</span>
         </button>
-        <button type="button" onClick={skip} className="btn-action btn-neutral touch-none">
-          <SkipForward size={13} className="text-slate-400" aria-hidden="true" />
-          <span className="text-xs text-slate-400 tracking-wider uppercase font-medium">{t('action.skip')}</span>
-        </button>
+        {!hideSkip && (
+          <button type="button" onClick={skip} className="btn-action btn-neutral touch-none">
+            <SkipForward size={13} className="text-slate-400" aria-hidden="true" />
+            <span className="text-xs text-slate-400 tracking-wider uppercase font-medium">{t('action.skip')}</span>
+          </button>
+        )}
       </div>
     </div>
   );
