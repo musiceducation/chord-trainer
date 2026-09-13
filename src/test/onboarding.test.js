@@ -47,7 +47,9 @@ describe('onboarding state', () => {
 
   it('uses fixed easy triads for tutorial and the beginner pack', () => {
     expect(identifyPracticeSpec({ kind: 'onboarding', step: 'identify' })).toEqual({ root: 'C', type: '' });
+    expect(identifyPracticeSpec({ kind: 'onboarding', step: 'celebrate' })).toEqual({ root: 'C', type: '' });
     expect(earPracticeSpec({ kind: 'onboarding', step: 'train' })).toEqual({ root: 'C', type: '' });
+    expect(earPracticeSpec({ kind: 'onboarding', step: 'perfect' })).toEqual({ root: 'C', type: '' });
     expect(BEGINNER_PACK).toHaveLength(5);
     expect(BEGINNER_PACK.map((q) => q.root + q.type)).toEqual(['C', 'G', 'Am', 'C', 'G']);
     expect(BEGINNER_PACK.filter((q) => q.mode === 'test')).toHaveLength(3);

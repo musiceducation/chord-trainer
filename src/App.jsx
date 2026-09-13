@@ -407,7 +407,7 @@ export default function App() {
           </section>
         )}
 
-        <main className="flex flex-col flex-1 min-h-0">
+        <main className={`flex flex-col flex-1 min-h-0 ${overlayOpen ? 'invisible' : ''}`}>
           <TestMode
             difficulty={difficulty}
             soundOn={soundOn}

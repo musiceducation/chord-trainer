@@ -60,7 +60,10 @@ export function tabsLocked(guide) {
 }
 
 export function identifyPracticeSpec(guide) {
-  if (guide?.kind === 'onboarding' && guide.step === ONBOARDING_STEPS.IDENTIFY) {
+  if (guide?.kind === 'onboarding' && (
+    guide.step === ONBOARDING_STEPS.IDENTIFY
+    || guide.step === ONBOARDING_STEPS.CELEBRATE
+  )) {
     return ONBOARDING_IDENTIFY_CHORD;
   }
   if (guide?.kind === 'pack') {
@@ -71,12 +74,18 @@ export function identifyPracticeSpec(guide) {
 }
 
 export function earPracticeSpec(guide) {
-  if (guide?.kind === 'onboarding' && guide.step === ONBOARDING_STEPS.TRAIN) {
+  if (guide?.kind === 'onboarding' && (
+    guide.step === ONBOARDING_STEPS.TRAIN
+    || guide.step === ONBOARDING_STEPS.PERFECT
+  )) {
     return ONBOARDING_TRAIN_CHORD;
   }
   if (guide?.kind === 'pack') {
     const spec = BEGINNER_PACK[guide.index];
     return spec?.mode === 'ear' ? spec : null;
+  }
+  if (guide?.kind === 'packDone') {
+    return BEGINNER_PACK[BEGINNER_PACK.length - 1];
   }
   return null;
 }
