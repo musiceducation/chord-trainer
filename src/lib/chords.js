@@ -25,6 +25,17 @@ export function isCorrectNote(midi, targetPCs) {
   return targetPCs.has(midi % 12);
 }
 
+export function questionFromSpec(root, type) {
+  return { root, type, name: root + type, pcs: getChordPitchClasses(root, type) };
+}
+
+/** Pitch classes in chord-tone order (root → third → fifth → …). */
+export function targetPcsInChordOrder(root, type) {
+  const rootPc = NOTE_TO_PC[root];
+  if (rootPc === undefined) return [0, 4, 7];
+  return getIntervals(type).map((interval) => (rootPc + interval) % 12);
+}
+
 export function generateQuestion(difficulty, lastName, random = Math.random) {
   const types = DIFFICULTY_LEVELS[difficulty].types;
   let q;
