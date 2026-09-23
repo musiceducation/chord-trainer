@@ -7,23 +7,66 @@ import { ConfirmDialog } from './ConfirmDialog.jsx';
 import { ACHIEVEMENTS } from '../lib/constants.js';
 import { formatChord } from '../lib/chords.js';
 import { computeAccuracy, DEFAULT_STATS, getWeakestChords } from '../lib/stats.js';
+import { drillCorrectCount } from '../lib/drill.js';
 import { useI18n } from '../hooks/useI18n.jsx';
 
-export function StatsMode({ stats, setStats, hidden }) {
+export function StatsMode({
+  stats,
+  setStats,
+  hidden,
+  missCount = 0,
+  todaySession = null,
+  onStartToday,
+  onRetryMisses,
+  onResetMissBook,
+}) {
   const { t } = useI18n();
   const [confirmOpen, setConfirmOpen] = useState(false);
   const accuracy = computeAccuracy(stats);
+  const todayTotal = todaySession?.questions?.length || 0;
+  const todayProgress = !todaySession || !todayTotal
+    ? ''
+    : todaySession.done
+      ? ` · ${drillCorrectCount(todaySession)}/${todayTotal}`
+      : todaySession.index > 0
+        ? ` · ${todaySession.index}/${todayTotal}`
+        : '';
 
   const weakChords = useMemo(() => getWeakestChords(stats), [stats]);
 
   const reset = () => {
     setStats({ ...DEFAULT_STATS });
+    onResetMissBook?.();
     setConfirmOpen(false);
   };
 
   return (
     <div className={`mode-panel ${hidden ? 'mode-hidden' : ''}`} aria-hidden={hidden}>
       <div className="flex-1 overflow-y-auto pb-4">
+        <div className="mb-4 p-4 rounded-2xl drill-card">
+          <div className="text-[10px] text-slate-400 uppercase tracking-[0.3em] font-semibold mb-3">
+            {t('stats.drillTitle')}
+          </div>
+          <div className="flex flex-col gap-2">
+            <button
+              type="button"
+              onClick={onStartToday}
+              className="pack-pill w-full py-2.5 text-sm touch-none active:scale-[0.98]"
+            >
+              {t('drill.today')}
+              {todayProgress}
+            </button>
+            <button
+              type="button"
+              onClick={onRetryMisses}
+              disabled={missCount === 0}
+              className="pack-pill w-full py-2.5 text-sm touch-none active:scale-[0.98] disabled:opacity-40"
+            >
+              {missCount > 0 ? t('drill.retryCount', { n: missCount }) : t('drill.missEmpty')}
+            </button>
+          </div>
+        </div>
+
         <div className="grid grid-cols-2 gap-3 mb-4">
           <StatCard icon={<Check size={14} className="text-emerald-300" />} label={t('stats.totalCorrect')} value={stats.totalCorrect} accent="emerald" />
           <StatCard icon={<BarChart3 size={14} className="text-blue-300" />} label={t('stats.accuracy')} value={`${accuracy}%`} accent="blue" />

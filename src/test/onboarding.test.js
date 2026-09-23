@@ -29,9 +29,11 @@ class MemoryStorage {
 }
 
 describe('onboarding state', () => {
-  it('starts first-run onboarding unless already done or in shot mode', () => {
-    expect(initialGuideState(false)).toEqual({ kind: 'onboarding', step: ONBOARDING_STEPS.WELCOME });
-    expect(initialGuideState(undefined)).toEqual({ kind: 'onboarding', step: ONBOARDING_STEPS.WELCOME });
+  it('starts first-run on the playable identify chord, not a welcome gate', () => {
+    expect(initialGuideState(false)).toEqual({ kind: 'onboarding', step: ONBOARDING_STEPS.IDENTIFY });
+    expect(initialGuideState(undefined)).toEqual({ kind: 'onboarding', step: ONBOARDING_STEPS.IDENTIFY });
+    expect(isGuideOverlayStep(initialGuideState(false))).toBe(false);
+    expect(isOnboardingPractice(initialGuideState(false))).toBe(true);
     expect(initialGuideState(true)).toBeNull();
     expect(initialGuideState(false, { shotActive: true })).toBeNull();
   });
