@@ -11,6 +11,22 @@ import { DIFFICULTY_LEVELS, TABS } from './lib/constants.js';
 import { TRAINING_KEYS } from './lib/diatonic.js';
 import { loadStats, saveStats } from './lib/stats.js';
 import { loadSettings, saveSettings } from './lib/settings.js';
+import { nextDifficulty } from './lib/difficultyRamp.js';
+import {
+  DRILL_PROMPT_AFTER,
+  advanceDrill,
+  applyRoundToBook,
+  buildMissRetryQuestions,
+  createTodaySession,
+  drillCorrectCount,
+  hashSeed,
+  loadMissBook,
+  loadTodaySession,
+  localDateKey,
+  mulberry32,
+  saveMissBook,
+  saveTodaySession,
+} from './lib/drill.js';
 import { LANGUAGES, htmlLangFor } from './lib/i18n.js';
 import { useI18n } from './hooks/useI18n.jsx';
 import { readShotConfig } from './lib/shotMode.js';
@@ -57,9 +73,26 @@ export default function App() {
   const [stats, setStatsState] = useState(() => loadStats());
   const [scoreInfo, setScoreInfo] = useState({ streak: 0, correct: 0, total: 0 });
   const [guide, setGuide] = useState(() => initialGuideState(loadSettings().onboardingDone, { shotActive }));
+  const [missBook, setMissBook] = useState(() => loadMissBook());
+  const [drill, setDrill] = useState(null);
+  const [todaySnap, setTodaySnap] = useState(() => loadTodaySession());
+  const [drillPromptDismissed, setDrillPromptDismissed] = useState(false);
+  const [rampLevel, setRampLevel] = useState(null);
   const guideRef = useRef(guide);
+  const drillRef = useRef(null);
+  const difficultyRef = useRef(difficulty);
+  const missBookRef = useRef(missBook);
+  const rampMissRef = useRef(0);
 
   useEffect(() => { guideRef.current = guide; }, [guide]);
+  useEffect(() => { drillRef.current = drill; }, [drill]);
+  useEffect(() => { difficultyRef.current = difficulty; }, [difficulty]);
+  useEffect(() => { missBookRef.current = missBook; }, [missBook]);
+  useEffect(() => {
+    if (!rampLevel) return undefined;
+    const timer = window.setTimeout(() => setRampLevel(null), 2500);
+    return () => window.clearTimeout(timer);
+  }, [rampLevel]);
 
   const setStats = useCallback((updater) => {
     setStatsState((prev) => {
@@ -112,13 +145,17 @@ export default function App() {
   }, []);
 
   const replayOnboarding = useCallback(() => {
+    drillRef.current = null;
+    setDrill(null);
     updateSettings({ onboardingDone: false });
-    setGuide({ kind: 'onboarding', step: ONBOARDING_STEPS.WELCOME });
+    setGuide({ kind: 'onboarding', step: ONBOARDING_STEPS.IDENTIFY });
     setTab('test');
     setShowSettings(false);
   }, [updateSettings]);
 
   const startBeginnerPack = useCallback(() => {
+    drillRef.current = null;
+    setDrill(null);
     setGuide({ kind: 'pack', index: 0 });
     setTab(tabForPackIndex(0));
     setShowSettings(false);
@@ -132,11 +169,12 @@ export default function App() {
   const handlePracticeComplete = useCallback(() => {
     const current = guideRef.current;
     if (current?.kind === 'onboarding' && current.step === ONBOARDING_STEPS.IDENTIFY) {
-      setGuide({ kind: 'onboarding', step: ONBOARDING_STEPS.CELEBRATE });
+      setGuide({ kind: 'onboarding', step: ONBOARDING_STEPS.TRAIN });
+      setTab('ear');
       return;
     }
     if (current?.kind === 'onboarding' && current.step === ONBOARDING_STEPS.TRAIN) {
-      setGuide({ kind: 'onboarding', step: ONBOARDING_STEPS.PERFECT });
+      finishOnboarding();
       return;
     }
     if (current?.kind === 'pack') {
@@ -148,6 +186,125 @@ export default function App() {
       setGuide({ kind: 'pack', index: next });
       setTab(tabForPackIndex(next));
     }
+  }, [finishOnboarding]);
+
+  const handleQuestionComplete = useCallback((payload = {}) => {
+    const currentDrill = drillRef.current;
+    if (currentDrill && !currentDrill.done) {
+      const next = advanceDrill(currentDrill, payload);
+      drillRef.current = next;
+      setDrill(next);
+      if (next.kind === 'today') {
+        saveTodaySession(next);
+        setTodaySnap(next);
+      }
+      if (!next.done) {
+        const upcoming = next.questions[next.index];
+        if (upcoming?.mode) setTab(upcoming.mode);
+      }
+      return;
+    }
+    handlePracticeComplete();
+  }, [handlePracticeComplete]);
+
+  const handleRoundSettled = useCallback((payload) => {
+    const guided = guideRef.current;
+    const blockingGuide = guided?.kind === 'onboarding' || guided?.kind === 'pack' || guided?.kind === 'packDone';
+    if (blockingGuide) return;
+
+    if (payload?.question?.root) {
+      setMissBook((prev) => {
+        const next = applyRoundToBook(prev, payload.question, {
+          missed: payload.missed,
+          skipped: payload.skipped,
+          at: new Date().toISOString(),
+        });
+        saveMissBook(next);
+        missBookRef.current = next;
+        return next;
+      });
+    }
+
+    if (drillRef.current) return;
+    if (payload?.skipped && !payload?.missed) return;
+
+    const missed = Boolean(payload?.missed);
+    const missStreak = missed ? rampMissRef.current + 1 : 0;
+    const cleanStreak = missed ? 0 : (payload?.streak || 0);
+    const current = difficultyRef.current;
+    const next = nextDifficulty({ current, cleanStreak, missStreak });
+    if (next !== current) {
+      rampMissRef.current = 0;
+      updateSettings({ difficulty: next });
+      setRampLevel(next);
+    } else {
+      rampMissRef.current = missStreak;
+    }
+  }, [updateSettings]);
+
+  const beginDrill = useCallback((session) => {
+    if (!session?.questions?.length) return;
+    drillRef.current = session;
+    setDrill(session);
+    setGuide(null);
+    setShowSettings(false);
+    setDrillPromptDismissed(true);
+    const first = session.questions[Math.min(session.index || 0, session.questions.length - 1)];
+    setTab(first.mode === 'test' ? 'test' : 'ear');
+    if (session.kind === 'today') {
+      saveTodaySession(session);
+      setTodaySnap(session);
+    }
+  }, []);
+
+  const startToday = useCallback(() => {
+    const dateKey = localDateKey();
+    const saved = loadTodaySession();
+    let session;
+    if (saved?.dateKey === dateKey && Array.isArray(saved.questions) && saved.questions.length) {
+      session = saved.done
+        ? { ...saved, index: 0, results: [], done: false }
+        : saved;
+    } else {
+      const difficultyNow = difficultyRef.current;
+      session = createTodaySession({
+        dateKey,
+        difficulty: difficultyNow,
+        misses: missBookRef.current.items,
+        random: mulberry32(hashSeed(`${dateKey}:${difficultyNow}`)),
+      });
+    }
+    beginDrill(session);
+  }, [beginDrill]);
+
+  const startRetry = useCallback(() => {
+    const questions = buildMissRetryQuestions(missBookRef.current.items);
+    if (!questions.length) return;
+    beginDrill({
+      kind: 'misses',
+      questions,
+      index: 0,
+      results: [],
+      done: false,
+    });
+  }, [beginDrill]);
+
+  const exitDrill = useCallback(() => {
+    const current = drillRef.current;
+    if (current?.kind === 'today') {
+      saveTodaySession(current);
+      setTodaySnap(current);
+    }
+    drillRef.current = null;
+    setDrill(null);
+    setTab('test');
+  }, []);
+
+  const clearMissBook = useCallback(() => {
+    const empty = { items: [] };
+    missBookRef.current = empty;
+    setMissBook(empty);
+    saveMissBook(empty);
   }, []);
 
   const sessionAccuracy = scoreInfo.total > 0
@@ -155,15 +312,30 @@ export default function App() {
     : 0;
 
   const changeDifficulty = (d) => {
+    rampMissRef.current = 0;
     updateSettings({ difficulty: d });
     setShowSettings(false);
   };
 
-  const identifySpec = identifyPracticeSpec(guide);
-  const earSpec = earPracticeSpec(guide);
-  const lockTabs = tabsLocked(guide);
-  const overlayOpen = isGuideOverlayStep(guide);
-  const firstHintReady = !guide && !shotActive;
+  const drillQuestion = drill && !drill.done ? drill.questions[drill.index] : null;
+  const drillEpoch = drillQuestion
+    ? `${drill.kind}:${drill.index}:${drillQuestion.root}:${drillQuestion.type}`
+    : '';
+  const identifyFromGuide = identifyPracticeSpec(guide);
+  const earFromGuide = earPracticeSpec(guide);
+  const identifySpec = drillQuestion?.mode === 'test' ? drillQuestion : identifyFromGuide;
+  const earSpec = drillQuestion?.mode === 'ear' ? drillQuestion : earFromGuide;
+  const guidedIdentify = Boolean(identifyFromGuide) && !drillQuestion;
+  const guidedEar = Boolean(earFromGuide) && !drillQuestion;
+  const lockTabs = tabsLocked(guide) || Boolean(drillQuestion);
+  const drillDone = Boolean(drill?.done);
+  const overlayOpen = isGuideOverlayStep(guide) || drillDone;
+  const firstHintReady = !guide && !drill && !shotActive;
+  const showDrillPrompt = !guide && !drill && !drillPromptDismissed
+    && tab !== 'stats'
+    && scoreInfo.total >= DRILL_PROMPT_AFTER;
+  const todayCandidate = drill?.kind === 'today' ? drill : todaySnap;
+  const todaySession = todayCandidate?.dateKey === localDateKey() ? todayCandidate : null;
 
   let overlayTitle = '';
   let overlayLead = '';
@@ -199,7 +371,25 @@ export default function App() {
     overlaySkip = null;
     overlaySecondary = t('pack.replay');
     overlaySecondaryOn = startBeginnerPack;
+  } else if (drillDone) {
+    const correct = drillCorrectCount(drill);
+    const total = drill.questions.length;
+    overlayTitle = drill.kind === 'misses' ? t('drill.retryDoneTitle') : t('drill.doneTitle');
+    overlayLead = t('drill.doneBody', { correct, total });
+    overlayCta = t('drill.doneClose');
+    overlayOnCta = exitDrill;
+    overlaySkip = null;
+    if (missBook.items.length > 0) {
+      overlaySecondary = t('drill.retryCount', { n: missBook.items.length });
+      overlaySecondaryOn = startRetry;
+    }
   }
+
+  const drillCoach = drillQuestion
+    ? (drill.kind === 'misses'
+      ? t('drill.retryProgress', { n: drill.index + 1, total: drill.questions.length })
+      : t('drill.progress', { n: drill.index + 1, total: drill.questions.length }))
+    : '';
 
   const coachLine = isOnboardingPractice(guide)
     ? (guide.step === ONBOARDING_STEPS.IDENTIFY ? t('onboarding.identifyCoach') : t('onboarding.trainCoach'))
@@ -297,8 +487,11 @@ export default function App() {
 
         {!overlayOpen && (
           <div className="flex items-center gap-2 mb-3">
-            <p className="mode-coach flex-1 min-w-0">{coachLine}</p>
-            {isOnboardingPractice(guide) && (
+            <p className="mode-coach flex-1 min-w-0">{drillQuestion ? drillCoach : coachLine}</p>
+            {rampLevel && !drillQuestion && (
+              <span className="guide-skip-inline">{t('ramp.now', { level: t(`difficulty.${rampLevel}`) })}</span>
+            )}
+            {isOnboardingPractice(guide) && !drillQuestion && (
               <button type="button" className="guide-skip-inline touch-none" onClick={skipOnboarding}>
                 {t('onboarding.skip')}
               </button>
@@ -308,11 +501,37 @@ export default function App() {
                 {t('pack.exit')}
               </button>
             )}
-            {!guide && (
+            {drillQuestion && (
+              <button type="button" className="guide-skip-inline touch-none" onClick={exitDrill}>
+                {t('drill.exit')}
+              </button>
+            )}
+            {!guide && !drillQuestion && (
               <button type="button" className="pack-pill touch-none active:scale-[0.98]" onClick={startBeginnerPack}>
                 {t('pack.name')}
               </button>
             )}
+          </div>
+        )}
+
+        {showDrillPrompt && (
+          <div className="flex flex-wrap items-center gap-2 mb-3">
+            <button type="button" className="pack-pill touch-none active:scale-[0.98]" onClick={startToday}>
+              {t('drill.prompt')}
+            </button>
+            {missBook.items.length > 0 && (
+              <button type="button" className="pack-pill touch-none active:scale-[0.98]" onClick={startRetry}>
+                {t('drill.retryCount', { n: missBook.items.length })}
+              </button>
+            )}
+            <button
+              type="button"
+              className="guide-skip-inline touch-none"
+              aria-label={t('drill.dismiss')}
+              onClick={() => setDrillPromptDismissed(true)}
+            >
+              {t('drill.dismiss')}
+            </button>
           </div>
         )}
 
@@ -413,10 +632,12 @@ export default function App() {
             setStats={setStats}
             onScoreChange={setScoreInfo}
             hidden={tab !== 'test'}
-            tutorial={Boolean(identifySpec)}
+            tutorial={guidedIdentify}
             fixedQuestion={identifySpec}
-            onQuestionComplete={identifySpec ? handlePracticeComplete : undefined}
-            hideSkip={Boolean(identifySpec)}
+            questionEpoch={drillQuestion?.mode === 'test' ? drillEpoch : ''}
+            onQuestionComplete={identifySpec ? handleQuestionComplete : undefined}
+            onRoundSettled={handleRoundSettled}
+            hideSkip={guidedIdentify}
             forceSequentialHint={guide?.kind === 'onboarding' && guide.step === ONBOARDING_STEPS.IDENTIFY}
             autoHint={firstHintReady && !settings.firstHintUsed.identify}
             onAutoHintUsed={() => markHintUsed('identify')}
@@ -428,10 +649,12 @@ export default function App() {
             setStats={setStats}
             onScoreChange={setScoreInfo}
             hidden={tab !== 'ear'}
-            tutorial={Boolean(earSpec)}
+            tutorial={guidedEar}
             fixedQuestion={earSpec}
-            onQuestionComplete={earSpec ? handlePracticeComplete : undefined}
-            hideSkip={Boolean(earSpec)}
+            questionEpoch={drillQuestion?.mode === 'ear' ? drillEpoch : ''}
+            onQuestionComplete={earSpec ? handleQuestionComplete : undefined}
+            onRoundSettled={handleRoundSettled}
+            hideSkip={guidedEar}
             autoPlayOnce={Boolean(earSpec)}
             hintAfterListen={guide?.kind === 'onboarding' && guide.step === ONBOARDING_STEPS.TRAIN}
             autoHint={firstHintReady && !settings.firstHintUsed.ear}
@@ -447,8 +670,18 @@ export default function App() {
             hidden={tab !== 'progression'}
             autoHint={firstHintReady && !settings.firstHintUsed.progress}
             onAutoHintUsed={() => markHintUsed('progress')}
+            onRoundSettled={handleRoundSettled}
           />
-          <StatsMode stats={stats} setStats={setStats} hidden={tab !== 'stats'} />
+          <StatsMode
+            stats={stats}
+            setStats={setStats}
+            hidden={tab !== 'stats'}
+            missCount={missBook.items.length}
+            todaySession={todaySession}
+            onStartToday={startToday}
+            onRetryMisses={startRetry}
+            onResetMissBook={clearMissBook}
+          />
         </main>
       </div>
 

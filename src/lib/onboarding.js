@@ -22,7 +22,9 @@ export const BEGINNER_PACK = [
 export function initialGuideState(onboardingDone, { shotActive = false } = {}) {
   if (shotActive) return null;
   if (onboardingDone === true) return null;
-  return { kind: 'onboarding', step: ONBOARDING_STEPS.WELCOME };
+  // Land on the first playable chord. Welcome / celebrate / ready overlays stay
+  // available for an explicit replay, but they do not gate the first loop.
+  return { kind: 'onboarding', step: ONBOARDING_STEPS.IDENTIFY };
 }
 
 export function tabForOnboardingStep(step) {

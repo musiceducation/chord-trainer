@@ -5,12 +5,15 @@ import { usePiano } from '../hooks/usePiano.js';
 import { useTimeoutCleanup } from '../hooks/useTimeoutCleanup.js';
 import {
   buildChordVoicing,
+  chordTypeI18nKey,
   formatChord,
+  formatChordAnswer,
   generateQuestion,
   isCorrectNote,
   questionFromSpec,
   targetPcsInChordOrder,
 } from '../lib/chords.js';
+import { PC_TO_NOTE } from '../lib/constants.js';
 import {
   computeStreakAfterSuccess,
   computeStreakAfterWrong,
@@ -38,6 +41,8 @@ export function EarMode({
   hintAfterListen = false,
   autoHint = false,
   onAutoHintUsed,
+  questionEpoch = '',
+  onRoundSettled,
 }) {
   const fixedKey = fixedQuestion ? `${fixedQuestion.root}:${fixedQuestion.type}` : null;
   const [question, setQuestion] = useState(() => (
@@ -56,6 +61,7 @@ export function EarMode({
   const [hasFailed, setHasFailed] = useState(false);
   const [liveMessage, setLiveMessage] = useState('');
   const [wrongDetail, setWrongDetail] = useState('');
+  const [answerReveal, setAnswerReveal] = useState(null);
   const streakRef = useRef(0);
   const hasFailedRef = useRef(false);
   const autoHintUsedRef = useRef(false);
@@ -93,8 +99,9 @@ export function EarMode({
     setScore({ correct: 0, total: 0 });
     setLiveMessage('');
     setWrongDetail('');
+    setAnswerReveal(null);
     autoPlayedRef.current = false;
-  }, [difficulty, fixedKey, clearAll]);
+  }, [difficulty, fixedKey, questionEpoch, clearAll]);
 
   useEffect(() => {
     if (hidden) return;
@@ -128,8 +135,9 @@ export function EarMode({
     setLiveMessage(tRef.current('live.correctNamed', { name: formatChord(question.name) }));
     replayChord({ withHint: false });
 
+    const missed = hasFailedRef.current;
+    const newStreak = computeStreakAfterSuccess(streakRef.current, missed);
     if (!tutorial) {
-      const newStreak = computeStreakAfterSuccess(streakRef.current, hasFailedRef.current);
       setStats((prev) => recordCorrectAttempt(prev, {
         chordName: question.name,
         newStreak,
@@ -139,9 +147,21 @@ export function EarMode({
       setScore((s) => ({ correct: s.correct + 1, total: s.total + 1 }));
     }
 
+    const payload = {
+      missed,
+      skipped: false,
+      streak: missed ? 0 : newStreak,
+      question: {
+        root: question.root,
+        type: question.type,
+        name: question.name,
+        mode: 'ear',
+      },
+    };
     schedule(() => {
+      if (!tutorial) onRoundSettled?.(payload);
       if (onQuestionComplete) {
-        onQuestionComplete();
+        onQuestionComplete(payload);
         return;
       }
       setQuestion((q) => generateQuestion(difficulty, q.name));
@@ -152,8 +172,9 @@ export function EarMode({
       setHasFailed(false);
       setLiveMessage('');
       setWrongDetail('');
+      setAnswerReveal(null);
     }, 1400);
-  }, [lockedCorrect, question, feedback, difficulty, replayChord, setStats, schedule, hidden, tutorial, onQuestionComplete]);
+  }, [lockedCorrect, question, feedback, difficulty, replayChord, setStats, schedule, hidden, tutorial, onQuestionComplete, onRoundSettled]);
 
   const handleKey = useCallback(async (midi) => {
     if (feedback === 'correct') return;
@@ -174,9 +195,12 @@ export function EarMode({
       });
     } else {
       const detail = describeWrongNote(midi, lockedCorrect, question.pcs, t);
+      const picked = PC_TO_NOTE[midi % 12];
+      const answerLabel = formatChordAnswer(question.name, t(chordTypeI18nKey(question.type)));
       setWrongFlash(midi);
       setWrongDetail(detail);
-      setLiveMessage(detail);
+      setAnswerReveal({ picked, answer: answerLabel });
+      setLiveMessage(`${detail}. ${t('feedback.youPlayed', { note: picked })}. ${t('feedback.answer', { name: answerLabel })}`);
       schedule(() => setWrongFlash((prev) => (prev === midi ? null : prev)), 350);
       if (!tutorial) {
         setStreak(computeStreakAfterWrong());
@@ -189,10 +213,26 @@ export function EarMode({
   const skip = () => {
     if (hideSkip) return;
     clearAll();
+    const payload = {
+      missed: hasFailedRef.current,
+      skipped: true,
+      streak: 0,
+      question: {
+        root: question.root,
+        type: question.type,
+        name: question.name,
+        mode: 'ear',
+      },
+    };
     if (!tutorial) {
       setStreak(computeStreakAfterWrong());
       setScore((s) => ({ ...s, total: s.total + 1 }));
       setStats((prev) => recordSkip(prev));
+      onRoundSettled?.(payload);
+    }
+    if (onQuestionComplete) {
+      onQuestionComplete(payload);
+      return;
     }
     setQuestion((q) => generateQuestion(difficulty, q.name));
     setPressed(new Set());
@@ -201,6 +241,7 @@ export function EarMode({
     setHintNotes(null);
     setHasFailed(false);
     setWrongDetail('');
+    setAnswerReveal(null);
     setLiveMessage(t('live.skipped'));
   };
 
@@ -261,10 +302,19 @@ export function EarMode({
           })}
         </div>
 
-        <div className="mt-3 min-h-5 text-xs tracking-wider text-center px-3">
+        <div className="mt-3 min-h-10 text-xs tracking-wider text-center px-3">
           {feedback === 'correct' ? (
             <div className="flex items-center justify-center gap-1.5 text-emerald-300 font-semibold uppercase">
               <Check size={12} aria-hidden="true" /><span>{formatChord(question.name)} ✓</span>
+            </div>
+          ) : answerReveal ? (
+            <div className="answer-reveal">
+              <div className="text-rose-300 font-medium normal-case tracking-normal">
+                {t('feedback.youPlayed', { note: answerReveal.picked })}
+              </div>
+              <div className="text-slate-100 font-semibold normal-case tracking-normal">
+                {t('feedback.answer', { name: answerReveal.answer })}
+              </div>
             </div>
           ) : wrongDetail ? (
             <div className="text-rose-300 font-medium normal-case tracking-normal">{wrongDetail}</div>

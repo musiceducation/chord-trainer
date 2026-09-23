@@ -52,6 +52,7 @@ export function ProgressionEarMode({
   hidden,
   autoHint = false,
   onAutoHintUsed,
+  onRoundSettled,
 }) {
   const [question, setQuestion] = useState(() => generateProgressionQuestion({
     keyRoot,
@@ -179,8 +180,10 @@ export function ProgressionEarMode({
   }, [hidden, autoHint, question.degreeNums, flashHintDegrees, onAutoHintUsed]);
 
   const handleWrongAnswer = useCallback(() => {
+    const picked = formatProgressionAnswer(answer);
+    const correct = formatProgressionAnswer(question.degreeNums);
     setFeedback('wrong');
-    setLiveMessage(t('live.wrongAnswer', { answer: formatProgressionAnswer(question.degreeNums) }));
+    setLiveMessage(`${t('feedback.youPicked', { picked })}. ${t('feedback.answer', { name: correct })}`);
     setStreak(computeStreakAfterWrong());
     setHasFailed(true);
     setStats((prev) => recordWrongAttempt(prev, question.label, { kind: 'progression' }));
@@ -192,14 +195,15 @@ export function ProgressionEarMode({
       setFeedback(null);
       setLiveMessage('');
     }, 1800);
-  }, [question, schedule, setStats, t]);
+  }, [answer, question, schedule, setStats, t]);
 
   const handleCorrectAnswer = useCallback(() => {
     setFeedback('correct');
     setLiveMessage(t('live.correctNamed', { name: formatProgressionAnswer(question.degreeNums) }));
     playProgression();
 
-    const newStreak = computeStreakAfterSuccess(streakRef.current, hasFailedRef.current);
+    const missed = hasFailedRef.current;
+    const newStreak = computeStreakAfterSuccess(streakRef.current, missed);
     setStats((prev) => recordCorrectAttempt(prev, {
       chordName: question.label,
       newStreak,
@@ -210,9 +214,15 @@ export function ProgressionEarMode({
     setScore((s) => ({ correct: s.correct + 1, total: s.total + 1 }));
 
     schedule(() => {
+      onRoundSettled?.({
+        missed,
+        skipped: false,
+        streak: missed ? 0 : newStreak,
+        question: null,
+      });
       resetQuestion(question.label);
     }, 1600);
-  }, [question, playProgression, resetQuestion, schedule, setStats, t]);
+  }, [question, playProgression, resetQuestion, schedule, setStats, t, onRoundSettled]);
 
   const playDegreeChord = useCallback((degreeNum) => {
     if (!soundOn) return;
@@ -276,6 +286,12 @@ export function ProgressionEarMode({
   const skip = () => {
     clearAll();
     stopPlayback();
+    onRoundSettled?.({
+      missed: hasFailedRef.current,
+      skipped: true,
+      streak: 0,
+      question: null,
+    });
     setStreak(computeStreakAfterWrong());
     setScore((s) => ({ ...s, total: s.total + 1 }));
     setStats((prev) => recordSkip(prev));
@@ -365,14 +381,19 @@ export function ProgressionEarMode({
           })}
         </div>
 
-        <div className="mt-3 h-5 text-xs tracking-wider">
+        <div className="mt-3 min-h-10 text-xs tracking-wider text-center px-3">
           {feedback === 'correct' ? (
-            <div className="flex items-center gap-1.5 text-emerald-300 font-semibold uppercase">
+            <div className="flex items-center justify-center gap-1.5 text-emerald-300 font-semibold uppercase">
               <Check size={12} aria-hidden="true" /><span>{t('action.perfect')}</span>
             </div>
           ) : feedback === 'wrong' ? (
-            <div className="text-rose-300 font-medium uppercase">
-              {formatProgressionAnswer(question.degreeNums)}
+            <div className="answer-reveal">
+              <div className="text-rose-300 font-medium normal-case tracking-normal">
+                {t('feedback.youPicked', { picked: formatProgressionAnswer(answer) })}
+              </div>
+              <div className="text-slate-100 font-semibold normal-case tracking-normal">
+                {t('feedback.answer', { name: formatProgressionAnswer(question.degreeNums) })}
+              </div>
             </div>
           ) : allFilled ? (
             <div className="text-slate-400 uppercase">{t('progression.confirm')}</div>

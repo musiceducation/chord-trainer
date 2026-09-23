@@ -56,6 +56,12 @@ export function formatChord(name) {
   return name.charAt(0).toUpperCase() + name.slice(1).toLowerCase();
 }
 
+export function formatChordAnswer(name, quality) {
+  const chord = formatChord(name);
+  if (!quality) return chord;
+  return `${chord} · ${quality}`;
+}
+
 export function chordTypeI18nKey(chordType) {
   const map = {
     '': 'chordType.major',
