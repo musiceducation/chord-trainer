@@ -18,9 +18,9 @@
 
 ## Promotional Text (170 chars max)
 
-**zh-Hant:** 在互動鋼琴上練習三和弦、七和弦與延伸和弦。支援辨識模式、聽音訓練與本機進度統計。
+**zh-Hant:** 在互動鋼琴上練習和弦辨識與聽音。三和弦免費；可選一次買斷 Pro，解鎖七和弦、進行與完整統計。
 
-**en:** Practice triads, sevenths, and extensions on an interactive piano. Recognition, ear training, and on-device stats.
+**en:** Practice chord recognition and ear training. Triads are free. Optional one-time Pro unlocks sevenths, progressions, and full stats.
 
 ## Description
 
@@ -31,11 +31,11 @@ Chord Trainer 是一款專為音樂學習者設計的和弦訓練 App。
 **功能特色：**
 - 辨識模式：看和弦名稱，在鋼琴上彈出正確音符
 - 聽音訓練：聽和弦後在鍵盤上重現
-- 和弦進行：聽大調級數進行，選出 I–VII
-- 難度分級：三和弦、七和弦、延伸和弦、全混合
-- 本機統計：正確率、連勝紀錄、弱項分析和成就
+- 今日 5 題與錯題本
+- 免費難度：三和弦，以及今日／近期統計
+- 可選 Chord Trainer Pro（一次買斷，$9.99）：七和弦、延伸、全混合、和弦進行，以及完整統計
+- 可選「支持開發者」購買（$0.99 / $4.99），不會解鎖任何功能
 - 離線可用：無需帳號，進度儲存在裝置本機
-- 可選支持：設定裡有 $0.99 / $4.99 小費內購，所有功能維持免費
 
 適合鋼琴初學者、音樂 theory 學生，以及想加強和弦聽力的玩家。
 
@@ -46,11 +46,11 @@ Chord Trainer helps musicians practice chord spelling and ear training on a touc
 **Features:**
 - Recognition mode: read a chord name and play it on the keyboard
 - Ear training: listen and reproduce the chord
-- Progressions: hear a diatonic progression and identify I–VII
-- Difficulty levels from triads to extended chords
-- On-device stats, streaks, weak-chord insights, and achievements
+- Today's 5 and a miss book
+- Free: triads, plus today and recent stats
+- Optional Chord Trainer Pro (one-time unlock, $9.99): Sevenths, Extended, Mix, chord progressions, and full stats
+- Optional Support purchases in Settings ($0.99 and $4.99). They unlock no features
 - Works offline with no account required
-- Optional Support tips ($0.99 / $4.99) in Settings; all features stay free
 
 ## Keywords (100 chars max, comma-separated)
 
@@ -61,14 +61,17 @@ chord,piano,music,ear training,theory,keyboard,triad,七和弦,聽音,練習
 ## Review Notes
 
 - No login, account, or demo credentials required
-- Optional consumable tips in Settings (not required to use the app):
+- Free without purchase: Triads difficulty, Identify, Train, Today's 5, miss book / Retry misses, first-launch C major flow, and today/recent stats
+- Pro is a non-consumable one-time unlock (`com.musiceducation.chordtrainer.pro`, USD 9.99). It unlocks Sevenths, Extended, Mix, chord progressions, and full stats/history
+- Support purchases are consumables and unlock nothing:
   - `com.musiceducation.chordtrainer.support.small` — USD 0.99
   - `com.musiceducation.chordtrainer.support.large` — USD 4.99
-- All features remain free without purchase. Tips can be bought more than once. No Restore (consumables).
+- Restore Purchases is in Settings (gear icon) and on the Pro paywall. It restores the non-consumable Pro unlock
+- Locked items show a lock badge. Tapping opens the paywall. The paywall does not appear on launch
 - No ads or tracking
 - Audio is synthesized with Web Audio (no microphone, camera, or location)
 - iOS will not play sound until the reviewer taps a piano key or Play / Replay — this is expected
-- Four tabs: Identify, Train, Progress, Stats (gear icon: difficulty, language, key in Progress, and Support tips)
+- Four tabs: Identify, Train, Progress (Pro), Stats (gear icon: difficulty, language, Chord Trainer Pro, Restore Purchases, and Support the developer)
 - Progress is stored only on-device (no cloud, no analytics)
 - Privacy policy: https://chord-trainer-legal.vercel.app/privacy.html
 - Support: https://chord-trainer-legal.vercel.app/support.html

@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import {
-  Volume2, VolumeX, Flame, Settings, Sparkles, Headphones, BarChart3, ListMusic,
+  Volume2, VolumeX, Flame, Settings, Sparkles, Headphones, BarChart3, ListMusic, Lock,
 } from 'lucide-react';
 import { TestMode } from './components/TestMode.jsx';
 import { EarMode } from './components/EarMode.jsx';
@@ -11,7 +11,7 @@ import { DIFFICULTY_LEVELS, TABS } from './lib/constants.js';
 import { TRAINING_KEYS } from './lib/diatonic.js';
 import { loadStats, saveStats } from './lib/stats.js';
 import { loadSettings, saveSettings } from './lib/settings.js';
-import { nextDifficulty } from './lib/difficultyRamp.js';
+import { applyFreeRampCap, canAccessProgression, difficultyAllowed, PRODUCT_IDS } from './lib/entitlement.js';
 import {
   DRILL_PROMPT_AFTER,
   advanceDrill,
@@ -29,6 +29,9 @@ import {
 } from './lib/drill.js';
 import { LANGUAGES, htmlLangFor } from './lib/i18n.js';
 import { useI18n } from './hooks/useI18n.jsx';
+import { useIap } from './hooks/useIap.js';
+import { IapSettings } from './components/IapSettings.jsx';
+import { IapToast, PaywallSheet } from './components/PaywallSheet.jsx';
 import { readShotConfig } from './lib/shotMode.js';
 import {
   BEGINNER_PACK,
@@ -78,6 +81,11 @@ export default function App() {
   const [todaySnap, setTodaySnap] = useState(() => loadTodaySession());
   const [drillPromptDismissed, setDrillPromptDismissed] = useState(false);
   const [rampLevel, setRampLevel] = useState(null);
+  const [rampNudge, setRampNudge] = useState(false);
+  const [paywallOpen, setPaywallOpen] = useState(false);
+  const iap = useIap();
+  const practiceDifficulty = difficultyAllowed(iap.isPro, difficulty) ? difficulty : 'basic';
+  const isProRef = useRef(iap.isPro);
   const guideRef = useRef(guide);
   const drillRef = useRef(null);
   const difficultyRef = useRef(difficulty);
@@ -88,11 +96,20 @@ export default function App() {
   useEffect(() => { drillRef.current = drill; }, [drill]);
   useEffect(() => { difficultyRef.current = difficulty; }, [difficulty]);
   useEffect(() => { missBookRef.current = missBook; }, [missBook]);
+  useEffect(() => { isProRef.current = iap.isPro; }, [iap.isPro]);
+  useEffect(() => {
+    if (!iap.isPro && tab === 'progression') setTab('test');
+  }, [iap.isPro, tab]);
   useEffect(() => {
     if (!rampLevel) return undefined;
     const timer = window.setTimeout(() => setRampLevel(null), 2500);
     return () => window.clearTimeout(timer);
   }, [rampLevel]);
+  useEffect(() => {
+    if (!rampNudge) return undefined;
+    const timer = window.setTimeout(() => setRampNudge(false), 4000);
+    return () => window.clearTimeout(timer);
+  }, [rampNudge]);
 
   const setStats = useCallback((updater) => {
     setStatsState((prev) => {
@@ -109,6 +126,12 @@ export default function App() {
       return next;
     });
   }, []);
+
+  useEffect(() => {
+    if (!iap.ready || iap.isPro) return;
+    if (difficultyAllowed(false, difficultyRef.current)) return;
+    updateSettings({ difficulty: 'basic' });
+  }, [iap.ready, iap.isPro, updateSettings]);
 
   const markHintUsed = useCallback((mode) => {
     setSettingsState((prev) => {
@@ -232,7 +255,13 @@ export default function App() {
     const missStreak = missed ? rampMissRef.current + 1 : 0;
     const cleanStreak = missed ? 0 : (payload?.streak || 0);
     const current = difficultyRef.current;
-    const next = nextDifficulty({ current, cleanStreak, missStreak });
+    const { difficulty: next, nudge } = applyFreeRampCap({
+      isPro: isProRef.current,
+      current,
+      cleanStreak,
+      missStreak,
+    });
+    if (nudge) setRampNudge(true);
     if (next !== current) {
       rampMissRef.current = 0;
       updateSettings({ difficulty: next });
@@ -266,7 +295,9 @@ export default function App() {
         ? { ...saved, index: 0, results: [], done: false }
         : saved;
     } else {
-      const difficultyNow = difficultyRef.current;
+      const difficultyNow = difficultyAllowed(isProRef.current, difficultyRef.current)
+        ? difficultyRef.current
+        : 'basic';
       session = createTodaySession({
         dateKey,
         difficulty: difficultyNow,
@@ -312,9 +343,31 @@ export default function App() {
     : 0;
 
   const changeDifficulty = (d) => {
+    if (!difficultyAllowed(iap.isPro, d)) {
+      setPaywallOpen(true);
+      return;
+    }
     rampMissRef.current = 0;
     updateSettings({ difficulty: d });
     setShowSettings(false);
+  };
+
+  const noticeText = {
+    pending: t('iap.pending'),
+    unavailable: t('iap.unavailable'),
+    failed: t('iap.failed'),
+    restoreFailed: t('iap.restoreFailed'),
+    restoreNone: t('iap.restoreNone'),
+  }[iap.notice] || '';
+
+  const toastText = {
+    thanks: t('iap.thanks'),
+    restored: t('iap.restoreDone'),
+  }[iap.toast] || '';
+
+  const buyPro = async () => {
+    const result = await iap.buy(PRODUCT_IDS.pro);
+    if (result?.ok) setPaywallOpen(false);
   };
 
   const drillQuestion = drill && !drill.done ? drill.questions[drill.index] : null;
@@ -463,13 +516,21 @@ export default function App() {
           {TABS.map((item) => {
             const active = tab === item.key;
             const Icon = TAB_ICONS[item.key];
+            const locked = item.key === 'progression' && !canAccessProgression(iap.isPro);
             return (
               <button
                 key={item.key}
                 type="button"
                 aria-current={active ? 'page' : undefined}
                 disabled={lockTabs}
-                onClick={() => { setTab(item.key); setShowSettings(false); }}
+                onClick={() => {
+                  if (locked) {
+                    setPaywallOpen(true);
+                    return;
+                  }
+                  setTab(item.key);
+                  setShowSettings(false);
+                }}
                 className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold transition-all touch-none active:scale-[0.98] disabled:opacity-40"
                 style={{
                   background: active ? `linear-gradient(135deg, ${item.accent.replace('0.4', '0.18')}, ${item.accent.replace('0.4', '0.06')})` : 'transparent',
@@ -480,6 +541,7 @@ export default function App() {
               >
                 <Icon size={14} aria-hidden="true" />
                 <span>{t(`tab.${item.key}`)}</span>
+                {locked && <Lock size={11} className="text-amber-300" aria-hidden="true" />}
               </button>
             );
           })}
@@ -490,6 +552,15 @@ export default function App() {
             <p className="mode-coach flex-1 min-w-0">{drillQuestion ? drillCoach : coachLine}</p>
             {rampLevel && !drillQuestion && (
               <span className="guide-skip-inline">{t('ramp.now', { level: t(`difficulty.${rampLevel}`) })}</span>
+            )}
+            {rampNudge && !drillQuestion && !iap.isPro && (
+              <button
+                type="button"
+                className="guide-skip-inline touch-none"
+                onClick={() => setPaywallOpen(true)}
+              >
+                {t('ramp.proNudge')}
+              </button>
             )}
             {isOnboardingPractice(guide) && !drillQuestion && (
               <button type="button" className="guide-skip-inline touch-none" onClick={skipOnboarding}>
@@ -542,15 +613,17 @@ export default function App() {
                 <div className="text-[10px] text-slate-500 uppercase tracking-[0.3em] mb-2.5 font-semibold">{t('settings.difficulty')}</div>
                 <div className="grid grid-cols-2 gap-1.5">
                   {Object.keys(DIFFICULTY_LEVELS).map((key) => {
-                    const active = difficulty === key;
+                    const active = practiceDifficulty === key;
+                    const locked = !difficultyAllowed(iap.isPro, key);
                     return (
                       <button
                         key={key}
                         type="button"
                         onClick={() => changeDifficulty(key)}
-                        className="py-2.5 rounded-xl text-sm transition-all touch-none active:scale-[0.98]"
+                        className="py-2.5 rounded-xl text-sm transition-all touch-none active:scale-[0.98] inline-flex items-center justify-center gap-1.5"
                         style={settingButtonStyle(active)}
                       >
+                        {locked && <Lock size={12} aria-hidden="true" />}
                         {t(`difficulty.${key}`)}
                       </button>
                     );
@@ -621,12 +694,37 @@ export default function App() {
                 {t('pack.start')}
               </button>
             </div>
+            <IapSettings
+              isPro={iap.isPro}
+              native={iap.native}
+              prices={iap.prices}
+              priceStatus={iap.priceStatus}
+              busyId={iap.busyId}
+              notice={noticeText}
+              labels={{
+                proName: t('pro.name'),
+                buy: t('pro.buy'),
+                unlocked: t('pro.unlocked'),
+                restore: t('pro.restore'),
+                unavailable: t('iap.unavailable'),
+                priceUnavailable: t('pro.priceUnavailable'),
+                supportSection: t('support.section'),
+                supportDisclaimer: t('support.disclaimer'),
+                supportSmall: t('support.small'),
+                supportLarge: t('support.large'),
+                smallId: PRODUCT_IDS.supportSmall,
+                largeId: PRODUCT_IDS.supportLarge,
+              }}
+              onBuyPro={() => setPaywallOpen(true)}
+              onBuySupport={(productId) => iap.buy(productId)}
+              onRestore={iap.restore}
+            />
           </section>
         )}
 
         <main className={`flex flex-col flex-1 min-h-0 ${overlayOpen ? 'invisible' : ''}`}>
           <TestMode
-            difficulty={difficulty}
+            difficulty={practiceDifficulty}
             soundOn={soundOn}
             stats={stats}
             setStats={setStats}
@@ -643,7 +741,7 @@ export default function App() {
             onAutoHintUsed={() => markHintUsed('identify')}
           />
           <EarMode
-            difficulty={difficulty}
+            difficulty={practiceDifficulty}
             soundOn={soundOn}
             stats={stats}
             setStats={setStats}
@@ -661,13 +759,13 @@ export default function App() {
             onAutoHintUsed={() => markHintUsed('ear')}
           />
           <ProgressionEarMode
-            difficulty={difficulty}
+            difficulty={practiceDifficulty}
             keyRoot={keyRoot}
             soundOn={soundOn}
             stats={stats}
             setStats={setStats}
             onScoreChange={setScoreInfo}
-            hidden={tab !== 'progression'}
+            hidden={tab !== 'progression' || !iap.isPro}
             autoHint={firstHintReady && !settings.firstHintUsed.progress}
             onAutoHintUsed={() => markHintUsed('progress')}
             onRoundSettled={handleRoundSettled}
@@ -681,9 +779,33 @@ export default function App() {
             onStartToday={startToday}
             onRetryMisses={startRetry}
             onResetMissBook={clearMissBook}
+            fullStats={iap.isPro}
+            sessionStreak={scoreInfo.streak}
+            sessionAccuracy={sessionAccuracy}
+            onUnlockPro={() => setPaywallOpen(true)}
           />
         </main>
       </div>
+
+      <PaywallSheet
+        open={paywallOpen}
+        title={t('pro.paywallTitle')}
+        body={t('pro.paywallBody')}
+        price={iap.prices[PRODUCT_IDS.pro]}
+        priceStatus={iap.priceStatus}
+        unavailableLabel={t('pro.priceUnavailable')}
+        storeUnavailableLabel={t('iap.unavailable')}
+        native={iap.native}
+        buyLabel={t('pro.buy')}
+        restoreLabel={t('pro.restore')}
+        closeLabel={t('dialog.close')}
+        notice={noticeText}
+        busy={iap.busyId === PRODUCT_IDS.pro || iap.busyId === 'restore'}
+        onBuy={buyPro}
+        onRestore={iap.restore}
+        onClose={() => setPaywallOpen(false)}
+      />
+      <IapToast message={toastText} onDismiss={iap.clearToast} />
 
       <GuideOverlay
         open={overlayOpen}

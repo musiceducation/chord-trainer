@@ -50,15 +50,40 @@ describe('i18n', () => {
     }
   });
 
-  it('has no tip or donation purchase copy', () => {
+  it('allows real StoreKit IAP keys and still bans unpaid tip wording', () => {
     const banned = /tip|donate|donation|小費|小费|內購|内购/i;
+    const required = [
+      'pro.name',
+      'pro.buy',
+      'pro.unlocked',
+      'pro.restore',
+      'pro.paywallTitle',
+      'pro.paywallBody',
+      'pro.priceUnavailable',
+      'support.section',
+      'support.disclaimer',
+      'support.small',
+      'support.large',
+      'iap.unavailable',
+      'iap.thanks',
+      'iap.restoreNone',
+      'ramp.proNudge',
+      'stats.fullLocked',
+    ];
     for (const lang of LANGUAGES) {
+      for (const key of required) {
+        expect(STRINGS[lang.id][key], `${lang.id}:${key}`).toBeTruthy();
+      }
+      expect(STRINGS[lang.id]['settings.support']).toBeUndefined();
       for (const [key, value] of Object.entries(STRINGS[lang.id])) {
         expect(value, `${lang.id}:${key}`).not.toMatch(banned);
       }
-      expect(Object.keys(STRINGS[lang.id]).some((key) => key.startsWith('support.'))).toBe(false);
-      expect(STRINGS[lang.id]['settings.support']).toBeUndefined();
     }
+    expect(STRINGS.en['support.disclaimer']).toMatch(/unlock no features/i);
+    expect(STRINGS['zh-Hant']['support.disclaimer']).toMatch(/不會解鎖/);
+    expect(STRINGS['zh-Hant']['pro.paywallBody']).toMatch(/七和弦/);
+    expect(STRINGS['zh-Hans']['pro.paywallBody']).toBe(STRINGS['zh-Hant']['pro.paywallBody']);
+    expect(STRINGS['zh-Hans']['support.disclaimer']).toBe(STRINGS['zh-Hant']['support.disclaimer']);
   });
 
   it('loads, saves, and rejects unsupported languages', () => {
