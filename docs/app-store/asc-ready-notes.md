@@ -34,14 +34,15 @@ Use this when ASC is open. Archive a **new** 1.0 (build **2**) in Xcode. Do **no
 
 ## In-app purchases (create in ASC before review)
 
-See `iap.md`. Both must be attached to version 1.0.
+See `iap.md`. Attach all three to the version under review. Do not edit App Store Connect from the repo.
 
 | Display | Product ID | Type | US price |
 |---------|------------|------|----------|
-| Support Chord Trainer | `com.musiceducation.chordtrainer.support.small` | Consumable | $0.99 |
-| Support Chord Trainer+ | `com.musiceducation.chordtrainer.support.large` | Consumable | $4.99 |
+| Chord Trainer Pro | `com.musiceducation.chordtrainer.pro` | Non-consumable | $9.99 |
+| Support (Small) | `com.musiceducation.chordtrainer.support.small` | Consumable | $0.99 |
+| Support (Large) | `com.musiceducation.chordtrainer.support.large` | Consumable | $4.99 |
 
-IAP review screenshot: `docs/app-store/screenshots/iphone-6.7/06-settings-support.png`
+IAP review screenshots: Settings (Pro row, Restore Purchases, both Support purchases with the unlocks-nothing line) and the paywall (StoreKit price, Buy, Restore Purchases, Close).
 
 ## Screenshots (local, recaptured 4 Sep 2026)
 

@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import {
-  Check, BarChart3, Flame, Headphones, AlertTriangle, Trophy, Trash2,
+  Check, BarChart3, Flame, Headphones, AlertTriangle, Trophy, Trash2, Lock,
 } from 'lucide-react';
 import { StatCard } from './StatCard.jsx';
 import { ConfirmDialog } from './ConfirmDialog.jsx';
@@ -19,6 +19,10 @@ export function StatsMode({
   onStartToday,
   onRetryMisses,
   onResetMissBook,
+  fullStats = false,
+  sessionStreak = 0,
+  sessionAccuracy = 0,
+  onUnlockPro,
 }) {
   const { t } = useI18n();
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -67,13 +71,36 @@ export function StatsMode({
           </div>
         </div>
 
+        {fullStats ? (
         <div className="grid grid-cols-2 gap-3 mb-4">
           <StatCard icon={<Check size={14} className="text-emerald-300" />} label={t('stats.totalCorrect')} value={stats.totalCorrect} accent="emerald" />
           <StatCard icon={<BarChart3 size={14} className="text-blue-300" />} label={t('stats.accuracy')} value={`${accuracy}%`} accent="blue" />
           <StatCard icon={<Flame size={14} className="text-orange-300" />} label={t('stats.bestStreak')} value={stats.bestStreak} accent="orange" />
           <StatCard icon={<Headphones size={14} className="text-purple-300" />} label={t('stats.earCorrect')} value={stats.earCorrect || 0} accent="purple" />
         </div>
+        ) : (
+          <div className="mb-4">
+            <div className="text-[10px] text-slate-400 uppercase tracking-[0.3em] font-semibold mb-2">
+              {t('stats.todayTitle')}
+            </div>
+            <div className="grid grid-cols-2 gap-3 mb-3">
+              <StatCard icon={<Flame size={14} className="text-orange-300" />} label={t('session.streak')} value={sessionStreak} accent="orange" />
+              <StatCard icon={<BarChart3 size={14} className="text-blue-300" />} label={t('session.accuracy')} value={`${sessionAccuracy}%`} accent="blue" />
+            </div>
+            <button
+              type="button"
+              onClick={onUnlockPro}
+              className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm text-slate-200 touch-none active:scale-[0.98]"
+              style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,215,130,0.25)' }}
+            >
+              <Lock size={14} className="text-amber-300" aria-hidden="true" />
+              {t('stats.fullLocked')}
+            </button>
+          </div>
+        )}
 
+        {fullStats && (
+        <>
         <div className="mb-4 p-4 rounded-2xl panel-soft border-rose/15">
           <div className="flex items-center gap-2 mb-3">
             <AlertTriangle size={14} className="text-rose-300" aria-hidden="true" />
@@ -144,6 +171,8 @@ export function StatsMode({
             })}
           </div>
         </div>
+        </>
+        )}
 
         <div className="flex justify-center pb-2 safe-bottom">
           <button type="button" onClick={() => setConfirmOpen(true)} className="btn-action btn-danger-soft touch-none">

@@ -49,7 +49,10 @@
                ReferencedContainer = "container:App.xcodeproj">
             </BuildableReference>
          </BuildableProductRunnable>
-      </LaunchAction>
+      <StoreKitConfigurationFileReference
+         identifier = "App/Products.storekit">
+      </StoreKitConfigurationFileReference>
+   </LaunchAction>
    <ProfileAction
       buildConfiguration = "Release"
       shouldUseLaunchSchemeArgsEnv = "YES"

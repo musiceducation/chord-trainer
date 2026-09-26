@@ -1,0 +1,83 @@
+{
+  "identifier" : "Products",
+  "nonRenewingSubscriptions" : [
+
+  ],
+  "products" : [
+    {
+      "displayPrice" : "9.99",
+      "familyShareable" : false,
+      "internalID" : "C4D8E2A19B7F4C0E8A6D5F3B2E1C9A70",
+      "localizations" : [
+        {
+          "description" : "One-time unlock for Sevenths, Extended, Mix, chord progressions, and full stats.",
+          "displayName" : "Chord Trainer Pro",
+          "locale" : "en_US"
+        },
+        {
+          "description" : "一次解鎖七和弦、延伸、全混合、和弦進行，以及完整統計。",
+          "displayName" : "Chord Trainer Pro",
+          "locale" : "zh_Hant"
+        }
+      ],
+      "productID" : "com.musiceducation.chordtrainer.pro",
+      "referenceName" : "Chord Trainer Pro",
+      "type" : "NonConsumable"
+    },
+    {
+      "displayPrice" : "0.99",
+      "familyShareable" : false,
+      "internalID" : "A8E2C4B1D6F94E0A9C3B7F2158E4D0AA",
+      "localizations" : [
+        {
+          "description" : "Optional support for the developer. Unlocks no features.",
+          "displayName" : "Support (Small)",
+          "locale" : "en_US"
+        },
+        {
+          "description" : "自願支持開發者。不會解鎖任何功能。",
+          "displayName" : "支持（小）",
+          "locale" : "zh_Hant"
+        }
+      ],
+      "productID" : "com.musiceducation.chordtrainer.support.small",
+      "referenceName" : "Support (Small)",
+      "type" : "Consumable"
+    },
+    {
+      "displayPrice" : "4.99",
+      "familyShareable" : false,
+      "internalID" : "B9F3D5C2E7A05F1B0D4C8A3269F5E1BB",
+      "localizations" : [
+        {
+          "description" : "Optional support for the developer. Unlocks no features.",
+          "displayName" : "Support (Large)",
+          "locale" : "en_US"
+        },
+        {
+          "description" : "自願支持開發者。不會解鎖任何功能。",
+          "displayName" : "支持（大）",
+          "locale" : "zh_Hant"
+        }
+      ],
+      "productID" : "com.musiceducation.chordtrainer.support.large",
+      "referenceName" : "Support (Large)",
+      "type" : "Consumable"
+    }
+  ],
+  "settings" : {
+    "_failTransactionsEnabled" : false,
+    "_locale" : "en_US",
+    "_storefront" : "USA",
+    "_storeKitErrors" : [
+
+    ]
+  },
+  "subscriptionGroups" : [
+
+  ],
+  "version" : {
+    "major" : 3,
+    "minor" : 0
+  }
+}
