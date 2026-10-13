@@ -1,8 +1,9 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import {
-  Volume2, VolumeX, Flame, Settings, Sparkles, Headphones, BarChart3, ListMusic, Lock,
+  Volume2, VolumeX, Flame, Settings, Sparkles, Headphones, BarChart3, ListMusic, Lock, GraduationCap,
 } from 'lucide-react';
 import { TestMode } from './components/TestMode.jsx';
+import { AbrsmMode } from './components/AbrsmMode.jsx';
 import { EarMode } from './components/EarMode.jsx';
 import { ProgressionEarMode } from './components/ProgressionEarMode.jsx';
 import { StatsMode } from './components/StatsMode.jsx';
@@ -49,6 +50,7 @@ const TAB_ICONS = {
   test: Sparkles,
   ear: Headphones,
   progression: ListMusic,
+  abrsm: GraduationCap,
   stats: BarChart3,
 };
 
@@ -386,6 +388,7 @@ export default function App() {
   const firstHintReady = !guide && !drill && !shotActive;
   const showDrillPrompt = !guide && !drill && !drillPromptDismissed
     && tab !== 'stats'
+    && tab !== 'abrsm'
     && scoreInfo.total >= DRILL_PROMPT_AFTER;
   const todayCandidate = drill?.kind === 'today' ? drill : todaySnap;
   const todaySession = todayCandidate?.dateKey === localDateKey() ? todayCandidate : null;
@@ -444,7 +447,10 @@ export default function App() {
       : t('drill.progress', { n: drill.index + 1, total: drill.questions.length }))
     : '';
 
-  const coachLine = isOnboardingPractice(guide)
+  const guideTab = tab !== 'abrsm';
+  const coachLine = !guideTab
+    ? t('guide.oneLiner.abrsm')
+    : isOnboardingPractice(guide)
     ? (guide.step === ONBOARDING_STEPS.IDENTIFY ? t('onboarding.identifyCoach') : t('onboarding.trainCoach'))
     : guide?.kind === 'pack'
       ? `${t('pack.name')} · ${t('pack.progress', { n: guide.index + 1 })}`
@@ -531,7 +537,7 @@ export default function App() {
                   setTab(item.key);
                   setShowSettings(false);
                 }}
-                className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold transition-all touch-none active:scale-[0.98] disabled:opacity-40"
+                className="flex-1 min-w-0 flex flex-col items-center justify-center gap-0.5 py-1.5 rounded-xl text-[11px] font-semibold whitespace-nowrap transition-all touch-none active:scale-[0.98] disabled:opacity-40"
                 style={{
                   background: active ? `linear-gradient(135deg, ${item.accent.replace('0.4', '0.18')}, ${item.accent.replace('0.4', '0.06')})` : 'transparent',
                   border: `1px solid ${active ? item.accent : 'transparent'}`,
@@ -540,8 +546,10 @@ export default function App() {
                 }}
               >
                 <Icon size={14} aria-hidden="true" />
-                <span>{t(`tab.${item.key}`)}</span>
-                {locked && <Lock size={11} className="text-amber-300" aria-hidden="true" />}
+                <span className="flex items-center gap-0.5">
+                  {t(`tab.${item.key}`)}
+                  {locked && <Lock size={9} className="text-amber-300" aria-hidden="true" />}
+                </span>
               </button>
             );
           })}
@@ -550,10 +558,10 @@ export default function App() {
         {!overlayOpen && (
           <div className="flex items-center gap-2 mb-3">
             <p className="mode-coach flex-1 min-w-0">{drillQuestion ? drillCoach : coachLine}</p>
-            {rampLevel && !drillQuestion && (
+            {guideTab && rampLevel && !drillQuestion && (
               <span className="guide-skip-inline">{t('ramp.now', { level: t(`difficulty.${rampLevel}`) })}</span>
             )}
-            {rampNudge && !drillQuestion && !iap.isPro && (
+            {guideTab && rampNudge && !drillQuestion && !iap.isPro && (
               <button
                 type="button"
                 className="guide-skip-inline touch-none"
@@ -562,12 +570,12 @@ export default function App() {
                 {t('ramp.proNudge')}
               </button>
             )}
-            {isOnboardingPractice(guide) && !drillQuestion && (
+            {guideTab && isOnboardingPractice(guide) && !drillQuestion && (
               <button type="button" className="guide-skip-inline touch-none" onClick={skipOnboarding}>
                 {t('onboarding.skip')}
               </button>
             )}
-            {guide?.kind === 'pack' && (
+            {guideTab && guide?.kind === 'pack' && (
               <button type="button" className="guide-skip-inline touch-none" onClick={exitPack}>
                 {t('pack.exit')}
               </button>
@@ -577,7 +585,7 @@ export default function App() {
                 {t('drill.exit')}
               </button>
             )}
-            {!guide && !drillQuestion && (
+            {guideTab && !guide && !drillQuestion && (
               <button type="button" className="pack-pill touch-none active:scale-[0.98]" onClick={startBeginnerPack}>
                 {t('pack.name')}
               </button>
@@ -608,7 +616,7 @@ export default function App() {
 
         {showSettings && (
           <section aria-label={t('settings.aria')} className="mb-3 p-3 rounded-2xl chord-name panel-solid relative z-20">
-            {tab !== 'stats' && (
+            {tab !== 'stats' && tab !== 'abrsm' && (
               <>
                 <div className="text-[10px] text-slate-500 uppercase tracking-[0.3em] mb-2.5 font-semibold">{t('settings.difficulty')}</div>
                 <div className="grid grid-cols-2 gap-1.5">
@@ -652,7 +660,7 @@ export default function App() {
                 )}
               </>
             )}
-            <div className={`text-[10px] text-slate-500 uppercase tracking-[0.3em] mb-2.5 font-semibold ${tab !== 'stats' ? 'mt-3.5' : ''}`}>
+            <div className={`text-[10px] text-slate-500 uppercase tracking-[0.3em] mb-2.5 font-semibold ${tab !== 'stats' && tab !== 'abrsm' ? 'mt-3.5' : ''}`}>
               {t('settings.language')}
             </div>
             <div className="grid grid-cols-3 gap-1.5">
@@ -694,31 +702,33 @@ export default function App() {
                 {t('pack.start')}
               </button>
             </div>
-            <IapSettings
-              isPro={iap.isPro}
-              native={iap.native}
-              prices={iap.prices}
-              priceStatus={iap.priceStatus}
-              busyId={iap.busyId}
-              notice={noticeText}
-              labels={{
-                proName: t('pro.name'),
-                buy: t('pro.buy'),
-                unlocked: t('pro.unlocked'),
-                restore: t('pro.restore'),
-                unavailable: t('iap.unavailable'),
-                priceUnavailable: t('pro.priceUnavailable'),
-                supportSection: t('support.section'),
-                supportDisclaimer: t('support.disclaimer'),
-                supportSmall: t('support.small'),
-                supportLarge: t('support.large'),
-                smallId: PRODUCT_IDS.supportSmall,
-                largeId: PRODUCT_IDS.supportLarge,
-              }}
-              onBuyPro={() => setPaywallOpen(true)}
-              onBuySupport={(productId) => iap.buy(productId)}
-              onRestore={iap.restore}
-            />
+            {!shot?.hideIap && (
+              <IapSettings
+                isPro={iap.isPro}
+                native={iap.native}
+                prices={iap.prices}
+                priceStatus={iap.priceStatus}
+                busyId={iap.busyId}
+                notice={noticeText}
+                labels={{
+                  proName: t('pro.name'),
+                  buy: t('pro.buy'),
+                  unlocked: t('pro.unlocked'),
+                  restore: t('pro.restore'),
+                  unavailable: t('iap.unavailable'),
+                  priceUnavailable: t('pro.priceUnavailable'),
+                  supportSection: t('support.section'),
+                  supportDisclaimer: t('support.disclaimer'),
+                  supportSmall: t('support.small'),
+                  supportLarge: t('support.large'),
+                  smallId: PRODUCT_IDS.supportSmall,
+                  largeId: PRODUCT_IDS.supportLarge,
+                }}
+                onBuyPro={() => setPaywallOpen(true)}
+                onBuySupport={(productId) => iap.buy(productId)}
+                onRestore={iap.restore}
+              />
+            )}
           </section>
         )}
 
@@ -769,6 +779,12 @@ export default function App() {
             autoHint={firstHintReady && !settings.firstHintUsed.progress}
             onAutoHintUsed={() => markHintUsed('progress')}
             onRoundSettled={handleRoundSettled}
+          />
+          <AbrsmMode
+            soundOn={soundOn}
+            setStats={setStats}
+            onScoreChange={setScoreInfo}
+            hidden={tab !== 'abrsm'}
           />
           <StatsMode
             stats={stats}
