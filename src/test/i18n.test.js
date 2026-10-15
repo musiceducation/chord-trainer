@@ -25,7 +25,7 @@ describe('i18n', () => {
     expect(t('en', 'onboarding.replay')).toBe('Replay beginner guide');
     expect(t('zh-Hant', 'onboarding.replay')).toBe('重看新手引導');
     expect(t('zh-Hant', 'pack.name')).toBe('新手 5 題');
-    expect(t('zh-Hant', 'guide.oneLiner.test')).toBe('睇和弦名 → 在鋼琴上彈出');
+    expect(t('zh-Hant', 'guide.oneLiner.test')).toBe('看和弦名稱 → 在鋼琴上彈出');
     expect(t('zh-Hant', 'settings.language')).toBe('語言');
   });
 
@@ -104,5 +104,24 @@ describe('i18n', () => {
     expect(el.lang).toBe('en');
     applyDocumentLang('zh-Hant', { documentElement: el });
     expect(el.lang).toBe('zh-Hant');
+  });
+
+  it('keeps Traditional Chinese in written Chinese, not Cantonese colloquial', () => {
+    const colloquial = /[咗嚟嘅冇唔喺嗰啲啱嘞囉咩佢哋畀俾睇喇嘢吖啫噉咁吔喎]/;
+    const bannedPhrases = ['多謝', '好嘢', '高手在線', '再玩', '仲欠', '彈出嚟', '點一下', '開音'];
+    for (const [key, value] of Object.entries(STRINGS['zh-Hant'])) {
+      expect(value, key).not.toMatch(colloquial);
+      for (const phrase of bannedPhrases) {
+        expect(value, `${key} contains ${phrase}`).not.toContain(phrase);
+      }
+    }
+    expect(t('zh-Hant', 'live.wrongExtra', { extra: 'F' })).toBe('多了：F');
+    expect(t('zh-Hant', 'live.wrongMissing', { missing: 'G' })).toBe('尚缺：G');
+    expect(t('zh-Hant', 'onboarding.celebrateTitle')).toBe('很好！');
+    expect(t('zh-Hant', 'onboarding.perfectTitle')).toBe('已準備就緒');
+    expect(t('zh-Hant', 'guide.oneLiner.ear')).toBe('聆聽後 → 再彈出');
+    expect(t('zh-Hant', 'pack.doneBody')).toBe('之後可在此處或設定中再次練習。');
+    expect(t('zh-Hant', 'iap.thanks')).toBe('感謝！');
+    expect(t('en', 'guide.oneLiner.test')).toBe('Read the name → play it on the piano');
   });
 });

@@ -1,5 +1,25 @@
-const CACHE = 'chord-trainer-v1';
-const ASSETS = ['/', '/index.html'];
+const CACHE = 'chord-trainer-v2';
+const ASSETS = [
+  '/',
+  '/index.html',
+  '/audio/piano/C2.m4a',
+  '/audio/piano/Ds2.m4a',
+  '/audio/piano/Fs2.m4a',
+  '/audio/piano/A2.m4a',
+  '/audio/piano/C3.m4a',
+  '/audio/piano/Ds3.m4a',
+  '/audio/piano/Fs3.m4a',
+  '/audio/piano/A3.m4a',
+  '/audio/piano/C4.m4a',
+  '/audio/piano/Ds4.m4a',
+  '/audio/piano/Fs4.m4a',
+  '/audio/piano/A4.m4a',
+  '/audio/piano/C5.m4a',
+  '/audio/piano/Ds5.m4a',
+  '/audio/piano/Fs5.m4a',
+  '/audio/piano/A5.m4a',
+  '/audio/piano/C6.m4a',
+];
 
 self.addEventListener('install', e => {
   e.waitUntil(

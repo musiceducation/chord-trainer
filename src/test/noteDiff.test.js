@@ -45,6 +45,6 @@ describe('noteDiff', () => {
   it('localizes wrong-note copy', () => {
     const diff = { extra: [5], missing: [7], correct: [0, 4] };
     expect(formatNoteDiff(diff, (key, vars) => t('en', key, vars))).toBe('C, E ✓ Extra: F. Still need: G');
-    expect(formatNoteDiff(diff, (key, vars) => t('zh-Hant', key, vars))).toContain('多咗：F');
+    expect(formatNoteDiff(diff, (key, vars) => t('zh-Hant', key, vars))).toBe('C, E 正確。多了：F。尚缺：G');
   });
 });

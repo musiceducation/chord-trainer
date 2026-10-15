@@ -17,6 +17,13 @@ Interactive chord recognition and ear training for web, iPhone, and iPad.
 - **Chord Trainer Pro** — optional one-time unlock on iOS
 - **Support the developer** — optional consumable purchases that unlock no features
 
+## Piano sound
+
+Chords and keys play a mezzo-forte layer of Salamander Grand Piano V3
+(Alexander Holm, [CC BY 3.0](https://creativecommons.org/licenses/by/3.0/)).
+Samples are trimmed and bundled under `public/audio/piano/`. Details:
+[docs/piano-audio.md](docs/piano-audio.md).
+
 ## Development
 
 ```bash

@@ -1,22 +1,35 @@
 import { useRef, useCallback, useEffect } from 'react';
+import { primePiano, schedulePianoNotes } from '../lib/pianoEngine.js';
 
-const MAX_VOICES = 12;
+/** Single-key ring. Long enough to hear the hammer and body, short enough for drills. */
+const NOTE_SUSTAIN = 1.85;
+const NOTE_GAIN = 0.8;
+/** Chord ring. Kept close to the previous 2.2s so progression gaps still overlap cleanly. */
+const CHORD_SUSTAIN = 2.2;
+const CHORD_GAIN = 0.44;
+const STRUM = 0.015;
 
 /** Shared AudioContext across all mode hooks (avoids multiple contexts on iOS). */
 let sharedCtx = null;
 let sharedUsers = 0;
 
-async function acquireSharedCtx() {
+function getOrCreateCtx() {
   if (typeof window === 'undefined') return null;
-  if (!sharedCtx) {
+  if (!sharedCtx || sharedCtx.state === 'closed') {
     const AudioCtx = window.AudioContext || window.webkitAudioContext;
     if (!AudioCtx) return null;
     sharedCtx = new AudioCtx();
   }
-  if (sharedCtx.state === 'suspended') {
-    await sharedCtx.resume();
-  }
   return sharedCtx;
+}
+
+async function acquireSharedCtx() {
+  const ctx = getOrCreateCtx();
+  if (!ctx) return null;
+  if (ctx.state === 'suspended') {
+    await ctx.resume();
+  }
+  return ctx;
 }
 
 function releaseSharedCtx() {
@@ -50,12 +63,13 @@ function wait(ms, signal) {
 }
 
 export function usePiano(enabled) {
-  const activeVoicesRef = useRef(0);
   const acquiredRef = useRef(false);
 
   useEffect(() => {
     sharedUsers += 1;
     acquiredRef.current = true;
+    const ctx = getOrCreateCtx();
+    if (ctx) primePiano(ctx);
     return () => {
       if (acquiredRef.current) {
         acquiredRef.current = false;
@@ -66,59 +80,30 @@ export function usePiano(enabled) {
 
   const ensureCtx = useCallback(async () => acquireSharedCtx(), []);
 
-  const playOne = useCallback((ctx, midi, startOffset = 0, sustain = 1.4, vol = 0.16) => {
-    if (activeVoicesRef.current >= MAX_VOICES) return;
-    activeVoicesRef.current += 1;
-
-    const freq = 440 * Math.pow(2, (midi - 69) / 12);
-    const start = ctx.currentTime + startOffset;
-    const gain = ctx.createGain();
-    gain.gain.setValueAtTime(0, start);
-    gain.gain.linearRampToValueAtTime(vol, start + 0.005);
-    gain.gain.exponentialRampToValueAtTime(0.001, start + sustain);
-    gain.connect(ctx.destination);
-
-    const nodes = [];
-    [1, 2, 3].forEach((h, i) => {
-      const osc = ctx.createOscillator();
-      osc.type = i === 0 ? 'triangle' : 'sine';
-      osc.frequency.value = freq * h;
-      const hg = ctx.createGain();
-      hg.gain.value = 1 / (h * 1.8);
-      osc.connect(hg).connect(gain);
-      osc.start(start);
-      osc.stop(start + sustain);
-      nodes.push(osc, hg);
-    });
-
-    const cleanup = () => {
-      nodes.forEach((n) => {
-        try { n.disconnect(); } catch { /* noop */ }
-      });
-      try { gain.disconnect(); } catch { /* noop */ }
-      activeVoicesRef.current = Math.max(0, activeVoicesRef.current - 1);
-    };
-    window.setTimeout(cleanup, (startOffset + sustain + 0.1) * 1000);
-  }, []);
-
   const playNote = useCallback(async (midi) => {
     if (!enabled) return false;
     const ctx = await ensureCtx();
     if (!ctx) return false;
-    playOne(ctx, midi);
-    return true;
-  }, [enabled, ensureCtx, playOne]);
+    return schedulePianoNotes(ctx, [{
+      midi,
+      offset: 0,
+      sustain: NOTE_SUSTAIN,
+      gain: NOTE_GAIN,
+    }]);
+  }, [enabled, ensureCtx]);
 
   const playChord = useCallback(async (midis, strum = true) => {
     if (!enabled) return false;
     const ctx = await ensureCtx();
     if (!ctx) return false;
     const sorted = [...midis].sort((a, b) => a - b);
-    sorted.forEach((m, i) => {
-      playOne(ctx, m, strum ? i * 0.015 : 0, 2.2, 0.14);
-    });
-    return true;
-  }, [enabled, ensureCtx, playOne]);
+    return schedulePianoNotes(ctx, sorted.map((midi, i) => ({
+      midi,
+      offset: strum ? i * STRUM : 0,
+      sustain: CHORD_SUSTAIN,
+      gain: CHORD_GAIN,
+    })));
+  }, [enabled, ensureCtx]);
 
   const playSequence = useCallback(async (chordMidisList, gapMs = 1100, signal = null) => {
     if (!enabled) return false;
