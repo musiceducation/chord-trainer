@@ -160,9 +160,9 @@ export function TestMode({
     }, 1400);
   }, [lockedCorrect, question, feedback, difficulty, pressed, playChord, setStats, schedule, hidden, tutorial, onQuestionComplete, onRoundSettled]);
 
-  const handleKey = useCallback(async (midi) => {
+  const handleKey = useCallback((midi) => {
     if (feedback === 'correct') return;
-    await playNote(midi);
+    playNote(midi);
     const pc = midi % 12;
     if (isCorrectNote(midi, question.pcs)) {
       setWrongDetail('');

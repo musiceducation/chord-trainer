@@ -1,0 +1,28 @@
+Salamander Grand Piano V3
+Author: Alexander Holm
+Source: https://github.com/sfzinstruments/SalamanderGrandPiano
+Archive: https://archive.org/details/SalamanderGrandPianoV3
+License: Creative Commons Attribution 3.0 Unported (CC BY 3.0)
+https://creativecommons.org/licenses/by/3.0/
+
+Commercial use, modification, and redistribution are allowed under that license
+when attribution is retained.
+
+Adaptation used by Chord Trainer (this directory):
+- Velocity layer v10 only (MIDI velocity 73–80). That layer is a moderate
+  mezzo-forte: clearer than a soft layer for ear training, less harsh than
+  the loudest layers.
+- Notes C2 through C6, sampled in minor thirds, matching the on-screen keyboard.
+- Each note trimmed to 4.0 seconds with a short fade-out.
+- Encoded from the original 24-bit / 48 kHz FLAC to 192 kbps AAC (.m4a)
+  so the app stays small and notes start quickly. Sharp signs in filenames
+  are written as "s" (D#2 → Ds2.m4a) to keep URLs simple.
+
+Playback (not baked into the files) warms the close-miked recording:
+lowshelf +4.5 dB at 250 Hz, peaking +2.5 dB at 400 Hz, peaking −4.5 dB
+at 3.8 kHz, peaking −3 dB at 5.2 kHz, and highshelf −6.5 dB at 6.4 kHz.
+Pitch between samples stays within one or two semitones, using the same
+key ranges as the original SFZ.
+
+Attribution: Salamander Grand Piano V3 by Alexander Holm, CC BY 3.0.
+Changes by Chord Trainer, as described above.
