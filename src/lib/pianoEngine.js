@@ -10,6 +10,33 @@ const bufferCache = new Map();
 const pending = new Map();
 const graphs = new WeakMap();
 
+/**
+ * Playback tone for the close-miked Salamander grand.
+ * Samples stay untouched; this chain is applied live.
+ * Tuned warmer after a C4 / C-major listen: more low-mid body,
+ * less 3–5 kHz presence, and a softer top.
+ */
+export const PIANO_TONE = {
+  masterGain: 0.9,
+  filters: [
+    { id: 'highpass', type: 'highpass', frequency: 30, Q: 0.7 },
+    { id: 'body', type: 'lowshelf', frequency: 250, gain: 4.5 },
+    { id: 'lowMid', type: 'peaking', frequency: 400, Q: 0.7, gain: 2.5 },
+    { id: 'presence', type: 'peaking', frequency: 3800, Q: 0.85, gain: -4.5 },
+    { id: 'upper', type: 'peaking', frequency: 5200, Q: 1.1, gain: -3 },
+    { id: 'air', type: 'highshelf', frequency: 6400, gain: -6.5 },
+  ],
+};
+
+function createToneFilter(ctx, spec) {
+  const filter = ctx.createBiquadFilter();
+  filter.type = spec.type;
+  filter.frequency.value = spec.frequency;
+  if (spec.Q != null) filter.Q.value = spec.Q;
+  if (spec.gain != null) filter.gain.value = spec.gain;
+  return filter;
+}
+
 function assetBase() {
   const base = import.meta.env?.BASE_URL;
   return typeof base === 'string' && base.length > 0 ? base : './';
@@ -62,26 +89,7 @@ function graphFor(ctx) {
   if (graph) return graph;
 
   const input = ctx.createGain();
-  const highpass = ctx.createBiquadFilter();
-  highpass.type = 'highpass';
-  highpass.frequency.value = 32;
-  highpass.Q.value = 0.7;
-
-  const body = ctx.createBiquadFilter();
-  body.type = 'lowshelf';
-  body.frequency.value = 190;
-  body.gain.value = 2.4;
-
-  const harsh = ctx.createBiquadFilter();
-  harsh.type = 'peaking';
-  harsh.frequency.value = 3300;
-  harsh.Q.value = 0.8;
-  harsh.gain.value = -2.4;
-
-  const air = ctx.createBiquadFilter();
-  air.type = 'highshelf';
-  air.frequency.value = 7800;
-  air.gain.value = -3;
+  const filters = PIANO_TONE.filters.map((spec) => createToneFilter(ctx, spec));
 
   const comp = ctx.createDynamicsCompressor();
   comp.threshold.value = -14;
@@ -91,13 +99,14 @@ function graphFor(ctx) {
   comp.release.value = 0.22;
 
   const master = ctx.createGain();
-  master.gain.value = 0.94;
+  master.gain.value = PIANO_TONE.masterGain;
 
-  input.connect(highpass);
-  highpass.connect(body);
-  body.connect(harsh);
-  harsh.connect(air);
-  air.connect(comp);
+  let node = input;
+  for (const filter of filters) {
+    node.connect(filter);
+    node = filter;
+  }
+  node.connect(comp);
   comp.connect(master);
   master.connect(ctx.destination);
 

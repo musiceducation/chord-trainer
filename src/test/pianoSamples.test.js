@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
+import { PIANO_TONE } from '../lib/pianoEngine.js';
 import {
   PIANO_SAMPLES,
   attackStartIndex,
@@ -10,6 +11,21 @@ import {
 } from '../lib/pianoSamples.js';
 
 describe('piano samples', () => {
+  it('warms the close-miked grand instead of leaving it bright', () => {
+    const filters = Object.fromEntries(PIANO_TONE.filters.map((filter) => [filter.id, filter]));
+    expect(filters.body.gain).toBeGreaterThanOrEqual(4);
+    expect(filters.lowMid.frequency).toBeGreaterThan(250);
+    expect(filters.lowMid.frequency).toBeLessThan(600);
+    expect(filters.lowMid.gain).toBeGreaterThan(1);
+    expect(filters.presence.frequency).toBeGreaterThanOrEqual(3000);
+    expect(filters.presence.frequency).toBeLessThanOrEqual(5000);
+    expect(filters.presence.gain).toBeLessThanOrEqual(-4);
+    expect(filters.upper.gain).toBeLessThan(0);
+    expect(filters.air.type).toBe('highshelf');
+    expect(filters.air.frequency).toBeLessThan(7000);
+    expect(filters.air.gain).toBeLessThanOrEqual(-6);
+  });
+
   it('covers every key on the on-screen keyboard within two semitones', () => {
     for (let midi = 36; midi <= 84; midi += 1) {
       const sample = sampleForMidi(midi);
