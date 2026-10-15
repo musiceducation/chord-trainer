@@ -23,7 +23,7 @@ Playback now uses a small set of real grand-piano samples.
 | Velocity layer v10 (MIDI 73–80) | Mezzo-forte. Clear enough to hear chord tones, not the harsh top layers. |
 | C2–C6, every minor third (17 notes) | Covers the keyboard (`MIDI 36–84`). Neighbors are at most 1–2 semitones away, so pitch-shift stays subtle. |
 | Trimmed to 4.0 s, 192 kbps AAC | About 1.6 MB total. The attack is intact; drills do not need a 16-second ring. |
-| Web Audio `AudioBufferSource` | Notes start on the next audio block once the buffer is decoded. Samples are decoded when the screen mounts, before the first tap. |
+| Web Audio `AudioBufferSource` | Files prefetch at startup and decode as soon as an AudioContext exists. A cached tap calls `resume()` and `source.start()` in the gesture: at `currentTime` while suspended, otherwise within one render quantum. |
 | Warmer playback EQ | See the table below. The samples themselves are unchanged. |
 | Per-note loudness trim | The raw layers are not equally loud. Each file is scaled so chord tones sit together. |
 

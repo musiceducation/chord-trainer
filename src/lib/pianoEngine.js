@@ -8,7 +8,13 @@ import {
 
 const bufferCache = new Map();
 const pending = new Map();
+const rawCache = new Map();
+const rawPending = new Map();
 const graphs = new WeakMap();
+const resumePromises = new WeakMap();
+let unlockedContexts = new WeakSet();
+let decodeWhileSuspendedFailed = false;
+const recentSchedules = [];
 
 /**
  * Playback tone for the close-miked Salamander grand.
@@ -28,6 +34,12 @@ export const PIANO_TONE = {
   ],
 };
 
+function nowMs() {
+  const perf = globalThis.performance;
+  if (perf && typeof perf.now === 'function') return perf.now();
+  return Date.now();
+}
+
 function createToneFilter(ctx, spec) {
   const filter = ctx.createBiquadFilter();
   filter.type = spec.type;
@@ -40,6 +52,58 @@ function createToneFilter(ctx, spec) {
 function assetBase() {
   const base = import.meta.env?.BASE_URL;
   return typeof base === 'string' && base.length > 0 ? base : './';
+}
+
+/** One Web Audio render quantum (128 frames). The longest lookahead we add. */
+export function renderQuantumSeconds(ctx) {
+  const rate = ctx?.sampleRate > 0 ? ctx.sampleRate : 44100;
+  return 128 / rate;
+}
+
+/**
+ * While suspended, currentTime is frozen — start at that time so the note
+ * begins as soon as the context runs. While running, land in the next block.
+ */
+export function playbackStartTime(ctx) {
+  const now = Number.isFinite(ctx?.currentTime) ? ctx.currentTime : 0;
+  if (!ctx || ctx.state === 'suspended') return now;
+  return now + renderQuantumSeconds(ctx);
+}
+
+function publishDebug() {
+  if (typeof window === 'undefined' || !import.meta.env?.DEV) return;
+  try {
+    window.__pianoScheduleTrace = recentSchedules;
+    window.__pianoDebug = getPianoDebugState();
+    window.__pianoForgetDecoded = () => {
+      bufferCache.clear();
+      pending.clear();
+      publishDebug();
+    };
+  } catch {
+    /* debug hook is best-effort */
+  }
+}
+
+function recordSchedule(entry) {
+  if (!import.meta.env?.DEV) return;
+  recentSchedules.push(entry);
+  if (recentSchedules.length > 32) recentSchedules.shift();
+  publishDebug();
+}
+
+export function getPianoScheduleTrace() {
+  return recentSchedules.slice();
+}
+
+export function getPianoDebugState() {
+  return {
+    decoded: [...bufferCache.keys()],
+    prefetched: [...rawCache.keys()],
+    pendingDecodes: [...pending.keys()],
+    decodeWhileSuspendedFailed,
+    trace: recentSchedules.slice(),
+  };
 }
 
 function trimBuffer(ctx, buffer) {
@@ -57,30 +121,149 @@ function trimBuffer(ctx, buffer) {
   return out;
 }
 
-function loadSample(ctx, sample) {
+function prefetchSample(sample) {
+  const cached = rawCache.get(sample.file);
+  if (cached) return Promise.resolve(cached);
+  const existing = rawPending.get(sample.file);
+  if (existing) return existing;
+  if (typeof window === 'undefined' || typeof window.fetch !== 'function') {
+    return Promise.reject(new Error('piano prefetch unavailable'));
+  }
+  const url = pianoSampleUrl(sample.file, assetBase());
+  const job = window.fetch(url)
+    .then((res) => {
+      if (!res.ok) throw new Error(`piano sample ${sample.file} (${res.status})`);
+      return res.arrayBuffer();
+    })
+    .then((arr) => {
+      rawCache.set(sample.file, arr);
+      publishDebug();
+      return arr;
+    })
+    .finally(() => {
+      if (rawPending.get(sample.file) === job) rawPending.delete(sample.file);
+    });
+  rawPending.set(sample.file, job);
+  return job;
+}
+
+/** Download every m4a without an AudioContext or a user gesture. */
+export function prefetchPianoSamples() {
+  if (typeof window === 'undefined' || typeof window.fetch !== 'function') return;
+  for (const sample of PIANO_SAMPLES) {
+    prefetchSample(sample).catch(() => {});
+  }
+}
+
+prefetchPianoSamples();
+
+function isClosed(ctx) {
+  return !ctx || ctx.state === 'closed';
+}
+
+async function decodeArrayBuffer(ctx, raw) {
+  const decoded = await ctx.decodeAudioData(raw.slice(0));
+  if (isClosed(ctx)) throw new Error('AudioContext closed');
+  const trimmed = trimBuffer(ctx, decoded);
+  return trimmed;
+}
+
+function waitUntilRunning(ctx) {
+  if (ctx.state === 'running') return Promise.resolve();
+  if (ctx.state === 'closed') return Promise.reject(new Error('AudioContext closed'));
+  return new Promise((resolve, reject) => {
+    let settled = false;
+    const finish = () => {
+      if (settled) return;
+      if (ctx.state === 'running') {
+        settled = true;
+        cleanup();
+        resolve();
+      } else if (ctx.state === 'closed') {
+        settled = true;
+        cleanup();
+        reject(new Error('AudioContext closed'));
+      }
+    };
+    const fail = (err) => {
+      if (settled || ctx.state === 'running') {
+        finish();
+        return;
+      }
+      settled = true;
+      cleanup();
+      reject(err instanceof Error ? err : new Error('AudioContext resume failed'));
+    };
+    const previousStateHandler = ctx.onstatechange;
+    let stateHandler = null;
+    const cleanup = () => {
+      if (typeof ctx.removeEventListener === 'function') {
+        ctx.removeEventListener('statechange', finish);
+      }
+      if (stateHandler && ctx.onstatechange === stateHandler) {
+        ctx.onstatechange = previousStateHandler;
+      }
+    };
+    if (typeof ctx.addEventListener === 'function') {
+      ctx.addEventListener('statechange', finish);
+    } else if ('onstatechange' in ctx || ctx.onstatechange !== undefined) {
+      stateHandler = (event) => {
+        if (typeof previousStateHandler === 'function') previousStateHandler(event);
+        finish();
+      };
+      ctx.onstatechange = stateHandler;
+    }
+    const resumePromise = resumePromises.get(ctx);
+    if (resumePromise && typeof resumePromise.then === 'function') {
+      resumePromise.then(() => finish(), fail);
+    }
+  });
+}
+
+async function decodeSample(ctx, sample, options) {
+  const raw = await prefetchSample(sample);
+  if (isClosed(ctx)) throw new Error('AudioContext closed');
+
+  // Suspended decode already failed. Background prime must not hold the slot
+  // (or call resume()). The tapped note, and a prime started from that tap,
+  // wait until the gesture's resume() actually starts the context.
+  if (decodeWhileSuspendedFailed && ctx.state === 'suspended') {
+    if (!options.priority && !options.followResume) {
+      throw new Error('decode deferred until AudioContext is running');
+    }
+    await waitUntilRunning(ctx);
+    if (isClosed(ctx)) throw new Error('AudioContext closed');
+  }
+
+  try {
+    const trimmed = await decodeArrayBuffer(ctx, raw);
+    bufferCache.set(sample.file, trimmed);
+    publishDebug();
+    return trimmed;
+  } catch (err) {
+    if (ctx.state !== 'suspended') throw err;
+    decodeWhileSuspendedFailed = true;
+    publishDebug();
+    if (!options.priority) throw err;
+    await waitUntilRunning(ctx);
+    if (isClosed(ctx)) throw err;
+    const trimmed = await decodeArrayBuffer(ctx, raw);
+    bufferCache.set(sample.file, trimmed);
+    publishDebug();
+    return trimmed;
+  }
+}
+
+function loadSample(ctx, sample, options = {}) {
   const cached = bufferCache.get(sample.file);
   if (cached) return Promise.resolve(cached);
-  let job = pending.get(sample.file);
-  if (!job) {
-    const url = pianoSampleUrl(sample.file, assetBase());
-    job = window.fetch(url)
-      .then((res) => {
-        if (!res.ok) throw new Error(`piano sample ${sample.file} (${res.status})`);
-        return res.arrayBuffer();
-      })
-      .then((arr) => ctx.decodeAudioData(arr.slice(0)))
-      .then((decoded) => {
-        const trimmed = trimBuffer(ctx, decoded);
-        bufferCache.set(sample.file, trimmed);
-        pending.delete(sample.file);
-        return trimmed;
-      })
-      .catch((err) => {
-        pending.delete(sample.file);
-        throw err;
-      });
-    pending.set(sample.file, job);
-  }
+  const existing = pending.get(sample.file);
+  if (existing) return existing;
+
+  const job = decodeSample(ctx, sample, options).finally(() => {
+    if (pending.get(sample.file) === job) pending.delete(sample.file);
+  });
+  pending.set(sample.file, job);
   return job;
 }
 
@@ -237,30 +420,187 @@ function startSynthVoice(ctx, graph, spec) {
   fundamental.onended = () => dropVoice(graph, voice);
 }
 
-export function primePiano(ctx) {
+/**
+ * resume() has to be invoked inside the gesture, before any await.
+ * A 1-frame silent buffer satisfies WKWebView's "something must start"
+ * rule without an audible click. Repeated while suspended so a timer
+ * cannot consume the only unlock.
+ */
+function unlockAudioContext(ctx) {
+  if (!ctx || ctx.state === 'closed') return false;
+  let resumed = false;
+  if (ctx.state === 'suspended' && typeof ctx.resume === 'function') {
+    resumed = true;
+    try {
+      const pendingResume = ctx.resume();
+      if (pendingResume && typeof pendingResume.then === 'function') {
+        resumePromises.set(ctx, pendingResume);
+        pendingResume.catch(() => {});
+      }
+    } catch {
+      /* a later tap can try again */
+    }
+  }
+  const stillSuspended = ctx.state === 'suspended';
+  if (stillSuspended || !unlockedContexts.has(ctx)) {
+    startSilentBuffer(ctx);
+    if (!stillSuspended) unlockedContexts.add(ctx);
+  }
+  return resumed;
+}
+
+function startSilentBuffer(ctx) {
+  try {
+    const rate = ctx.sampleRate > 0 ? ctx.sampleRate : 44100;
+    const silence = ctx.createBuffer(1, 1, rate);
+    const channel = silence.getChannelData(0);
+    if (channel) channel[0] = 0;
+    const source = ctx.createBufferSource();
+    source.buffer = silence;
+    const gain = ctx.createGain();
+    gain.gain.value = 0;
+    source.connect(gain);
+    gain.connect(ctx.destination);
+    source.start(0);
+  } catch {
+    /* leave the context locked so the next gesture retries */
+  }
+}
+
+function startWhenReady(ctx, graph, spec, sample, startedAt, resumed) {
+  return loadSample(ctx, sample, { priority: true }).catch(() => {
+    if (isClosed(ctx)) return null;
+    return loadSample(ctx, sample, { priority: true });
+  }).then((buffer) => {
+    if (!buffer || isClosed(ctx)) return false;
+    const when = playbackStartTime(ctx) + (spec.offset || 0);
+    startSampleVoice(ctx, graph, buffer, sample, { ...spec, when });
+    recordSchedule({
+      mode: 'pending',
+      file: sample.file,
+      midi: spec.midi,
+      jsUntilStartMs: nowMs() - startedAt,
+      lookaheadMs: (when - (Number.isFinite(ctx.currentTime) ? ctx.currentTime : 0)) * 1000,
+      resumed,
+      state: ctx.state,
+      decoded: bufferCache.size,
+    });
+    return true;
+  }).catch(() => {
+    if (isClosed(ctx)) return false;
+    try {
+      const when = playbackStartTime(ctx) + (spec.offset || 0);
+      startSynthVoice(ctx, graph, { ...spec, when });
+      recordSchedule({
+        mode: 'synth',
+        file: sample.file,
+        midi: spec.midi,
+        jsUntilStartMs: nowMs() - startedAt,
+        resumed,
+        state: ctx.state,
+        decoded: bufferCache.size,
+      });
+      return true;
+    } catch {
+      return false;
+    }
+  });
+}
+
+export function primePiano(ctx, options = {}) {
   if (!ctx || ctx.state === 'closed') return Promise.resolve();
-  graphFor(ctx);
-  return Promise.all(PIANO_SAMPLES.map((sample) => loadSample(ctx, sample).catch(() => null)));
+  try {
+    graphFor(ctx);
+  } catch {
+    /* graph is rebuilt on the next play */
+  }
+  const followResume = Boolean(options.followResume);
+  return Promise.all(PIANO_SAMPLES.map((sample) => (
+    loadSample(ctx, sample, { followResume }).catch(() => null)
+  )));
 }
 
 /**
  * @param {AudioContext} ctx
  * @param {Array<{ midi: number, offset?: number, sustain: number, gain: number }>} specs
+ * Starts every already-decoded note before returning. Does not await resume()
+ * or a cache hit. Missing samples start later, at the context's then-current time.
  */
-export async function schedulePianoNotes(ctx, specs) {
-  if (!ctx || ctx.state === 'closed' || !specs?.length) return false;
-  const graph = graphFor(ctx);
-  await Promise.all(specs.map((spec) => (
-    loadSample(ctx, sampleForMidi(spec.midi)).catch(() => null)
-  )));
-  if (ctx.state === 'closed') return false;
-  const origin = ctx.currentTime + 0.004;
+export function schedulePianoNotes(ctx, specs) {
+  if (!ctx || ctx.state === 'closed' || !specs?.length) return Promise.resolve(false);
+  const startedAt = nowMs();
+  const resumed = unlockAudioContext(ctx);
+  let graph;
+  try {
+    graph = graphFor(ctx);
+  } catch {
+    return Promise.resolve(false);
+  }
+
+  const ready = [];
+  const waiting = [];
   for (const spec of specs) {
     const sample = sampleForMidi(spec.midi);
     const buffer = bufferCache.get(sample.file);
-    const when = origin + (spec.offset || 0);
-    if (buffer) startSampleVoice(ctx, graph, buffer, sample, { ...spec, when });
-    else startSynthVoice(ctx, graph, { ...spec, when });
+    if (buffer) ready.push({ spec, sample, buffer });
+    else waiting.push({ spec, sample });
   }
-  return true;
+
+  const origin = playbackStartTime(ctx);
+  const clock = Number.isFinite(ctx.currentTime) ? ctx.currentTime : 0;
+  for (const item of ready) {
+    const when = origin + (item.spec.offset || 0);
+    startSampleVoice(ctx, graph, item.buffer, item.sample, { ...item.spec, when });
+  }
+  if (ready.length) {
+    recordSchedule({
+      mode: waiting.length ? 'partial' : 'cached',
+      jsUntilStartMs: nowMs() - startedAt,
+      lookaheadMs: (origin - clock) * 1000,
+      resumed,
+      state: ctx.state,
+      ready: ready.length,
+      waiting: waiting.length,
+      decoded: bufferCache.size,
+    });
+  } else if (waiting.length) {
+    recordSchedule({
+      mode: 'wait',
+      jsUntilStartMs: null,
+      queuedMs: nowMs() - startedAt,
+      resumed,
+      state: ctx.state,
+      ready: 0,
+      waiting: waiting.length,
+      decoded: bufferCache.size,
+    });
+  }
+
+  if (waiting.length === 0) return Promise.resolve(true);
+
+  // Queue the tapped files first so their decodeAudioData runs before the
+  // rest of the set. primePiano dedupes anything already pending.
+  const jobs = waiting.map((item) => (
+    startWhenReady(ctx, graph, item.spec, item.sample, startedAt, resumed)
+  ));
+  primePiano(ctx, { followResume: true });
+  return Promise.all(jobs).then((results) => results.some(Boolean));
+}
+
+export function installDecodedSampleForTests(file, buffer) {
+  bufferCache.set(file, buffer);
+}
+
+export function installPrefetchedSampleForTests(file, arrayBuffer = new ArrayBuffer(8)) {
+  rawCache.set(file, arrayBuffer);
+}
+
+export function resetPianoEngineForTests() {
+  bufferCache.clear();
+  pending.clear();
+  rawCache.clear();
+  rawPending.clear();
+  unlockedContexts = new WeakSet();
+  decodeWhileSuspendedFailed = false;
+  recentSchedules.length = 0;
 }
