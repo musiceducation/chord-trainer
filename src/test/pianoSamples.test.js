@@ -71,3 +71,16 @@ describe('piano samples', () => {
     expect(fs.existsSync(path.resolve('public/audio/piano/LICENSE.txt'))).toBe(true);
   });
 });
+
+describe('piano sustain for chord drills', () => {
+  it('keeps single notes and chords ringing long enough to hear the body', async () => {
+    const src = await import('node:fs').then((fs) =>
+      fs.readFileSync(new URL('../hooks/usePiano.js', import.meta.url), 'utf8'),
+    );
+    const note = Number(src.match(/NOTE_SUSTAIN = ([0-9.]+)/)[1]);
+    const chord = Number(src.match(/CHORD_SUSTAIN = ([0-9.]+)/)[1]);
+    expect(note).toBeGreaterThanOrEqual(2.8);
+    expect(chord).toBeGreaterThanOrEqual(3.2);
+    expect(chord).toBeGreaterThan(note);
+  });
+});

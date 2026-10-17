@@ -8,30 +8,43 @@ Playback now uses a small set of real grand-piano samples.
 
 ## Source and license
 
-**Salamander Grand Piano V3** by Alexander Holm.
+**Apple GarageBand / Logic Pro — Steinway Grand Piano** factory samples.
 
-- License: [CC BY 3.0](https://creativecommons.org/licenses/by/3.0/)
-  (commercial use is allowed with attribution)
-- Original recording: Yamaha C5, 48 kHz, 24-bit
-- Repository: https://github.com/sfzinstruments/SalamanderGrandPiano
+- Instrument: `Steinway Grand Piano 2.exs` (GarageBand patch “Steinway Grand Piano”)
+- Sample bank: `Steinway Piano_consolidated.caf` under Logic EXS Factory Samples
 - Shipped notice: `public/audio/piano/LICENSE.txt`
+- Redistribution of Apple sound-library content is restricted by Apple’s software
+  license. These clips are embedded for Chord Trainer drills at the project
+  owner’s request.
 
 ## What is in the app
 
 | Choice | Why |
 | --- | --- |
-| Velocity layer v10 (MIDI 73–80) | Mezzo-forte. Clear enough to hear chord tones, not the harsh top layers. |
-| C2–C6, every minor third (17 notes) | Covers the keyboard (`MIDI 36–84`). Neighbors are at most 1–2 semitones away, so pitch-shift stays subtle. |
-| Trimmed to 4.0 s, 192 kbps AAC | About 1.6 MB total. The attack is intact; drills do not need a 16-second ring. |
-| Web Audio `AudioBufferSource` | Files prefetch at startup and decode as soon as an AudioContext exists. A cached tap calls `resume()` and `source.start()` in the gesture: at `currentTime` while suspended, otherwise within one render quantum. |
+| First velocity layer of the Steinway bank | Clear hammer attack without the brightest layer. |
+| C2–C6, every minor third (17 notes) | Covers the keyboard (`MIDI 36–84`). Neighbors are at most 1–2 semitones away, so pitch-shift stays subtle. A2 uses the Bb2 zone. |
+| Trimmed to 6.5 s, 192 kbps AAC | Long enough for a natural decay under the playback envelope (~2 MB total). |
+| Web Audio `AudioBufferSource` | Files prefetch at startup and decode as soon as an AudioContext exists. A cached tap calls `resume()` and `source.start()` in the gesture. |
 | Warmer playback EQ | See the table below. The samples themselves are unchanged. |
-| Per-note loudness trim | The raw layers are not equally loud. Each file is scaled so chord tones sit together. |
+| Per-note loudness trim | Each file is peak-normalized with a small gain map so chord tones sit together. |
+
+## Sustain (chord-practice envelope)
+
+Analysis for chord drills (identify / ear / Roman):
+
+| Event | Target | Rationale |
+| --- | --- | --- |
+| Attack | keep ~10 ms natural hammer | Pitch and chord quality are judged in the first 50–100 ms. |
+| Single-note sustain | **3.0 s** to −60 dB | Hear the body and partials after the attack without dragging the next tap. |
+| Chord sustain | **3.5 s** | Inner voices stay audible so players can check voicing. |
+| Release fade | **~0.45 s** exponential | Avoids a clipped “tape stop”; still short enough for rapid drills. |
+| Sample file length | **≥6.5 s** natural ring | Envelope must not hit a hard file end before the fade finishes. |
+
+Key taps therefore ring about 3.0 s. Chords ring about 3.5 s, with a 15 ms strum.
 
 ## Playback EQ
 
 Web Audio biquads, in this order, then a gentle compressor (threshold −14 dB, ratio 2.4) and a master gain of 0.9. Numbers live in `PIANO_TONE` in `src/lib/pianoEngine.js`.
-
-The first pass (lowshelf +2.4 dB at 190 Hz, −2.4 dB at 3.3 kHz, highshelf −3 dB at 7.8 kHz) still sounded bright on a C4 and C-major listen. The curve below adds low-mid body and softens the top.
 
 | Filter | Type | Frequency | Q | Gain |
 | --- | --- | --- | --- | --- |
@@ -42,8 +55,4 @@ The first pass (lowshelf +2.4 dB at 190 Hz, −2.4 dB at 3.3 kHz, highshelf −3
 | upper | peaking | 5200 Hz | 1.1 | −3.0 dB |
 | air | highshelf | 6400 Hz | — | −6.5 dB |
 
-The 3.8 kHz cut is broad enough to ease 3–5 kHz. The highshelf now starts at 6.4 kHz instead of 7.8 kHz, and it is deeper, so the close-mic string noise sits further back.
-
 If a file fails to decode, a short inharmonic synth (hammer noise plus six partials) plays instead, so a missing asset does not silence a drill. The normal path is the sampled piano.
-
-Key taps ring for about 1.85 s. Chords ring for 2.2 s, with a 15 ms strum, matching the previous progression timing.
