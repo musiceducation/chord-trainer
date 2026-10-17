@@ -21,9 +21,9 @@ Pro unlocks Sevenths, Extended, Mix, chord progressions, and full stats/history.
 | Triads | yes | yes |
 | Sevenths, Extended, Mix | locked | yes |
 | Identify and Train | yes | yes |
-| Today's 5 and miss book | yes | yes |
+| Miss book | yes | yes |
 | First-launch C major flow | yes | yes |
-| Stats | today / recent | full history |
+| Stats | this session / recent | full history |
 | Chord progressions | locked | yes |
 
 Locked rows show a lock badge. Tapping opens a paywall with the StoreKit price, Buy, Restore Purchases, and Close. The paywall does not open on launch.
@@ -62,4 +62,4 @@ On a device / TestFlight, use a Sandbox Apple ID (Settings → App Store → San
 - Pro is a non-consumable (`com.musiceducation.chordtrainer.pro`, USD 9.99). It unlocks Sevenths, Extended, Mix, chord progressions, and full stats/history.
 - Support (Small) and Support (Large) are consumables (`…support.small` USD 0.99, `…support.large` USD 4.99). They unlock nothing.
 - Restore Purchases is in Settings (gear) and on the Pro paywall.
-- Free without purchase: Triads, Identify, Train, Today's 5, miss book, first-launch C major flow, and today/recent stats.
+- Free without purchase: Triads, Identify, Train, miss book, first-launch C major flow, and session/recent stats.

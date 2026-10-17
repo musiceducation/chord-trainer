@@ -31,8 +31,8 @@ Chord Trainer 是一款專為音樂學習者設計的和弦訓練 App。
 **功能特色：**
 - 辨識模式：看和弦名稱，在鋼琴上彈出正確音符
 - 聽音訓練：聽和弦後在鍵盤上重現
-- 今日 5 題與錯題本
-- 三和弦難度，以及今日／近期統計
+- 錯題本／重練錯題
+- 三和弦難度，以及本局／近期統計
 - 可選 Chord Trainer Pro（一次買斷，$9.99）：七和弦、延伸、全混合、和弦進行，以及完整統計
 - 可選「支持開發者」購買（$0.99 / $4.99），不會解鎖任何功能
 - 離線可用：無需帳號，進度儲存在裝置本機
@@ -46,8 +46,8 @@ Chord Trainer helps musicians practice chord spelling and ear training on a touc
 **Features:**
 - Recognition mode: read a chord name and play it on the keyboard
 - Ear training: listen and reproduce the chord
-- Today's 5 and a miss book
-- Triads difficulty, plus today and recent stats
+- Miss book / Retry misses
+- Triads difficulty, plus session and recent stats
 - Optional Chord Trainer Pro (one-time unlock, $9.99): Sevenths, Extended, Mix, chord progressions, and full stats
 - Optional Support purchases in Settings ($0.99 and $4.99). They unlock no features
 - Works offline with no account required
@@ -61,7 +61,7 @@ chord,piano,music,ear training,theory,keyboard,triad,七和弦,聽音,練習
 ## Review Notes
 
 - No login, account, or demo credentials required
-- Free without purchase: Triads difficulty, Identify, Train, Today's 5, miss book / Retry misses, first-launch C major flow, and today/recent stats
+- Free without purchase: Triads difficulty, Identify, Train, miss book / Retry misses, first-launch C major flow, and session/recent stats
 - Pro is a non-consumable one-time unlock (`com.musiceducation.chordtrainer.pro`, USD 9.99). It unlocks Sevenths, Extended, Mix, chord progressions, and full stats/history
 - Support purchases are consumables and unlock nothing:
   - `com.musiceducation.chordtrainer.support.small` — USD 0.99

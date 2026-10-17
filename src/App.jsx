@@ -14,19 +14,12 @@ import { loadStats, saveStats } from './lib/stats.js';
 import { loadSettings, saveSettings } from './lib/settings.js';
 import { applyFreeRampCap, canAccessProgression, difficultyAllowed, PRODUCT_IDS } from './lib/entitlement.js';
 import {
-  DRILL_PROMPT_AFTER,
   advanceDrill,
   applyRoundToBook,
   buildMissRetryQuestions,
-  createTodaySession,
   drillCorrectCount,
-  hashSeed,
   loadMissBook,
-  loadTodaySession,
-  localDateKey,
-  mulberry32,
   saveMissBook,
-  saveTodaySession,
 } from './lib/drill.js';
 import { LANGUAGES, htmlLangFor } from './lib/i18n.js';
 import { useI18n } from './hooks/useI18n.jsx';
@@ -91,7 +84,6 @@ export default function App() {
   const [guide, setGuide] = useState(() => initialGuideState(loadSettings().onboardingDone, { shotActive }));
   const [missBook, setMissBook] = useState(() => loadMissBook());
   const [drill, setDrill] = useState(null);
-  const [todaySnap, setTodaySnap] = useState(() => loadTodaySession());
   const [drillPromptDismissed, setDrillPromptDismissed] = useState(false);
   const [reviewOpen, setReviewOpen] = useState(false);
   const reviewStateRef = useRef(loadReviewState());
@@ -246,17 +238,13 @@ export default function App() {
       const next = advanceDrill(currentDrill, payload);
       drillRef.current = next;
       setDrill(next);
-      if (next.kind === 'today') {
-        saveTodaySession(next);
-        setTodaySnap(next);
-      }
       if (!next.done) {
         const upcoming = next.questions[next.index];
         if (upcoming?.mode) setTab(upcoming.mode);
       } else {
         const correct = drillCorrectCount(next);
         if (isPositiveDrillResult(correct, next.questions.length)) {
-          queueReviewPrompt(next.kind === 'today' ? 'todayDone' : 'drillDone');
+          queueReviewPrompt('drillDone');
         }
       }
       return;
@@ -318,33 +306,8 @@ export default function App() {
     setDrillPromptDismissed(true);
     const first = session.questions[Math.min(session.index || 0, session.questions.length - 1)];
     setTab(first.mode === 'test' ? 'test' : 'ear');
-    if (session.kind === 'today') {
-      saveTodaySession(session);
-      setTodaySnap(session);
-    }
   }, []);
 
-  const startToday = useCallback(() => {
-    const dateKey = localDateKey();
-    const saved = loadTodaySession();
-    let session;
-    if (saved?.dateKey === dateKey && Array.isArray(saved.questions) && saved.questions.length) {
-      session = saved.done
-        ? { ...saved, index: 0, results: [], done: false }
-        : saved;
-    } else {
-      const difficultyNow = difficultyAllowed(isProRef.current, difficultyRef.current)
-        ? difficultyRef.current
-        : 'basic';
-      session = createTodaySession({
-        dateKey,
-        difficulty: difficultyNow,
-        misses: missBookRef.current.items,
-        random: mulberry32(hashSeed(`${dateKey}:${difficultyNow}`)),
-      });
-    }
-    beginDrill(session);
-  }, [beginDrill]);
 
   const startRetry = useCallback(() => {
     const questions = buildMissRetryQuestions(missBookRef.current.items);
@@ -359,11 +322,6 @@ export default function App() {
   }, [beginDrill]);
 
   const exitDrill = useCallback(() => {
-    const current = drillRef.current;
-    if (current?.kind === 'today') {
-      saveTodaySession(current);
-      setTodaySnap(current);
-    }
     drillRef.current = null;
     setDrill(null);
     setTab('test');
@@ -422,12 +380,10 @@ export default function App() {
   const drillDone = Boolean(drill?.done);
   const overlayOpen = isGuideOverlayStep(guide) || drillDone;
   const firstHintReady = !guide && !drill && !shotActive;
-  const showDrillPrompt = !guide && !drill && !drillPromptDismissed
+  const showMissPrompt = !guide && !drill && !drillPromptDismissed
     && tab !== 'stats'
     && tab !== 'abrsm'
-    && scoreInfo.total >= DRILL_PROMPT_AFTER;
-  const todayCandidate = drill?.kind === 'today' ? drill : todaySnap;
-  const todaySession = todayCandidate?.dateKey === localDateKey() ? todayCandidate : null;
+    && missBook.items.length > 0;
 
   let overlayTitle = '';
   let overlayLead = '';
@@ -466,7 +422,7 @@ export default function App() {
   } else if (drillDone) {
     const correct = drillCorrectCount(drill);
     const total = drill.questions.length;
-    overlayTitle = drill.kind === 'misses' ? t('drill.retryDoneTitle') : t('drill.doneTitle');
+    overlayTitle = t('drill.retryDoneTitle');
     overlayLead = t('drill.doneBody', { correct, total });
     overlayCta = t('drill.doneClose');
     overlayOnCta = exitDrill;
@@ -478,9 +434,7 @@ export default function App() {
   }
 
   const drillCoach = drillQuestion
-    ? (drill.kind === 'misses'
-      ? t('drill.retryProgress', { n: drill.index + 1, total: drill.questions.length })
-      : t('drill.progress', { n: drill.index + 1, total: drill.questions.length }))
+    ? t('drill.retryProgress', { n: drill.index + 1, total: drill.questions.length })
     : '';
 
   const guideTab = tab !== 'abrsm';
@@ -646,16 +600,11 @@ export default function App() {
           </div>
         )}
 
-        {showDrillPrompt && (
+        {showMissPrompt && (
           <div className="flex flex-wrap items-center gap-2 mb-3">
-            <button type="button" className="pack-pill touch-none active:scale-[0.98]" onClick={startToday}>
-              {t('drill.prompt')}
+            <button type="button" className="pack-pill touch-none active:scale-[0.98]" onClick={startRetry}>
+              {t('drill.retryCount', { n: missBook.items.length })}
             </button>
-            {missBook.items.length > 0 && (
-              <button type="button" className="pack-pill touch-none active:scale-[0.98]" onClick={startRetry}>
-                {t('drill.retryCount', { n: missBook.items.length })}
-              </button>
-            )}
             <button
               type="button"
               className="guide-skip-inline touch-none"
@@ -848,8 +797,6 @@ export default function App() {
             setStats={setStats}
             hidden={tab !== 'stats'}
             missCount={missBook.items.length}
-            todaySession={todaySession}
-            onStartToday={startToday}
             onRetryMisses={startRetry}
             onResetMissBook={clearMissBook}
             fullStats={iap.isPro}
