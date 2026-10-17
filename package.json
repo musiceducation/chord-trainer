@@ -15,6 +15,7 @@
     "cap:screenshots": "node scripts/capture-asc-screenshots.mjs"
   },
   "dependencies": {
+    "@capacitor-community/in-app-review": "^7.1.0",
     "@capacitor/core": "^7.0.0",
     "@capacitor/ios": "^7.0.0",
     "@capacitor/splash-screen": "^7.0.0",
