@@ -17,7 +17,7 @@ let decodeWhileSuspendedFailed = false;
 const recentSchedules = [];
 
 /**
- * Playback tone for the close-miked Salamander grand.
+ * Playback tone for the GarageBand/Logic Steinway grand.
  * Samples stay untouched; this chain is applied live.
  * Tuned warmer after a C4 / C-major listen: more low-mid body,
  * less 3–5 kHz presence, and a softer top.
@@ -343,7 +343,8 @@ function startSampleVoice(ctx, graph, buffer, sample, spec) {
   const gain = ctx.createGain();
   const level = Math.max(0.001, vol * sample.gain);
   gain.gain.setValueAtTime(level, when);
-  const fadeAt = when + Math.max(0.08, sustain - 0.14);
+  const release = Math.min(0.45, Math.max(0.2, sustain * 0.14));
+  const fadeAt = when + Math.max(0.12, sustain - release);
   gain.gain.setValueAtTime(level, fadeAt);
   gain.gain.exponentialRampToValueAtTime(0.001, when + sustain);
   source.connect(gain);

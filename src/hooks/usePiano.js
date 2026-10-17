@@ -1,12 +1,12 @@
 import { useCallback, useEffect } from 'react';
 import { primePiano, schedulePianoNotes } from '../lib/pianoEngine.js';
 
-/** Single-key ring. Long enough to hear the hammer and body, short enough for drills. */
-const NOTE_SUSTAIN = 1.85;
-const NOTE_GAIN = 0.8;
-/** Chord ring. Kept close to the previous 2.2s so progression gaps still overlap cleanly. */
-const CHORD_SUSTAIN = 2.2;
-const CHORD_GAIN = 0.44;
+/** Single-key ring. Long enough to hear hammer, body and decay while drilling. */
+const NOTE_SUSTAIN = 3.0;
+const NOTE_GAIN = 0.78;
+/** Chord ring. Inner voices stay audible after the attack; progression gaps still overlap. */
+const CHORD_SUSTAIN = 3.5;
+const CHORD_GAIN = 0.4;
 const STRUM = 0.015;
 
 /**
