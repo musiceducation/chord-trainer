@@ -32,6 +32,17 @@ import { LANGUAGES, htmlLangFor } from './lib/i18n.js';
 import { useI18n } from './hooks/useI18n.jsx';
 import { useIap } from './hooks/useIap.js';
 import { IapSettings } from './components/IapSettings.jsx';
+import { SoftReviewDialog } from './components/SoftReviewDialog.jsx';
+import {
+  isPositiveDrillResult,
+  isStreakMilestone,
+  loadReviewState,
+  recordReviewRequested,
+  recordSoftAnswer,
+  saveReviewState,
+  shouldOfferSoftGate,
+} from './lib/reviewPrompt.js';
+import { requestNativeReview } from './native/inAppReview.js';
 import { IapToast, PaywallSheet } from './components/PaywallSheet.jsx';
 import { readShotConfig } from './lib/shotMode.js';
 import {
@@ -82,6 +93,9 @@ export default function App() {
   const [drill, setDrill] = useState(null);
   const [todaySnap, setTodaySnap] = useState(() => loadTodaySession());
   const [drillPromptDismissed, setDrillPromptDismissed] = useState(false);
+  const [reviewOpen, setReviewOpen] = useState(false);
+  const reviewStateRef = useRef(loadReviewState());
+  const reviewPromptedRef = useRef(false);
   const [rampLevel, setRampLevel] = useState(null);
   const [rampNudge, setRampNudge] = useState(false);
   const [paywallOpen, setPaywallOpen] = useState(false);
@@ -213,6 +227,19 @@ export default function App() {
     }
   }, [finishOnboarding]);
 
+  const queueReviewPrompt = useCallback((reason) => {
+    if (reviewPromptedRef.current || reviewOpen) return;
+    if (!shouldOfferSoftGate({ state: reviewStateRef.current, reason })) return;
+    reviewPromptedRef.current = true;
+    const stamped = {
+      ...reviewStateRef.current,
+      lastSoftGateAt: new Date().toISOString(),
+    };
+    reviewStateRef.current = stamped;
+    saveReviewState(stamped);
+    setReviewOpen(true);
+  }, [reviewOpen]);
+
   const handleQuestionComplete = useCallback((payload = {}) => {
     const currentDrill = drillRef.current;
     if (currentDrill && !currentDrill.done) {
@@ -226,11 +253,16 @@ export default function App() {
       if (!next.done) {
         const upcoming = next.questions[next.index];
         if (upcoming?.mode) setTab(upcoming.mode);
+      } else {
+        const correct = drillCorrectCount(next);
+        if (isPositiveDrillResult(correct, next.questions.length)) {
+          queueReviewPrompt(next.kind === 'today' ? 'todayDone' : 'drillDone');
+        }
       }
       return;
     }
     handlePracticeComplete();
-  }, [handlePracticeComplete]);
+  }, [handlePracticeComplete, queueReviewPrompt]);
 
   const handleRoundSettled = useCallback((payload) => {
     const guided = guideRef.current;
@@ -271,7 +303,11 @@ export default function App() {
     } else {
       rampMissRef.current = missStreak;
     }
-  }, [updateSettings]);
+
+    if (!missed && isStreakMilestone(cleanStreak)) {
+      queueReviewPrompt('streak');
+    }
+  }, [updateSettings, queueReviewPrompt]);
 
   const beginDrill = useCallback((session) => {
     if (!session?.questions?.length) return;
@@ -455,6 +491,23 @@ export default function App() {
     : guide?.kind === 'pack'
       ? `${t('pack.name')} · ${t('pack.progress', { n: guide.index + 1 })}`
       : t(`guide.oneLiner.${tab}`);
+
+  const closeReviewGate = useCallback((answer) => {
+    const answered = recordSoftAnswer(reviewStateRef.current, answer);
+    reviewStateRef.current = answered;
+    saveReviewState(answered);
+    setReviewOpen(false);
+  }, []);
+
+  const acceptReviewGate = useCallback(async () => {
+    closeReviewGate('yes');
+    const result = await requestNativeReview();
+    if (result.ok) {
+      const next = recordReviewRequested(reviewStateRef.current);
+      reviewStateRef.current = next;
+      saveReviewState(next);
+    }
+  }, [closeReviewGate]);
 
   return (
     <div lang={htmlLangFor(lang)} className="app-shell w-full text-slate-200 select-none relative overflow-hidden bg-[#070912]">
@@ -702,6 +755,10 @@ export default function App() {
                 {t('pack.start')}
               </button>
             </div>
+            <div className="text-[10px] text-slate-500 uppercase tracking-[0.3em] mt-3.5 mb-2.5 font-semibold">
+              {t('about.section')}
+            </div>
+            <p className="text-xs text-slate-400 leading-relaxed mb-1 px-0.5">{t('about.pianoCredit')}</p>
             {!shot?.hideIap && (
               <IapSettings
                 isPro={iap.isPro}
@@ -822,6 +879,17 @@ export default function App() {
         onClose={() => setPaywallOpen(false)}
       />
       <IapToast message={toastText} onDismiss={iap.clearToast} />
+
+      <SoftReviewDialog
+        open={reviewOpen}
+        title={t('review.title')}
+        message={t('review.body')}
+        yesLabel={t('review.yes')}
+        noLabel={t('review.no')}
+        closeLabel={t('dialog.close')}
+        onYes={acceptReviewGate}
+        onNo={() => closeReviewGate('no')}
+      />
 
       <GuideOverlay
         open={overlayOpen}
