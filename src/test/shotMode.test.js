@@ -20,7 +20,16 @@ describe('shotMode', () => {
       lang: 'zh-Hant',
       settings: true,
       seedStats: true,
+      hideIap: false,
     });
+  });
+
+  it('reads hideIap for price-free listing screenshots', () => {
+    const win = {
+      __SHOT__: { tab: 'test', lang: 'zh-Hant', settings: true, hideIap: true },
+      location: { search: '' },
+    };
+    expect(readShotConfig(win).hideIap).toBe(true);
   });
 
   it('writes language and seeded stats for screenshot capture', () => {

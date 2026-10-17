@@ -1,7 +1,7 @@
 import { LANG_KEY, isSupportedLang, saveLang } from './i18n.js';
 import { STATS_KEY, saveStats } from './stats.js';
 
-const SHOT_TABS = new Set(['test', 'ear', 'progression', 'stats']);
+const SHOT_TABS = new Set(['test', 'ear', 'progression', 'abrsm', 'stats']);
 
 export const SCREENSHOT_STATS = {
   totalCorrect: 24,
@@ -31,12 +31,15 @@ export function readShotConfig(win = typeof window !== 'undefined' ? window : nu
   const lang = fromWindow.lang || params.get('lang');
   const settings = fromWindow.settings === true || params.get('settings') === '1';
   const seedStats = fromWindow.seedStats === true || params.get('seedStats') === '1';
+  // ASC listing screenshots must not show prices / “free” (Guideline 2.3.7).
+  const hideIap = fromWindow.hideIap === true || params.get('hideIap') === '1';
   if (!tab && !lang && !settings && !seedStats) return null;
   return {
     tab: SHOT_TABS.has(tab) ? tab : null,
     lang: isSupportedLang(lang) ? lang : null,
     settings,
     seedStats,
+    hideIap,
   };
 }
 

@@ -16,3 +16,6 @@ ios/App/DerivedData/
 *.xcworkspace/xcuserdata/
 .vercel/
 build/
+
+# Fastlane local config and App Store Connect keys
+ios/fastlane/
