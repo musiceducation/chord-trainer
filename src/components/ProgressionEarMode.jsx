@@ -181,9 +181,8 @@ export function ProgressionEarMode({
 
   const handleWrongAnswer = useCallback(() => {
     const picked = formatProgressionAnswer(answer);
-    const correct = formatProgressionAnswer(question.degreeNums);
     setFeedback('wrong');
-    setLiveMessage(`${t('feedback.youPicked', { picked })}. ${t('feedback.answer', { name: correct })}`);
+    setLiveMessage(t('feedback.youPicked', { picked }));
     setStreak(computeStreakAfterWrong());
     setHasFailed(true);
     setStats((prev) => recordWrongAttempt(prev, question.label, { kind: 'progression' }));
@@ -387,13 +386,8 @@ export function ProgressionEarMode({
               <Check size={12} aria-hidden="true" /><span>{t('action.perfect')}</span>
             </div>
           ) : feedback === 'wrong' ? (
-            <div className="answer-reveal">
-              <div className="text-rose-300 font-medium normal-case tracking-normal">
-                {t('feedback.youPicked', { picked: formatProgressionAnswer(answer) })}
-              </div>
-              <div className="text-slate-100 font-semibold normal-case tracking-normal">
-                {t('feedback.answer', { name: formatProgressionAnswer(question.degreeNums) })}
-              </div>
+            <div className="text-rose-300 font-medium normal-case tracking-normal">
+              {t('feedback.youPicked', { picked: formatProgressionAnswer(answer) })}
             </div>
           ) : allFilled ? (
             <div className="text-slate-400 uppercase">{t('progression.confirm')}</div>

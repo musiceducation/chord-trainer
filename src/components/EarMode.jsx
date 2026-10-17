@@ -5,15 +5,12 @@ import { usePiano } from '../hooks/usePiano.js';
 import { useTimeoutCleanup } from '../hooks/useTimeoutCleanup.js';
 import {
   buildChordVoicing,
-  chordTypeI18nKey,
   formatChord,
-  formatChordAnswer,
   generateQuestion,
   isCorrectNote,
   questionFromSpec,
   targetPcsInChordOrder,
 } from '../lib/chords.js';
-import { PC_TO_NOTE } from '../lib/constants.js';
 import {
   computeStreakAfterSuccess,
   computeStreakAfterWrong,
@@ -21,8 +18,7 @@ import {
   recordSkip,
   recordWrongAttempt,
 } from '../lib/stats.js';
-import { FULL_END, FULL_START } from '../lib/constants.js';
-import { describeWrongNote } from '../lib/noteDiff.js';
+import { FULL_END, FULL_START, PC_TO_NOTE } from '../lib/constants.js';
 import { scheduleAllHint } from '../lib/hintFlash.js';
 import { useI18n } from '../hooks/useI18n.jsx';
 
@@ -61,7 +57,6 @@ export function EarMode({
   const [hasFailed, setHasFailed] = useState(false);
   const [liveMessage, setLiveMessage] = useState('');
   const [wrongDetail, setWrongDetail] = useState('');
-  const [answerReveal, setAnswerReveal] = useState(null);
   const streakRef = useRef(0);
   const hasFailedRef = useRef(false);
   const autoHintUsedRef = useRef(false);
@@ -99,7 +94,6 @@ export function EarMode({
     setScore({ correct: 0, total: 0 });
     setLiveMessage('');
     setWrongDetail('');
-    setAnswerReveal(null);
     autoPlayedRef.current = false;
   }, [difficulty, fixedKey, questionEpoch, clearAll]);
 
@@ -172,7 +166,6 @@ export function EarMode({
       setHasFailed(false);
       setLiveMessage('');
       setWrongDetail('');
-      setAnswerReveal(null);
     }, 1400);
   }, [lockedCorrect, question, feedback, difficulty, replayChord, setStats, schedule, hidden, tutorial, onQuestionComplete, onRoundSettled]);
 
@@ -194,13 +187,10 @@ export function EarMode({
         return next;
       });
     } else {
-      const detail = describeWrongNote(midi, lockedCorrect, question.pcs, t);
-      const picked = PC_TO_NOTE[midi % 12];
-      const answerLabel = formatChordAnswer(question.name, t(chordTypeI18nKey(question.type)));
+      const detail = t('feedback.youPlayed', { note: PC_TO_NOTE[midi % 12] });
       setWrongFlash(midi);
       setWrongDetail(detail);
-      setAnswerReveal({ picked, answer: answerLabel });
-      setLiveMessage(`${detail}. ${t('feedback.youPlayed', { note: picked })}. ${t('feedback.answer', { name: answerLabel })}`);
+      setLiveMessage(detail);
       schedule(() => setWrongFlash((prev) => (prev === midi ? null : prev)), 350);
       if (!tutorial) {
         setStreak(computeStreakAfterWrong());
@@ -208,7 +198,7 @@ export function EarMode({
         setStats((prev) => recordWrongAttempt(prev, question.name));
       }
     }
-  }, [feedback, playNote, question, schedule, setStats, t, lockedCorrect, tutorial]);
+  }, [feedback, playNote, question, schedule, setStats, t, tutorial]);
 
   const skip = () => {
     if (hideSkip) return;
@@ -241,7 +231,6 @@ export function EarMode({
     setHintNotes(null);
     setHasFailed(false);
     setWrongDetail('');
-    setAnswerReveal(null);
     setLiveMessage(t('live.skipped'));
   };
 
@@ -306,15 +295,6 @@ export function EarMode({
           {feedback === 'correct' ? (
             <div className="flex items-center justify-center gap-1.5 text-emerald-300 font-semibold uppercase">
               <Check size={12} aria-hidden="true" /><span>{formatChord(question.name)} ✓</span>
-            </div>
-          ) : answerReveal ? (
-            <div className="answer-reveal">
-              <div className="text-rose-300 font-medium normal-case tracking-normal">
-                {t('feedback.youPlayed', { note: answerReveal.picked })}
-              </div>
-              <div className="text-slate-100 font-semibold normal-case tracking-normal">
-                {t('feedback.answer', { name: answerReveal.answer })}
-              </div>
             </div>
           ) : wrongDetail ? (
             <div className="text-rose-300 font-medium normal-case tracking-normal">{wrongDetail}</div>
