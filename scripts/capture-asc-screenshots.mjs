@@ -25,12 +25,14 @@ const devices = {
   },
 };
 
+// Guideline 2.3.7: listing screenshots must not show prices or “free”.
+// IAP product review shots live under docs/app-store/screenshots/iap-review/.
 const shots = [
   { file: '02-recognition-piano.png', shot: { tab: 'test', lang: 'zh-Hant' } },
   { file: '03-ear-training.png', shot: { tab: 'ear', lang: 'zh-Hant' } },
   { file: '05-progression.png', shot: { tab: 'progression', lang: 'zh-Hant' } },
   { file: '04-stats-achievements.png', shot: { tab: 'stats', lang: 'zh-Hant', seedStats: true } },
-  { file: '06-settings-support.png', shot: { tab: 'test', lang: 'zh-Hant', settings: true } },
+  { file: '06-settings.png', shot: { tab: 'test', lang: 'zh-Hant', settings: true, hideIap: true } },
 ];
 
 function run(command, cwd = root) {

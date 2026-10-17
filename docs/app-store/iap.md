@@ -39,7 +39,7 @@ Do not change App Store Connect from the repo. When submitting:
 3. Review screenshots (any iPhone size):
    - Settings: Chord Trainer Pro row, **Restore Purchases**, and Support the developer with both consumables and the line that they unlock no features.
    - Paywall: StoreKit price (not a typed-in dollar amount), Buy, Restore Purchases, and Close.
-4. Submit the IAPs with the app version.
+4. **Submit the IAPs with the app version in the same review submission** (Add for Review on each product, then Submit). If the binary goes alone and products stay `READY_TO_SUBMIT`, App Review gets Guideline **3.1.1** (buy UI with no purchasable IAP).
 5. App Privacy can stay **Data Not Collected** (Apple processes payment; the app does not store card data or send receipts to a server).
 
 ## Local testing

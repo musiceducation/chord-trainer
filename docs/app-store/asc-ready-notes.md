@@ -42,11 +42,13 @@ See `iap.md`. Attach all three to the version under review. Do not edit App Stor
 | Support (Small) | `com.musiceducation.chordtrainer.support.small` | Consumable | $0.99 |
 | Support (Large) | `com.musiceducation.chordtrainer.support.large` | Consumable | $4.99 |
 
-IAP review screenshots: Settings (Pro row, Restore Purchases, both Support purchases with the unlocks-nothing line) and the paywall (StoreKit price, Buy, Restore Purchases, Close).
+IAP review screenshots (product page only, not listing): `docs/app-store/screenshots/iap-review/`.
 
-## Screenshots (local, recaptured 4 Sep 2026)
+**Required every submit:** add all three IAP versions to the same App Review submission as the binary (not binary-only).
 
-Four-tab UI + settings Support tips. Upload `asc-sized/` into the matching slot.
+## Screenshots (listing — no prices / “free”, Guideline 2.3.7)
+
+Upload **only** `02`–`05` from `asc-sized/` (or native for 6.9"). Do **not** upload `iap-review` or any shot with `$` / 免費.
 
 - iPhone 6.7": `docs/app-store/screenshots/iphone-6.7/asc-sized/` (1290×2796)
 - iPhone 6.9": `docs/app-store/screenshots/iphone-6.7/` native (1320×2868)

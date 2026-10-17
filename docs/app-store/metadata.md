@@ -18,9 +18,9 @@
 
 ## Promotional Text (170 chars max)
 
-**zh-Hant:** 在互動鋼琴上練習和弦辨識與聽音。三和弦免費；可選一次買斷 Pro，解鎖七和弦、進行與完整統計。
+**zh-Hant:** 在互動鋼琴上練習和弦辨識與聽音。可選一次買斷 Pro，解鎖七和弦、進行與完整統計。
 
-**en:** Practice chord recognition and ear training. Triads are free. Optional one-time Pro unlocks sevenths, progressions, and full stats.
+**en:** Practice chord recognition and ear training. Optional one-time Pro unlocks sevenths, progressions, and full stats.
 
 ## Description
 
@@ -32,7 +32,7 @@ Chord Trainer 是一款專為音樂學習者設計的和弦訓練 App。
 - 辨識模式：看和弦名稱，在鋼琴上彈出正確音符
 - 聽音訓練：聽和弦後在鍵盤上重現
 - 今日 5 題與錯題本
-- 免費難度：三和弦，以及今日／近期統計
+- 三和弦難度，以及今日／近期統計
 - 可選 Chord Trainer Pro（一次買斷，$9.99）：七和弦、延伸、全混合、和弦進行，以及完整統計
 - 可選「支持開發者」購買（$0.99 / $4.99），不會解鎖任何功能
 - 離線可用：無需帳號，進度儲存在裝置本機
@@ -47,7 +47,7 @@ Chord Trainer helps musicians practice chord spelling and ear training on a touc
 - Recognition mode: read a chord name and play it on the keyboard
 - Ear training: listen and reproduce the chord
 - Today's 5 and a miss book
-- Free: triads, plus today and recent stats
+- Triads difficulty, plus today and recent stats
 - Optional Chord Trainer Pro (one-time unlock, $9.99): Sevenths, Extended, Mix, chord progressions, and full stats
 - Optional Support purchases in Settings ($0.99 and $4.99). They unlock no features
 - Works offline with no account required
@@ -71,7 +71,7 @@ chord,piano,music,ear training,theory,keyboard,triad,七和弦,聽音,練習
 - No ads or tracking
 - Audio is synthesized with Web Audio (no microphone, camera, or location)
 - iOS will not play sound until the reviewer taps a piano key or Play / Replay — this is expected
-- Four tabs: Identify, Train, Progress (Pro), Stats (gear icon: difficulty, language, Chord Trainer Pro, Restore Purchases, and Support the developer)
+- Five tabs: Identify, Train, Roman (free — Roman numeral chord practice), Progress (Pro), Stats (gear icon: difficulty, language, Chord Trainer Pro, Restore Purchases, and Support the developer)
 - Progress is stored only on-device (no cloud, no analytics)
 - Privacy policy: https://chord-trainer-legal.vercel.app/privacy.html
 - Support: https://chord-trainer-legal.vercel.app/support.html
