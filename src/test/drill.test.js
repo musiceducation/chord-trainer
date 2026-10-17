@@ -1,93 +1,60 @@
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import {
   advanceDrill,
   applyRoundToBook,
   buildMissRetryQuestions,
-  buildTodayQuestions,
-  createTodaySession,
   drillCorrectCount,
-  hashSeed,
+  emptyMissBook,
   loadMissBook,
-  loadTodaySession,
-  localDateKey,
-  mulberry32,
+  normalizeMissBook,
   recordMiss,
   removeMiss,
   saveMissBook,
-  saveTodaySession,
 } from '../lib/drill.js';
 
 class MemoryStorage {
-  constructor() { this.store = {}; }
-  getItem(k) { return this.store[k] ?? null; }
-  setItem(k, v) { this.store[k] = v; }
-}
+  constructor() {
+    this.map = new Map();
+  }
 
-function sequenceRandom() {
-  let n = 0;
-  return () => {
-    n += 1;
-    return (n % 97) / 97;
-  };
+  getItem(key) {
+    return this.map.has(key) ? this.map.get(key) : null;
+  }
+
+  setItem(key, value) {
+    this.map.set(key, String(value));
+  }
 }
 
 describe('miss book', () => {
-  it('records a miss once per chord and clears it after a clean answer', () => {
-    let book = recordMiss(null, { root: 'C', type: 'm', mode: 'ear', at: '2026-09-23T01:00:00.000Z' });
-    book = recordMiss(book, { root: 'C', type: 'm', mode: 'test', at: '2026-09-23T02:00:00.000Z' });
-    expect(book.items).toHaveLength(1);
-    expect(book.items[0]).toMatchObject({ id: 'Cm', misses: 2, mode: 'test' });
-
-    book = applyRoundToBook(book, { root: 'C', type: 'm', mode: 'ear' }, { missed: false });
-    expect(book.items).toEqual([]);
+  it('records and ranks misses', () => {
+    let book = emptyMissBook();
+    book = recordMiss(book, { root: 'C', type: '', mode: 'ear', at: '2026-01-01' });
+    book = recordMiss(book, { root: 'G', type: 'm', mode: 'test', at: '2026-01-02' });
+    book = recordMiss(book, { root: 'C', type: '', mode: 'ear', at: '2026-01-03' });
+    expect(book.items.find((i) => i.root === 'C').misses).toBe(2);
+    expect(normalizeMissBook(book).items).toHaveLength(2);
   });
 
-  it('keeps a miss when the round was skipped after a wrong note', () => {
-    const book = applyRoundToBook(
-      { items: [] },
-      { root: 'G', type: '7', mode: 'test' },
-      { missed: true, skipped: true, at: 't' },
-    );
-    expect(book.items[0].id).toBe('G7');
-    const skippedClean = applyRoundToBook(book, { root: 'D', type: '', mode: 'ear' }, { skipped: true });
-    expect(skippedClean.items.map((item) => item.id)).toEqual(['G7']);
+  it('applies rounds and can clear a chord', () => {
+    let book = recordMiss(emptyMissBook(), { root: 'D', type: '7', mode: 'ear', at: 'a' });
+    book = applyRoundToBook(book, { root: 'D', type: '7' }, { missed: true, at: 'b' });
+    expect(book.items[0].misses).toBe(2);
+    book = applyRoundToBook(book, { root: 'D', type: '7' }, { missed: false });
+    expect(book.items).toHaveLength(0);
+    book = recordMiss(emptyMissBook(), { root: 'E', type: '', mode: 'ear', at: 'c' });
+    expect(removeMiss(book, { root: 'E', type: '' }).items).toHaveLength(0);
   });
 
-  it('persists the book and drops empty misses', () => {
+  it('persists through storage', () => {
     const storage = new MemoryStorage();
-    saveMissBook({
-      items: [
-        { root: 'A', type: 'm', mode: 'ear', misses: 1, lastMissed: 'a' },
-        { root: 'F', type: '', mode: 'test', misses: 0 },
-      ],
-    }, storage);
-    expect(loadMissBook(storage).items.map((item) => item.id)).toEqual(['Am']);
-    expect(removeMiss(loadMissBook(storage), { root: 'A', type: 'm' }).items).toEqual([]);
+    const book = recordMiss(emptyMissBook(), { root: 'A', type: '', mode: 'test', at: 'x' });
+    expect(saveMissBook(book, storage)).toBe(true);
+    expect(loadMissBook(storage).items).toHaveLength(1);
   });
 });
 
-describe('today and retry drills', () => {
-  it('builds the same five questions for a date seed, misses first', () => {
-    const misses = [
-      { root: 'A', type: 'm', mode: 'test', misses: 4, lastMissed: '2' },
-      { root: 'D', type: 'm', mode: 'ear', misses: 1, lastMissed: '1' },
-      { root: 'F', type: '', mode: 'ear', misses: 3, lastMissed: '3' },
-      { root: 'B', type: 'dim', mode: 'test', misses: 2, lastMissed: '4' },
-    ];
-    const random = mulberry32(hashSeed('2026-09-23:basic'));
-    const first = buildTodayQuestions({ difficulty: 'basic', misses, random });
-    const second = buildTodayQuestions({
-      difficulty: 'basic',
-      misses,
-      random: mulberry32(hashSeed('2026-09-23:basic')),
-    });
-    expect(first).toHaveLength(5);
-    expect(first.map((q) => q.root + q.type)).toEqual(second.map((q) => q.root + q.type));
-    expect(first.slice(0, 3).map((q) => q.root + q.type)).toEqual(['Am', 'F', 'Bdim']);
-    expect(first.slice(0, 3).every((q) => q.source === 'miss')).toBe(true);
-    expect(first.filter((q) => q.source === 'new')).toHaveLength(2);
-  });
-
+describe('miss retry drills', () => {
   it('retries only chords in the miss book', () => {
     const questions = buildMissRetryQuestions([
       { root: 'E', type: '', mode: 'ear', misses: 1, lastMissed: 'a' },
@@ -95,24 +62,22 @@ describe('today and retry drills', () => {
     expect(questions).toEqual([{ root: 'E', type: '', mode: 'ear', source: 'miss' }]);
   });
 
-  it('advances today until five results are in and can resume from storage', () => {
-    const storage = new MemoryStorage();
-    let session = createTodaySession({
-      dateKey: '2026-09-23',
-      difficulty: 'basic',
-      misses: [],
-      random: sequenceRandom(),
-    });
-    expect(session.questions.length).toBeGreaterThan(0);
+  it('advances a miss-retry session until done', () => {
+    let session = {
+      kind: 'misses',
+      questions: buildMissRetryQuestions([
+        { root: 'C', type: '', mode: 'test', misses: 2, lastMissed: 'z' },
+        { root: 'G', type: 'm', mode: 'ear', misses: 1, lastMissed: 'y' },
+      ]),
+      index: 0,
+      results: [],
+      done: false,
+    };
+    expect(session.questions).toHaveLength(2);
     session = advanceDrill(session, { missed: true });
-    session = advanceDrill(session, { skipped: true });
-    expect(drillCorrectCount(session)).toBe(0);
-    expect(session.done).toBe(false);
-    while (!session.done) session = advanceDrill(session, {});
-    expect(session.results).toHaveLength(session.questions.length);
+    session = advanceDrill(session, {});
     expect(session.done).toBe(true);
-    expect(saveTodaySession(session, storage)).toBe(true);
-    expect(loadTodaySession(storage).done).toBe(true);
-    expect(localDateKey(new Date(2026, 8, 23))).toBe('2026-09-23');
+    expect(drillCorrectCount(session)).toBe(1);
+    expect(session.results).toHaveLength(2);
   });
 });

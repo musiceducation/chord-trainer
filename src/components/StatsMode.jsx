@@ -7,7 +7,6 @@ import { ConfirmDialog } from './ConfirmDialog.jsx';
 import { ACHIEVEMENTS } from '../lib/constants.js';
 import { formatChord } from '../lib/chords.js';
 import { computeAccuracy, DEFAULT_STATS, getWeakestChords } from '../lib/stats.js';
-import { drillCorrectCount } from '../lib/drill.js';
 import { useI18n } from '../hooks/useI18n.jsx';
 
 export function StatsMode({
@@ -15,8 +14,6 @@ export function StatsMode({
   setStats,
   hidden,
   missCount = 0,
-  todaySession = null,
-  onStartToday,
   onRetryMisses,
   onResetMissBook,
   fullStats = false,
@@ -27,14 +24,6 @@ export function StatsMode({
   const { t } = useI18n();
   const [confirmOpen, setConfirmOpen] = useState(false);
   const accuracy = computeAccuracy(stats);
-  const todayTotal = todaySession?.questions?.length || 0;
-  const todayProgress = !todaySession || !todayTotal
-    ? ''
-    : todaySession.done
-      ? ` · ${drillCorrectCount(todaySession)}/${todayTotal}`
-      : todaySession.index > 0
-        ? ` · ${todaySession.index}/${todayTotal}`
-        : '';
 
   const weakChords = useMemo(() => getWeakestChords(stats), [stats]);
 
@@ -52,14 +41,6 @@ export function StatsMode({
             {t('stats.drillTitle')}
           </div>
           <div className="flex flex-col gap-2">
-            <button
-              type="button"
-              onClick={onStartToday}
-              className="pack-pill w-full py-2.5 text-sm touch-none active:scale-[0.98]"
-            >
-              {t('drill.today')}
-              {todayProgress}
-            </button>
             <button
               type="button"
               onClick={onRetryMisses}
@@ -81,7 +62,7 @@ export function StatsMode({
         ) : (
           <div className="mb-4">
             <div className="text-[10px] text-slate-400 uppercase tracking-[0.3em] font-semibold mb-2">
-              {t('stats.todayTitle')}
+              {t('stats.sessionTitle')}
             </div>
             <div className="grid grid-cols-2 gap-3 mb-3">
               <StatCard icon={<Flame size={14} className="text-orange-300" />} label={t('session.streak')} value={sessionStreak} accent="orange" />

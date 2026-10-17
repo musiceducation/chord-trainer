@@ -75,7 +75,7 @@ function daysSince(iso, nowMs) {
  * @param {{
  *   state?: ReturnType<typeof normalizeReviewState>,
  *   now?: number | Date,
- *   reason?: 'todayDone' | 'drillDone' | 'streak',
+ *   reason?: 'drillDone' | 'streak',
  * }} [opts]
  */
 export function shouldOfferSoftGate(opts = {}) {

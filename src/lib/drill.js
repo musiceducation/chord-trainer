@@ -1,37 +1,4 @@
-import { generateQuestion } from './chords.js';
-
-export const DRILL_SIZE = 5;
-export const MISS_FILL_MAX = 3;
-export const DRILL_PROMPT_AFTER = 5;
 export const MISS_BOOK_KEY = 'chordTrainerMissBook_v1';
-export const TODAY_KEY = 'chordTrainerTodayDrill_v1';
-
-export function localDateKey(date = new Date()) {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-}
-
-export function hashSeed(value) {
-  const text = String(value);
-  let hash = 2166136261;
-  for (let i = 0; i < text.length; i += 1) {
-    hash ^= text.charCodeAt(i);
-    hash = Math.imul(hash, 16777619);
-  }
-  return hash >>> 0;
-}
-
-export function mulberry32(seed) {
-  let state = seed >>> 0;
-  return function random() {
-    state = (state + 0x6D2B79F5) | 0;
-    let next = Math.imul(state ^ (state >>> 15), 1 | state);
-    next = (next + Math.imul(next ^ (next >>> 7), 61 | next)) ^ next;
-    return ((next ^ (next >>> 14)) >>> 0) / 4294967296;
-  };
-}
 
 export function chordId(question) {
   if (!question?.root) return '';
@@ -146,37 +113,6 @@ function toDrillQuestion(miss) {
   };
 }
 
-export function buildTodayQuestions({
-  difficulty = 'basic',
-  misses = [],
-  random = Math.random,
-  size = DRILL_SIZE,
-} = {}) {
-  const questions = [];
-  rankMisses(misses).forEach((miss) => {
-    if (questions.length >= Math.min(MISS_FILL_MAX, size)) return;
-    if (!miss?.root) return;
-    if (questions.some((item) => chordId(item) === chordId(miss))) return;
-    questions.push(toDrillQuestion(miss));
-  });
-
-  let lastName = null;
-  let guard = 0;
-  while (questions.length < size && guard < 40) {
-    guard += 1;
-    const generated = generateQuestion(difficulty, lastName, random);
-    lastName = generated.name;
-    if (questions.some((item) => chordId(item) === generated.name)) continue;
-    questions.push({
-      root: generated.root,
-      type: generated.type,
-      mode: questions.length % 2 === 0 ? 'test' : 'ear',
-      source: 'new',
-    });
-  }
-  return questions;
-}
-
 export function buildMissRetryQuestions(misses = []) {
   return rankMisses(misses).filter((miss) => miss?.root).map(toDrillQuestion);
 }
@@ -202,41 +138,3 @@ export function drillCorrectCount(session) {
   return (session?.results || []).filter((result) => result.correct).length;
 }
 
-export function loadTodaySession(storage = typeof localStorage !== 'undefined' ? localStorage : null) {
-  if (!storage) return null;
-  try {
-    const raw = storage.getItem(TODAY_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw);
-    if (!parsed || parsed.kind !== 'today' || !Array.isArray(parsed.questions)) return null;
-    return parsed;
-  } catch {
-    return null;
-  }
-}
-
-export function saveTodaySession(session, storage = typeof localStorage !== 'undefined' ? localStorage : null) {
-  if (!storage || session?.kind !== 'today') return false;
-  try {
-    storage.setItem(TODAY_KEY, JSON.stringify(session));
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-export function createTodaySession({
-  dateKey,
-  difficulty,
-  misses,
-  random,
-} = {}) {
-  return {
-    kind: 'today',
-    dateKey,
-    questions: buildTodayQuestions({ difficulty, misses, random }),
-    index: 0,
-    results: [],
-    done: false,
-  };
-}
