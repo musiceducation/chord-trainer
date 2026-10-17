@@ -4,7 +4,7 @@ import { Keyboard } from './Keyboard.jsx';
 import { usePiano } from '../hooks/usePiano.js';
 import { useTimeoutCleanup } from '../hooks/useTimeoutCleanup.js';
 import { ABRSM5_MODE_FILTERS, generateAbrsmQuestion } from '../lib/abrsm.js';
-import { FULL_END, FULL_START, PC_TO_NOTE } from '../lib/constants.js';
+import { FULL_END, FULL_START } from '../lib/constants.js';
 import {
   computeStreakAfterSuccess,
   computeStreakAfterWrong,
@@ -103,7 +103,7 @@ export function AbrsmMode({
       return;
     }
     setWrongFlash(midi);
-    setMessage(t('feedback.youPlayed', { note: PC_TO_NOTE[pc] }));
+    setMessage(t('live.tryAgain'));
     schedule(() => setWrongFlash((prev) => (prev === midi ? null : prev)), 350);
     setStreak(computeStreakAfterWrong());
     setHasFailed(true);
@@ -172,8 +172,6 @@ export function AbrsmMode({
                 {question.chordName} · {question.toneNames.join(' ')}
               </div>
             </div>
-          ) : message ? (
-            <div className="text-rose-300 font-medium normal-case tracking-normal">{message}</div>
           ) : (
             <div className="text-slate-600 uppercase">
               {t('common.notesCount', { n: lockedCorrect.size, total: question.pcs.size })}

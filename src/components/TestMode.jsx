@@ -18,7 +18,7 @@ import {
   recordSkip,
   recordWrongAttempt,
 } from '../lib/stats.js';
-import { FULL_END, FULL_START, PC_TO_NOTE } from '../lib/constants.js';
+import { FULL_END, FULL_START } from '../lib/constants.js';
 import { scheduleAllHint, scheduleSequentialHint } from '../lib/hintFlash.js';
 import { useI18n } from '../hooks/useI18n.jsx';
 
@@ -55,7 +55,6 @@ export function TestMode({
   const [score, setScore] = useState({ correct: 0, total: 0 });
   const [hasFailed, setHasFailed] = useState(false);
   const [liveMessage, setLiveMessage] = useState('');
-  const [wrongDetail, setWrongDetail] = useState('');
   const streakRef = useRef(0);
   const hasFailedRef = useRef(false);
   const autoHintUsedRef = useRef(false);
@@ -81,7 +80,6 @@ export function TestMode({
     setHasFailed(false);
     setScore({ correct: 0, total: 0 });
     setLiveMessage('');
-    setWrongDetail('');
   }, [difficulty, fixedKey, questionEpoch, clearAll]);
 
   useEffect(() => {
@@ -110,7 +108,6 @@ export function TestMode({
     if (!allMatch) return;
 
     setFeedback('correct');
-    setWrongDetail('');
     setLiveMessage(tRef.current('live.correct'));
     playChord([...pressed]);
 
@@ -150,7 +147,6 @@ export function TestMode({
       setHintNotes(null);
       setHasFailed(false);
       setLiveMessage('');
-      setWrongDetail('');
     }, 1400);
   }, [lockedCorrect, question, feedback, difficulty, pressed, playChord, setStats, schedule, hidden, tutorial, onQuestionComplete, onRoundSettled]);
 
@@ -159,7 +155,6 @@ export function TestMode({
     playNote(midi);
     const pc = midi % 12;
     if (isCorrectNote(midi, question.pcs)) {
-      setWrongDetail('');
       setLockedCorrect((prev) => {
         if (prev.has(pc)) return prev;
         const next = new Set(prev);
@@ -172,10 +167,8 @@ export function TestMode({
         return next;
       });
     } else {
-      const detail = t('feedback.youPlayed', { note: PC_TO_NOTE[midi % 12] });
       setWrongFlash(midi);
-      setWrongDetail(detail);
-      setLiveMessage(detail);
+      setLiveMessage(t('live.tryAgain'));
       schedule(() => setWrongFlash((prev) => (prev === midi ? null : prev)), 350);
       if (!tutorial) {
         setStreak(computeStreakAfterWrong());
@@ -215,7 +208,6 @@ export function TestMode({
     setFeedback(null);
     setHintNotes(null);
     setHasFailed(false);
-    setWrongDetail('');
     setLiveMessage(t('live.skipped'));
   };
 
@@ -288,8 +280,6 @@ export function TestMode({
             <div className="flex items-center justify-center gap-1.5 text-emerald-300 font-semibold uppercase">
               <Check size={12} aria-hidden="true" /><span>{t('action.perfect')}</span>
             </div>
-          ) : wrongDetail ? (
-            <div className="text-rose-300 font-medium normal-case tracking-normal">{wrongDetail}</div>
           ) : (
             <div className="text-slate-600 uppercase">
               {t('common.notesCount', { n: lockedCorrect.size, total: question.pcs.size })}
