@@ -1,31 +1,22 @@
-Chord Trainer piano samples
-===========================
+Salamander Grand Piano V3
+Author: Alexander Holm
+Source: https://github.com/sfzinstruments/SalamanderGrandPiano
+Archive: https://archive.org/details/SalamanderGrandPianoV3
+License: Creative Commons Attribution 3.0 Unported (CC BY 3.0)
+https://creativecommons.org/licenses/by/3.0/
 
-Source
-------
-Steinway Grand Piano factory content installed with Apple GarageBand /
-Logic Pro on macOS:
+Commercial use, modification, and redistribution are allowed under that license
+when attribution is retained.
 
-  /Library/Application Support/Logic/EXS Factory Samples/
-    01 Acoustic Pianos/Steinway Piano_consolidated.caf
-  /Library/Application Support/Logic/Sampler Instruments/
-    01 Acoustic Pianos/Steinway Grand Piano 2.exs
+Adaptation used by Chord Trainer (this directory):
+- Velocity layer v10 only (MIDI velocity 73–80). Mezzo-forte: clear for ear
+  training without the harsh top layers.
+- Notes C2 through C6, sampled in minor thirds, matching the on-screen keyboard.
+- Each note trimmed to about 6.5 seconds (C6 keeps its natural ~6.1 s length)
+  with a short fade-out so the playback envelope (3.0 s note / 3.5 s chord) never
+  hits a hard file end.
+- Encoded from the Salamander Ogg Vorbis pack to 192 kbps AAC (.m4a) at 48 kHz.
+  Sharp signs in filenames are written as "s" (D#2 → Ds2.m4a) to keep URLs simple.
 
-GarageBand’s “Steinway Grand Piano” patch loads this same EXS instrument.
-
-What we ship
-------------
-Seventeen stereo AAC clips (C2–C6, every minor third), trimmed to 6.5 seconds
-with a 0.5-second fade. A2 is taken from the Bb2 zone and pitch-shifted one
-semitone at playback.
-
-License / redistribution
-------------------------
-These recordings are Apple copyrighted factory content. Apple’s GarageBand and
-Logic Pro software licenses restrict redistribution of sound library content
-outside of music you create with those apps. Chord Trainer embeds the clips for
-in-app chord drills at the request of the project owner. Do not reuse these
-files in other products without your own license from Apple.
-
-If this repository must stay free of Apple content, revert to Salamander Grand
-Piano V3 (CC BY 3.0) — see git history before the GarageBand sample swap.
+Attribution in product copy may read: “Piano samples: Salamander Grand Piano V3
+by Alexander Holm (CC BY 3.0).”

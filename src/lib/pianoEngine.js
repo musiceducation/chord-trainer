@@ -17,20 +17,21 @@ let decodeWhileSuspendedFailed = false;
 const recentSchedules = [];
 
 /**
- * Playback tone for the GarageBand/Logic Steinway grand.
+ * Playback tone for Salamander, tuned toward a GarageBand Steinway feel.
  * Samples stay untouched; this chain is applied live.
  * Tuned warmer after a C4 / C-major listen: more low-mid body,
  * less 3–5 kHz presence, and a softer top.
  */
 export const PIANO_TONE = {
-  masterGain: 0.9,
+  masterGain: 0.88,
   filters: [
     { id: 'highpass', type: 'highpass', frequency: 30, Q: 0.7 },
-    { id: 'body', type: 'lowshelf', frequency: 250, gain: 4.5 },
-    { id: 'lowMid', type: 'peaking', frequency: 400, Q: 0.7, gain: 2.5 },
-    { id: 'presence', type: 'peaking', frequency: 3800, Q: 0.85, gain: -4.5 },
-    { id: 'upper', type: 'peaking', frequency: 5200, Q: 1.1, gain: -3 },
-    { id: 'air', type: 'highshelf', frequency: 6400, gain: -6.5 },
+    // Extra low shelf vs the prior Salamander curve — closer to GB Steinway body.
+    { id: 'body', type: 'lowshelf', frequency: 240, gain: 5.2 },
+    { id: 'lowMid', type: 'peaking', frequency: 380, Q: 0.75, gain: 3.0 },
+    { id: 'presence', type: 'peaking', frequency: 3600, Q: 0.9, gain: -5.2 },
+    { id: 'upper', type: 'peaking', frequency: 5000, Q: 1.1, gain: -3.5 },
+    { id: 'air', type: 'highshelf', frequency: 6200, gain: -7.0 },
   ],
 };
 
