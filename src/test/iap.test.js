@@ -46,25 +46,27 @@ describe('web storefront', () => {
 });
 
 describe('native StoreKit path', () => {
-  it('purchases Pro as a non-consumable and support as a consumable', async () => {
+  it('purchases Pro as a subscription and support as a consumable', async () => {
     const purchaseProduct = vi.fn().mockImplementation(async ({ productIdentifier }) => ({
       productIdentifier,
       transactionId: 'txn-1',
+      isActive: true,
     }));
     const client = createIapClient({
       isNative: () => true,
       getNativePurchases: async () => ({
         NativePurchases: { purchaseProduct },
-        PURCHASE_TYPE: { INAPP: 'inapp' },
+        PURCHASE_TYPE: { INAPP: 'inapp', SUBS: 'subs' },
       }),
     });
 
     const pro = await client.purchase(PRODUCT_IDS.pro);
     expect(pro.ok).toBe(true);
     expect(pro.productId).toBe(PRODUCT_IDS.pro);
+    expect(PRODUCT_IDS.pro).toMatch(/\.monthly$/);
     expect(purchaseProduct).toHaveBeenCalledWith({
       productIdentifier: PRODUCT_IDS.pro,
-      productType: 'inapp',
+      productType: 'subs',
       quantity: 1,
       isConsumable: false,
     });
@@ -90,7 +92,7 @@ describe('native StoreKit path', () => {
             throw error;
           },
         },
-        PURCHASE_TYPE: { INAPP: 'inapp' },
+        PURCHASE_TYPE: { INAPP: 'inapp', SUBS: 'subs' },
       }),
     });
     expect(await client.purchase(PRODUCT_IDS.pro)).toMatchObject({
@@ -120,21 +122,29 @@ describe('native StoreKit path', () => {
       getNativePurchases: async () => ({
         NativePurchases: {
           isBillingSupported: async () => ({ isBillingSupported: true }),
-          getProducts: async () => ({
-            products: [
-              { identifier: PRODUCT_IDS.pro, priceString: 'HK$78.00', price: 78 },
-              { identifier: PRODUCT_IDS.supportSmall, price: 0.99 },
-            ],
-          }),
+          getProducts: async ({ productType }) => {
+            if (productType === 'subs') {
+              return {
+                products: [
+                  { identifier: PRODUCT_IDS.pro, priceString: 'HK$54.00', price: 54 },
+                ],
+              };
+            }
+            return {
+              products: [
+                { identifier: PRODUCT_IDS.supportSmall, price: 0.99 },
+              ],
+            };
+          },
         },
-        PURCHASE_TYPE: { INAPP: 'inapp' },
+        PURCHASE_TYPE: { INAPP: 'inapp', SUBS: 'subs' },
       }),
     });
     const catalog = await client.loadProductPrices();
-    expect(catalog.prices[PRODUCT_IDS.pro]).toBe('HK$78.00');
+    expect(catalog.prices[PRODUCT_IDS.pro]).toBe('HK$54.00');
     expect(catalog.prices[PRODUCT_IDS.supportSmall]).toBeUndefined();
     expect(catalog.loadFailed).toBe(true);
-    expect(JSON.stringify(catalog)).not.toMatch(/\$9\.99|\$0\.99|\$4\.99/);
+    expect(JSON.stringify(catalog)).not.toMatch(/\$9\.99|\$0\.99|\$4\.99|\$6\.99/);
   });
 
   it('does not invent prices when StoreKit fails', async () => {
@@ -164,7 +174,7 @@ describe('native StoreKit path', () => {
       isNative: () => true,
       getNativePurchases: async () => ({
         NativePurchases: { getPurchases },
-        PURCHASE_TYPE: { INAPP: 'inapp' },
+        PURCHASE_TYPE: { INAPP: 'inapp', SUBS: 'subs' },
       }),
     });
     const result = await client.verifyProEntitlement();

@@ -173,3 +173,28 @@ describe('entitlement cache', () => {
     expect(resolveEntitlement({ devPro: true, native: false })).toBe(true);
   });
 });
+
+describe('subscription and legacy Pro entitlements', () => {
+  it('treats an active monthly subscription as Pro', () => {
+    expect(entitlementFromPurchases([{
+      productIdentifier: PRODUCT_IDS.pro,
+      isActive: true,
+      expirationDate: new Date(Date.now() + 86400000).toISOString(),
+    }])).toBe(true);
+  });
+
+  it('rejects an expired monthly subscription', () => {
+    expect(entitlementFromPurchases([{
+      productIdentifier: PRODUCT_IDS.pro,
+      isActive: false,
+      subscriptionState: 'expired',
+      expirationDate: new Date(Date.now() - 1000).toISOString(),
+    }])).toBe(false);
+  });
+
+  it('still honors the legacy Non-Consumable Pro purchase', () => {
+    expect(entitlementFromPurchases([{
+      productIdentifier: PRODUCT_IDS.proLegacy,
+    }])).toBe(true);
+  });
+});

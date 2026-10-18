@@ -13,7 +13,6 @@ import { TRAINING_KEYS } from './lib/diatonic.js';
 import { loadStats, saveStats } from './lib/stats.js';
 import { loadSettings, saveSettings } from './lib/settings.js';
 import { applyFreeRampCap, canAccessProgression, PRODUCT_IDS } from './lib/entitlement.js';
-import { ensureTrialStarted, getTrialStatus, hasProAccess } from './lib/trial.js';
 import {
   DEFAULT_PIANO_SOUND,
   PIANO_SOUND_IDS,
@@ -100,17 +99,7 @@ export default function App() {
   const [rampNudge, setRampNudge] = useState(false);
   const [paywallOpen, setPaywallOpen] = useState(false);
   const iap = useIap();
-  const [trialStatus, setTrialStatus] = useState(() => {
-    ensureTrialStarted();
-    return getTrialStatus();
-  });
-  useEffect(() => {
-    ensureTrialStarted();
-    setTrialStatus(getTrialStatus());
-    const id = window.setInterval(() => setTrialStatus(getTrialStatus()), 60_000);
-    return () => window.clearInterval(id);
-  }, []);
-  const proAccess = hasProAccess(iap.isPro, trialStatus);
+  const proAccess = Boolean(iap.isPro);
   const practiceDifficulty = difficulty;
   const pianoSound = normalizePianoSound(settings.pianoSound || DEFAULT_PIANO_SOUND);
   const isProRef = useRef(proAccess);
@@ -748,12 +737,14 @@ export default function App() {
             </div>
             <p className="text-xs text-slate-400 leading-relaxed mb-1 px-0.5">{t('about.pianoCreditAcoustic')}</p>
             <p className="text-xs text-slate-400 leading-relaxed mb-1 px-0.5">{t('about.pianoCreditElectric')}</p>
+            <p className="text-xs text-slate-400 leading-relaxed mb-1 px-0.5">{t('about.pianoCreditElectricBright')}</p>
+            <p className="text-xs text-slate-400 leading-relaxed mb-1 px-0.5">{t('about.pianoCreditOrgan')}</p>
             {!shot?.hideIap && (
               <IapSettings
                 isPro={iap.isPro}
-                trialActive={trialStatus.active}
-                trialStarted={trialStatus.started}
-                trialDaysLeft={trialStatus.daysRemaining}
+                trialActive={false}
+                trialStarted={false}
+                trialDaysLeft={0}
                 native={iap.native}
                 prices={iap.prices}
                 priceStatus={iap.priceStatus}

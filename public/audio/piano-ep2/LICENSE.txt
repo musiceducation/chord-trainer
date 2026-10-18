@@ -1,0 +1,8 @@
+FM Synthesized Piano #2 (Bright Electric Piano)
+Author: Roberto (FreePats project) <roberto@zenvoid.org>
+Source: https://freepats.zenvoid.org/ElectricPiano/synthesized-piano.html
+GitHub: https://github.com/freepats/fm-piano2
+License: Creative Commons CC0 1.0 Universal
+https://creativecommons.org/publicdomain/zero/1.0/
+
+Adaptation: velocity v80; notes C2/F#2…C6; trimmed ~6.5s; AAC 192 kbps 48 kHz.

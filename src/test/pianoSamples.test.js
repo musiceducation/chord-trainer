@@ -5,6 +5,8 @@ import { PIANO_TONE } from '../lib/pianoEngine.js';
 import {
   ACOUSTIC_SAMPLES,
   ELECTRIC_SAMPLES,
+  ELECTRIC_BRIGHT_SAMPLES,
+  ORGAN_SAMPLES,
   PIANO_SAMPLES,
   attackStartIndex,
   getPianoPack,
@@ -58,6 +60,31 @@ describe('piano samples', () => {
     }
     expect(fs.existsSync(path.resolve('public/audio/piano-ep/LICENSE.txt'))).toBe(true);
     expect(ACOUSTIC_SAMPLES).toBe(PIANO_SAMPLES);
+  });
+
+
+  it('covers the keyboard for organ within two semitones', () => {
+    for (let midi = 36; midi <= 84; midi += 1) {
+      const sample = sampleForMidi(midi, ORGAN_SAMPLES);
+      expect(midi, `midi ${midi}`).toBeGreaterThanOrEqual(sample.lokey);
+      expect(midi, `midi ${midi}`).toBeLessThanOrEqual(sample.hikey);
+      expect(Math.abs(midi - sample.midi), `midi ${midi}`).toBeLessThanOrEqual(2);
+    }
+  });
+
+  it('ships bright electric and organ packs', () => {
+    expect(getPianoPack('electricBright').base).toBe('audio/piano-ep2/');
+    expect(getPianoPack('organ').base).toBe('audio/piano-organ/');
+    for (const sample of ELECTRIC_BRIGHT_SAMPLES) {
+      const file = path.resolve('public/audio/piano-ep2', sample.file);
+      expect(fs.existsSync(file), sample.file).toBe(true);
+    }
+    for (const sample of ORGAN_SAMPLES) {
+      const file = path.resolve('public/audio/piano-organ', sample.file);
+      expect(fs.existsSync(file), sample.file).toBe(true);
+    }
+    expect(fs.existsSync(path.resolve('public/audio/piano-ep2/LICENSE.txt'))).toBe(true);
+    expect(fs.existsSync(path.resolve('public/audio/piano-organ/LICENSE.txt'))).toBe(true);
   });
 
   it('pitch-shifts by equal temperament', () => {

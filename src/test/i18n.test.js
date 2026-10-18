@@ -88,9 +88,13 @@ describe('i18n', () => {
     expect(STRINGS.en['support.disclaimer']).toMatch(/unlock no features/i);
     expect(STRINGS['zh-Hant']['support.disclaimer']).toMatch(/不會解鎖/);
     expect(STRINGS.en['pro.paywallBody']).toMatch(/7-day free trial/i);
+    expect(STRINGS.en['pro.paywallBody']).toMatch(/month/i);
     expect(STRINGS.en['pro.paywallBody']).toMatch(/progressions/i);
     expect(STRINGS['zh-Hant']['pro.paywallBody']).toMatch(/七日/);
+    expect(STRINGS['zh-Hant']['pro.paywallBody']).toMatch(/每月/);
     expect(STRINGS['zh-Hant']['pro.paywallBody']).toMatch(/和弦進行/);
+    expect(STRINGS.en['sound.electricBright']).toBeTruthy();
+    expect(STRINGS.en['sound.organ']).toBeTruthy();
     expect(STRINGS['zh-Hans']['pro.paywallBody']).toBe(STRINGS['zh-Hant']['pro.paywallBody']);
     expect(STRINGS['zh-Hans']['support.disclaimer']).toBe(STRINGS['zh-Hant']['support.disclaimer']);
   });

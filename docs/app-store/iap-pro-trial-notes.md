@@ -1,40 +1,41 @@
-# Chord Trainer Pro — price & trial (ASC)
+# Chord Trainer Pro — monthly subscription + 7-day free trial (ASC)
 
-## Product
+## Products
 
-- Product ID: `com.musiceducation.chordtrainer.pro`
-- Type today: **Non-Consumable** (one-time)
-- Target price: **USD $6.99** (set equivalent price points for each storefront)
+| Role | Product ID | Type | Price |
+| --- | --- | --- | --- |
+| **Current Pro** | `com.musiceducation.chordtrainer.pro.monthly` | Auto-Renewable Subscription (1 month) | **USD $6.99 / month** |
+| Legacy Pro (grandfather) | `com.musiceducation.chordtrainer.pro` | Non-Consumable (existing buyers only) | — do not sell new |
+| Support Small | `com.musiceducation.chordtrainer.support.small` | Consumable tip | stays tip |
+| Support Large | `com.musiceducation.chordtrainer.support.large` | Consumable tip | stays tip |
 
-## Why the trial is app-managed
+Subscription group (StoreKit / ASC): **Chord Trainer Pro**
 
-App Store Connect **introductory free trials** apply to **auto-renewable subscriptions** only.
-A Non-Consumable cannot carry a StoreKit introductory offer.
+Introductory offer: **1× P1W free** (7-day free trial), then recurring **P1M** at $6.99.
 
-Chord Trainer therefore:
+Local StoreKit config: `ios/App/App/Products.storekit`.
 
-1. Keeps Pro as a Non-Consumable at **$6.99**.
-2. Starts a **7-day device trial** on first launch (`chordTrainerTrialStart` in localStorage)
-   that unlocks the same features as Pro (chord progressions + full stats).
-3. After the trial ends, those features lock again until Pro is purchased. Difficulty tiers
-   remain free forever.
+## App behaviour (1.0.7 build 17+)
 
-## ASC console steps (required for price / listing copy)
+- Purchase button buys **`…pro.monthly`** via Capgo `PURCHASE_TYPE.SUBS`.
+- Entitlement = active subscription **or** legacy Non-Consumable purchase.
+- Difficulty tiers remain free. Pro still gates **progressions** + **full stats**.
+- App-managed localStorage trial was removed in favour of Apple’s introductory offer.
 
-1. App Store Connect → app → **Monetization → In-App Purchases** → Chord Trainer Pro.
-2. Set price to **$6.99** (or the matching tier) for all storefronts you sell in.
-3. Update localization **Description** (example EN):
-   > 7-day free trial in the app, then a one-time unlock for chord progressions and full stats. All difficulty tiers are free.
-4. Update **Review notes** if needed: explain that the 7-day trial is granted in-app on first launch because the SKU is Non-Consumable.
-5. Submit the IAP / metadata with the next binary (1.0.7 build 16+).
+## ASC console steps (create SKU if missing)
 
-## Optional: StoreKit-native trial later
+1. App Store Connect → app → **Monetization → Subscriptions**.
+2. Create subscription group **Chord Trainer Pro** (if none).
+3. Add subscription:
+   - Reference name: `Pro Monthly`
+   - Product ID: `com.musiceducation.chordtrainer.pro.monthly`
+   - Duration: **1 Month**
+   - Price: **$6.99** (set all storefronts)
+4. **Introductory Offers** → Free → Duration **1 Week** → 1 period.
+5. Localization EN / 繁中: name + description matching `Products.storekit`.
+6. Leave legacy `…pro` Non-Consumable **Cleared for Sale = No** (or keep for restore only); do not delete if buyers exist.
+7. Submit subscription with next binary review notes: “Pro is now a monthly auto-renewable subscription with a 7-day free introductory offer. Legacy one-time Pro purchases remain honored.”
 
-If you want Apple-hosted trial billing UI:
+## API note
 
-1. Create a new **Auto-Renewable Subscription** (e.g. `…pro.annual` or `…pro.lifetime` is not valid — use a real period such as yearly, or keep Non-Consumable and stay app-managed).
-2. Add a **7-day free introductory offer**, then paid period at $6.99 (or yearly equivalent).
-3. Ship a code change to purchase that subscription SKU instead of the Non-Consumable.
-4. Keep or retire the Non-Consumable for existing buyers (grandfather via `getPurchases`).
-
-Until that migration, **do not** expect Introductory Offers on the current Pro SKU.
+Creating subscriptions via App Store Connect API requires Admin + Agreements signed. If API/browser automation is unavailable from the agent, complete the steps above in ASC manually before TestFlight external / App Review.

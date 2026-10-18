@@ -1,13 +1,24 @@
 /**
- * Sample maps for the in-app piano.
+ * Sample maps for the in-app keyboard.
  *
- * acoustic — Salamander Grand Piano V3 by Alexander Holm (CC BY 3.0).
- * electric — FreePats FM Piano 1 (CC0). See public/audio/piano(-ep)/LICENSE.txt.
+ * acoustic — Salamander Grand Piano V3 (CC BY 3.0)
+ * electric — FreePats FM Piano 1 (CC0)
+ * electricBright — FreePats FM Piano 2 (CC0)
+ * organ — FreePats Drawbar Organ (CC0)
  */
 
 export const PIANO_SOUND_ACOUSTIC = 'acoustic';
 export const PIANO_SOUND_ELECTRIC = 'electric';
-export const PIANO_SOUND_IDS = Object.freeze([PIANO_SOUND_ACOUSTIC, PIANO_SOUND_ELECTRIC]);
+export const PIANO_SOUND_ELECTRIC_BRIGHT = 'electricBright';
+export const PIANO_SOUND_ORGAN = 'organ';
+
+export const PIANO_SOUND_IDS = Object.freeze([
+  PIANO_SOUND_ACOUSTIC,
+  PIANO_SOUND_ELECTRIC,
+  PIANO_SOUND_ELECTRIC_BRIGHT,
+  PIANO_SOUND_ORGAN,
+]);
+
 export const DEFAULT_PIANO_SOUND = PIANO_SOUND_ACOUSTIC;
 
 /** @deprecated Prefer getPianoPack(DEFAULT_PIANO_SOUND).base */
@@ -34,10 +45,7 @@ export const ACOUSTIC_SAMPLES = Object.freeze([
   { file: 'C6.m4a', midi: 84, lokey: 83, hikey: 85, gain: 1.77 },
 ]);
 
-/**
- * Electric (FreePats FM Piano 1 v80): tritones C/F# per SFZ regions.
- * Pitch-shift at most ±3 semitones across the on-screen keyboard.
- */
+/** FreePats FM Piano tritones (≤3 semitone shift). */
 export const ELECTRIC_SAMPLES = Object.freeze([
   { file: 'C2.m4a', midi: 36, lokey: 33, hikey: 38, gain: 1.0 },
   { file: 'Fs2.m4a', midi: 42, lokey: 39, hikey: 44, gain: 1.0 },
@@ -48,6 +56,26 @@ export const ELECTRIC_SAMPLES = Object.freeze([
   { file: 'C5.m4a', midi: 72, lokey: 69, hikey: 74, gain: 1.0 },
   { file: 'Fs5.m4a', midi: 78, lokey: 75, hikey: 80, gain: 1.0 },
   { file: 'C6.m4a', midi: 84, lokey: 81, hikey: 85, gain: 1.0 },
+]);
+
+/** Same grid as electric — FreePats FM Piano 2 (brighter). */
+export const ELECTRIC_BRIGHT_SAMPLES = ELECTRIC_SAMPLES;
+
+/** Drawbar organ: major thirds C/E/G# per FreePats SFZ (≤2 semitone shift). */
+export const ORGAN_SAMPLES = Object.freeze([
+  { file: 'C2.m4a', midi: 36, lokey: 33, hikey: 37, gain: 0.95 },
+  { file: 'E2.m4a', midi: 40, lokey: 38, hikey: 41, gain: 0.95 },
+  { file: 'Gs2.m4a', midi: 44, lokey: 42, hikey: 45, gain: 0.95 },
+  { file: 'C3.m4a', midi: 48, lokey: 46, hikey: 49, gain: 0.95 },
+  { file: 'E3.m4a', midi: 52, lokey: 50, hikey: 53, gain: 0.95 },
+  { file: 'Gs3.m4a', midi: 56, lokey: 54, hikey: 57, gain: 0.95 },
+  { file: 'C4.m4a', midi: 60, lokey: 58, hikey: 61, gain: 0.95 },
+  { file: 'E4.m4a', midi: 64, lokey: 62, hikey: 65, gain: 0.95 },
+  { file: 'Gs4.m4a', midi: 68, lokey: 66, hikey: 69, gain: 0.95 },
+  { file: 'C5.m4a', midi: 72, lokey: 70, hikey: 73, gain: 0.95 },
+  { file: 'E5.m4a', midi: 76, lokey: 74, hikey: 77, gain: 0.95 },
+  { file: 'Gs5.m4a', midi: 80, lokey: 78, hikey: 81, gain: 0.95 },
+  { file: 'C6.m4a', midi: 84, lokey: 82, hikey: 85, gain: 0.95 },
 ]);
 
 /** @deprecated Alias for acoustic samples (tests + older imports). */
@@ -67,6 +95,20 @@ export const PIANO_PACKS = Object.freeze({
     samples: ELECTRIC_SAMPLES,
     labelKey: 'sound.electric',
     creditKey: 'about.pianoCreditElectric',
+  }),
+  [PIANO_SOUND_ELECTRIC_BRIGHT]: Object.freeze({
+    id: PIANO_SOUND_ELECTRIC_BRIGHT,
+    base: 'audio/piano-ep2/',
+    samples: ELECTRIC_BRIGHT_SAMPLES,
+    labelKey: 'sound.electricBright',
+    creditKey: 'about.pianoCreditElectricBright',
+  }),
+  [PIANO_SOUND_ORGAN]: Object.freeze({
+    id: PIANO_SOUND_ORGAN,
+    base: 'audio/piano-organ/',
+    samples: ORGAN_SAMPLES,
+    labelKey: 'sound.organ',
+    creditKey: 'about.pianoCreditOrgan',
   }),
 });
 
@@ -93,17 +135,10 @@ export function sampleForMidi(midi, samples = ACOUSTIC_SAMPLES) {
   ));
 }
 
-/** Pitch ratio for playing `midi` from a sample recorded at `sampleMidi`. */
 export function playbackRateFor(midi, sampleMidi) {
   return 2 ** ((midi - sampleMidi) / 12);
 }
 
-/**
- * Index to skip encoder priming silence.
- * A real hammer onset within ~12ms is left intact. Longer leading silence
- * (typical AAC delay when the decoder does not apply the edit list) is removed,
- * keeping 2ms of pre-roll so the transient is not clipped.
- */
 export function attackStartIndex(channels, sampleRate, threshold = 0.0015) {
   if (!channels?.length || !sampleRate) return 0;
   const length = channels[0].length;
