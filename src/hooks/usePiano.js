@@ -1,5 +1,6 @@
 import { useCallback, useEffect } from 'react';
-import { primePiano, schedulePianoNotes } from '../lib/pianoEngine.js';
+import { getActivePianoSound, primePiano, schedulePianoNotes, setActivePianoSound } from '../lib/pianoEngine.js';
+import { normalizePianoSound } from '../lib/pianoSamples.js';
 
 /** Single-key ring. Long enough to hear hammer, body and decay while drilling. */
 const NOTE_SUSTAIN = 3.0;
@@ -81,15 +82,26 @@ function guardPlay(pending) {
   return pending;
 }
 
-export function usePiano(enabled) {
+export function usePiano(enabled, pianoSound) {
+  const soundId = pianoSound != null ? normalizePianoSound(pianoSound) : null;
+
   useEffect(() => {
     retainSharedPianoContext();
+    if (soundId) setActivePianoSound(soundId);
     const ctx = getSharedPianoContext();
     if (ctx) primePiano(ctx);
     return () => {
       releaseSharedPianoContext();
     };
-  }, []);
+  }, [soundId]);
+
+  useEffect(() => {
+    if (!soundId) return;
+    if (getActivePianoSound() === soundId) return;
+    setActivePianoSound(soundId);
+    const ctx = getSharedPianoContext();
+    if (ctx) primePiano(ctx);
+  }, [soundId]);
 
   const playNote = useCallback((midi) => {
     if (!enabled) return false;

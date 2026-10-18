@@ -8,6 +8,7 @@ export function PaywallSheet({
   open,
   title,
   body,
+  trialOffer,
   price,
   priceStatus,
   unavailableLabel,
@@ -40,7 +41,12 @@ export function PaywallSheet({
       />
       <div className="relative w-full max-w-sm rounded-2xl p-5 panel-solid">
         <h2 id="paywall-title" className="text-base font-semibold text-slate-100 mb-1">{title}</h2>
-        <p className="text-sm text-slate-400 mb-4">{body}</p>
+        <p className="text-sm text-slate-400 mb-2">{body}</p>
+        {trialOffer ? (
+          <p className="text-xs text-emerald-300/90 leading-relaxed mb-4">{trialOffer}</p>
+        ) : (
+          <div className="mb-2" />
+        )}
         {!native && (
           <p className="text-sm text-slate-300 mb-4" role="status">{storeUnavailableLabel}</p>
         )}

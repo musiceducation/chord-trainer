@@ -3,8 +3,11 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { PIANO_TONE } from '../lib/pianoEngine.js';
 import {
+  ACOUSTIC_SAMPLES,
+  ELECTRIC_SAMPLES,
   PIANO_SAMPLES,
   attackStartIndex,
+  getPianoPack,
   pianoSampleUrl,
   playbackRateFor,
   sampleForMidi,
@@ -33,6 +36,28 @@ describe('piano samples', () => {
       expect(midi, `midi ${midi}`).toBeLessThanOrEqual(sample.hikey);
       expect(Math.abs(midi - sample.midi), `midi ${midi}`).toBeLessThanOrEqual(2);
     }
+  });
+
+
+  it('covers the keyboard for electric piano within three semitones', () => {
+    for (let midi = 36; midi <= 84; midi += 1) {
+      const sample = sampleForMidi(midi, ELECTRIC_SAMPLES);
+      expect(midi, `midi ${midi}`).toBeGreaterThanOrEqual(sample.lokey);
+      expect(midi, `midi ${midi}`).toBeLessThanOrEqual(sample.hikey);
+      expect(Math.abs(midi - sample.midi), `midi ${midi}`).toBeLessThanOrEqual(3);
+    }
+  });
+
+  it('ships electric samples and a CC0 license', () => {
+    const pack = getPianoPack('electric');
+    expect(pack.base).toBe('audio/piano-ep/');
+    for (const sample of ELECTRIC_SAMPLES) {
+      const file = path.resolve('public/audio/piano-ep', sample.file);
+      expect(fs.existsSync(file), sample.file).toBe(true);
+      expect(fs.statSync(file).size, sample.file).toBeGreaterThan(8000);
+    }
+    expect(fs.existsSync(path.resolve('public/audio/piano-ep/LICENSE.txt'))).toBe(true);
+    expect(ACOUSTIC_SAMPLES).toBe(PIANO_SAMPLES);
   });
 
   it('pitch-shifts by equal temperament', () => {

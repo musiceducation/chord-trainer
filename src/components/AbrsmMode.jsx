@@ -28,6 +28,7 @@ function filterButtonStyle(active) {
 
 export function AbrsmMode({
   soundOn,
+  pianoSound,
   setStats,
   onScoreChange,
   hidden,
@@ -46,7 +47,7 @@ export function AbrsmMode({
   const [hintNotes, setHintNotes] = useState(null);
   const streakRef = useRef(0);
   const hasFailedRef = useRef(false);
-  const { playNote, playChord } = usePiano(soundOn);
+  const { playNote, playChord } = usePiano(soundOn, pianoSound);
   const { schedule, clearAll } = useTimeoutCleanup();
   const { t } = useI18n();
 

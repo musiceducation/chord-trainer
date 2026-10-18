@@ -1,5 +1,6 @@
 import { DIFFICULTY_LEVELS } from './constants.js';
 import { TRAINING_KEYS } from './diatonic.js';
+import { DEFAULT_PIANO_SOUND, normalizePianoSound } from './pianoSamples.js';
 
 export const SETTINGS_KEY = 'chordTrainerSettings';
 
@@ -12,6 +13,7 @@ export const DEFAULT_FIRST_HINT_USED = {
 export const DEFAULT_SETTINGS = {
   difficulty: 'basic',
   keyRoot: 'C',
+  pianoSound: DEFAULT_PIANO_SOUND,
   onboardingDone: false,
   firstHintUsed: { ...DEFAULT_FIRST_HINT_USED },
 };
@@ -43,6 +45,7 @@ export function normalizeSettings(raw) {
   return {
     difficulty: isValidDifficulty(raw.difficulty) ? raw.difficulty : DEFAULT_SETTINGS.difficulty,
     keyRoot: isValidKeyRoot(raw.keyRoot) ? raw.keyRoot : DEFAULT_SETTINGS.keyRoot,
+    pianoSound: normalizePianoSound(raw.pianoSound),
     onboardingDone: raw.onboardingDone === true,
     firstHintUsed: normalizeFirstHintUsed(raw.firstHintUsed),
   };

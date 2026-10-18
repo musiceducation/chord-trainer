@@ -59,3 +59,16 @@ Master gain 0.88, then a gentle compressor (threshold −14 dB, ratio 2.4).
 
 If a file fails to decode, a short inharmonic synth plays instead so a missing
 asset does not silence a drill.
+
+
+## Electric Piano pack
+
+**FreePats FM Piano 1** (DX7-style FM electric piano).
+
+- License: [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/)
+- Source: https://freepats.zenvoid.org/ElectricPiano/synthesized-piano.html
+- Shipped notice: `public/audio/piano-ep/LICENSE.txt`
+- Notes: C2, F♯2 … C6 (tritone grid), velocity v80, AAC 192 kbps, ~6.5 s
+
+Users pick **Acoustic Grand** or **Electric Piano** in Settings. Choice is stored in
+`chordTrainerSettings.pianoSound` and applied through `setActivePianoSound`.

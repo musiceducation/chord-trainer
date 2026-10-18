@@ -1,0 +1,20 @@
+FM Synthesized Piano #1 (Electric Piano)
+Author: Roberto (FreePats project) <roberto@zenvoid.org>
+Source: https://freepats.zenvoid.org/ElectricPiano/synthesized-piano.html
+GitHub: https://github.com/freepats/fm-piano1
+License: Creative Commons CC0 1.0 Universal (public domain dedication)
+https://creativecommons.org/publicdomain/zero/1.0/
+
+Commercial use, modification, and redistribution are allowed with no
+attribution requirement (attribution is still appreciated).
+
+Adaptation used by Chord Trainer (this directory):
+- Velocity layer v80 (MIDI velocity 70–109). Clear for ear training.
+- Notes C2, F#2, C3, F#3, C4, F#4, C5, F#5, C6 — every tritone, covering
+  the on-screen keyboard (MIDI 36–84) with at most ±3 semitone pitch-shift.
+- Each note trimmed to about 6.5 seconds with a short fade-out so the
+  playback envelope (3.0 s note / 3.5 s chord) never hits a hard file end.
+- Encoded from FreePats FLAC to 192 kbps AAC (.m4a) at 48 kHz.
+  Sharp signs in filenames are written as "s" (F#2 → Fs2.m4a).
+
+Product copy may read: “Electric piano samples: FreePats FM Piano 1 (CC0).”

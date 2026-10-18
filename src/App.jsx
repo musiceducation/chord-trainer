@@ -12,7 +12,15 @@ import { DIFFICULTY_LEVELS, TABS } from './lib/constants.js';
 import { TRAINING_KEYS } from './lib/diatonic.js';
 import { loadStats, saveStats } from './lib/stats.js';
 import { loadSettings, saveSettings } from './lib/settings.js';
-import { applyFreeRampCap, canAccessProgression, difficultyAllowed, PRODUCT_IDS } from './lib/entitlement.js';
+import { applyFreeRampCap, canAccessProgression, PRODUCT_IDS } from './lib/entitlement.js';
+import { ensureTrialStarted, getTrialStatus, hasProAccess } from './lib/trial.js';
+import {
+  DEFAULT_PIANO_SOUND,
+  PIANO_SOUND_IDS,
+  getPianoPack,
+  normalizePianoSound,
+} from './lib/pianoSamples.js';
+import { setActivePianoSound } from './lib/pianoEngine.js';
 import {
   advanceDrill,
   applyRoundToBook,
@@ -92,8 +100,20 @@ export default function App() {
   const [rampNudge, setRampNudge] = useState(false);
   const [paywallOpen, setPaywallOpen] = useState(false);
   const iap = useIap();
-  const practiceDifficulty = difficultyAllowed(iap.isPro, difficulty) ? difficulty : 'basic';
-  const isProRef = useRef(iap.isPro);
+  const [trialStatus, setTrialStatus] = useState(() => {
+    ensureTrialStarted();
+    return getTrialStatus();
+  });
+  useEffect(() => {
+    ensureTrialStarted();
+    setTrialStatus(getTrialStatus());
+    const id = window.setInterval(() => setTrialStatus(getTrialStatus()), 60_000);
+    return () => window.clearInterval(id);
+  }, []);
+  const proAccess = hasProAccess(iap.isPro, trialStatus);
+  const practiceDifficulty = difficulty;
+  const pianoSound = normalizePianoSound(settings.pianoSound || DEFAULT_PIANO_SOUND);
+  const isProRef = useRef(proAccess);
   const guideRef = useRef(guide);
   const drillRef = useRef(null);
   const difficultyRef = useRef(difficulty);
@@ -104,10 +124,13 @@ export default function App() {
   useEffect(() => { drillRef.current = drill; }, [drill]);
   useEffect(() => { difficultyRef.current = difficulty; }, [difficulty]);
   useEffect(() => { missBookRef.current = missBook; }, [missBook]);
-  useEffect(() => { isProRef.current = iap.isPro; }, [iap.isPro]);
+  useEffect(() => { isProRef.current = proAccess; }, [proAccess]);
   useEffect(() => {
-    if (!iap.isPro && tab === 'progression') setTab('test');
-  }, [iap.isPro, tab]);
+    if (!proAccess && tab === 'progression') setTab('test');
+  }, [proAccess, tab]);
+  useEffect(() => {
+    setActivePianoSound(pianoSound);
+  }, [pianoSound]);
   useEffect(() => {
     if (!rampLevel) return undefined;
     const timer = window.setTimeout(() => setRampLevel(null), 2500);
@@ -135,11 +158,6 @@ export default function App() {
     });
   }, []);
 
-  useEffect(() => {
-    if (!iap.ready || iap.isPro) return;
-    if (difficultyAllowed(false, difficultyRef.current)) return;
-    updateSettings({ difficulty: 'basic' });
-  }, [iap.ready, iap.isPro, updateSettings]);
 
   const markHintUsed = useCallback((mode) => {
     setSettingsState((prev) => {
@@ -278,7 +296,7 @@ export default function App() {
     const cleanStreak = missed ? 0 : (payload?.streak || 0);
     const current = difficultyRef.current;
     const { difficulty: next, nudge } = applyFreeRampCap({
-      isPro: isProRef.current,
+      isPro: true,
       current,
       cleanStreak,
       missStreak,
@@ -339,13 +357,13 @@ export default function App() {
     : 0;
 
   const changeDifficulty = (d) => {
-    if (!difficultyAllowed(iap.isPro, d)) {
-      setPaywallOpen(true);
-      return;
-    }
     rampMissRef.current = 0;
     updateSettings({ difficulty: d });
     setShowSettings(false);
+  };
+
+  const changePianoSound = (id) => {
+    updateSettings({ pianoSound: normalizePianoSound(id) });
   };
 
   const noticeText = {
@@ -529,7 +547,7 @@ export default function App() {
           {TABS.map((item) => {
             const active = tab === item.key;
             const Icon = TAB_ICONS[item.key];
-            const locked = item.key === 'progression' && !canAccessProgression(iap.isPro);
+            const locked = item.key === 'progression' && !canAccessProgression(proAccess);
             return (
               <button
                 key={item.key}
@@ -568,7 +586,7 @@ export default function App() {
             {guideTab && rampLevel && !drillQuestion && (
               <span className="guide-skip-inline">{t('ramp.now', { level: t(`difficulty.${rampLevel}`) })}</span>
             )}
-            {guideTab && rampNudge && !drillQuestion && !iap.isPro && (
+            {guideTab && rampNudge && !drillQuestion && !proAccess && (
               <button
                 type="button"
                 className="guide-skip-inline touch-none"
@@ -617,14 +635,16 @@ export default function App() {
         )}
 
         {showSettings && (
-          <section aria-label={t('settings.aria')} className="mb-3 p-3 rounded-2xl chord-name panel-solid relative z-20">
+          <section
+            aria-label={t('settings.aria')}
+            className="mb-3 p-3 rounded-2xl chord-name panel-solid relative z-20 max-h-[min(62dvh,560px)] overflow-y-auto overscroll-contain"
+          >
             {tab !== 'stats' && tab !== 'abrsm' && (
               <>
                 <div className="text-[10px] text-slate-500 uppercase tracking-[0.3em] mb-2.5 font-semibold">{t('settings.difficulty')}</div>
                 <div className="grid grid-cols-2 gap-1.5">
                   {Object.keys(DIFFICULTY_LEVELS).map((key) => {
                     const active = practiceDifficulty === key;
-                    const locked = !difficultyAllowed(iap.isPro, key);
                     return (
                       <button
                         key={key}
@@ -633,7 +653,6 @@ export default function App() {
                         className="py-2.5 rounded-xl text-sm transition-all touch-none active:scale-[0.98] inline-flex items-center justify-center gap-1.5"
                         style={settingButtonStyle(active)}
                       >
-                        {locked && <Lock size={12} aria-hidden="true" />}
                         {t(`difficulty.${key}`)}
                       </button>
                     );
@@ -684,6 +703,26 @@ export default function App() {
               })}
             </div>
             <div className="text-[10px] text-slate-500 uppercase tracking-[0.3em] mt-3.5 mb-2.5 font-semibold">
+              {t('settings.pianoSound')}
+            </div>
+            <div className="grid grid-cols-2 gap-1.5">
+              {PIANO_SOUND_IDS.map((id) => {
+                const active = pianoSound === id;
+                return (
+                  <button
+                    key={id}
+                    type="button"
+                    aria-pressed={active}
+                    onClick={() => changePianoSound(id)}
+                    className="py-2.5 rounded-xl text-sm transition-all touch-none active:scale-[0.98]"
+                    style={settingButtonStyle(active)}
+                  >
+                    {t(getPianoPack(id).labelKey)}
+                  </button>
+                );
+              })}
+            </div>
+            <div className="text-[10px] text-slate-500 uppercase tracking-[0.3em] mt-3.5 mb-2.5 font-semibold">
               {t('settings.beginner')}
             </div>
             <div className="grid grid-cols-1 gap-1.5">
@@ -707,10 +746,14 @@ export default function App() {
             <div className="text-[10px] text-slate-500 uppercase tracking-[0.3em] mt-3.5 mb-2.5 font-semibold">
               {t('about.section')}
             </div>
-            <p className="text-xs text-slate-400 leading-relaxed mb-1 px-0.5">{t('about.pianoCredit')}</p>
+            <p className="text-xs text-slate-400 leading-relaxed mb-1 px-0.5">{t('about.pianoCreditAcoustic')}</p>
+            <p className="text-xs text-slate-400 leading-relaxed mb-1 px-0.5">{t('about.pianoCreditElectric')}</p>
             {!shot?.hideIap && (
               <IapSettings
                 isPro={iap.isPro}
+                trialActive={trialStatus.active}
+                trialStarted={trialStatus.started}
+                trialDaysLeft={trialStatus.daysRemaining}
                 native={iap.native}
                 prices={iap.prices}
                 priceStatus={iap.priceStatus}
@@ -723,10 +766,14 @@ export default function App() {
                   restore: t('pro.restore'),
                   unavailable: t('iap.unavailable'),
                   priceUnavailable: t('pro.priceUnavailable'),
+                  trialActive: t('pro.trialActive'),
+                  trialEnded: t('pro.trialEnded'),
+                  trialOffer: t('pro.trialOffer'),
                   supportSection: t('support.section'),
                   supportDisclaimer: t('support.disclaimer'),
                   supportSmall: t('support.small'),
                   supportLarge: t('support.large'),
+                  proId: PRODUCT_IDS.pro,
                   smallId: PRODUCT_IDS.supportSmall,
                   largeId: PRODUCT_IDS.supportLarge,
                 }}
@@ -742,6 +789,7 @@ export default function App() {
           <TestMode
             difficulty={practiceDifficulty}
             soundOn={soundOn}
+            pianoSound={pianoSound}
             stats={stats}
             setStats={setStats}
             onScoreChange={setScoreInfo}
@@ -759,6 +807,7 @@ export default function App() {
           <EarMode
             difficulty={practiceDifficulty}
             soundOn={soundOn}
+            pianoSound={pianoSound}
             stats={stats}
             setStats={setStats}
             onScoreChange={setScoreInfo}
@@ -778,16 +827,18 @@ export default function App() {
             difficulty={practiceDifficulty}
             keyRoot={keyRoot}
             soundOn={soundOn}
+            pianoSound={pianoSound}
             stats={stats}
             setStats={setStats}
             onScoreChange={setScoreInfo}
-            hidden={tab !== 'progression' || !iap.isPro}
+            hidden={tab !== 'progression' || !proAccess}
             autoHint={firstHintReady && !settings.firstHintUsed.progress}
             onAutoHintUsed={() => markHintUsed('progress')}
             onRoundSettled={handleRoundSettled}
           />
           <AbrsmMode
             soundOn={soundOn}
+            pianoSound={pianoSound}
             setStats={setStats}
             onScoreChange={setScoreInfo}
             hidden={tab !== 'abrsm'}
@@ -799,7 +850,7 @@ export default function App() {
             missCount={missBook.items.length}
             onRetryMisses={startRetry}
             onResetMissBook={clearMissBook}
-            fullStats={iap.isPro}
+            fullStats={proAccess}
             sessionStreak={scoreInfo.streak}
             sessionAccuracy={sessionAccuracy}
             onUnlockPro={() => setPaywallOpen(true)}
@@ -811,6 +862,7 @@ export default function App() {
         open={paywallOpen}
         title={t('pro.paywallTitle')}
         body={t('pro.paywallBody')}
+        trialOffer={iap.isPro ? null : t('pro.trialOffer')}
         price={iap.prices[PRODUCT_IDS.pro]}
         priceStatus={iap.priceStatus}
         unavailableLabel={t('pro.priceUnavailable')}

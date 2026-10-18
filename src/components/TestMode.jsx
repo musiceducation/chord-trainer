@@ -25,6 +25,7 @@ import { useI18n } from '../hooks/useI18n.jsx';
 export function TestMode({
   difficulty,
   soundOn,
+  pianoSound,
   stats: _stats,
   setStats,
   onScoreChange,
@@ -58,7 +59,7 @@ export function TestMode({
   const streakRef = useRef(0);
   const hasFailedRef = useRef(false);
   const autoHintUsedRef = useRef(false);
-  const { playNote, playChord } = usePiano(soundOn);
+  const { playNote, playChord } = usePiano(soundOn, pianoSound);
   const { schedule, clearAll } = useTimeoutCleanup();
   const { t } = useI18n();
   const tRef = useRef(t);

@@ -1,6 +1,8 @@
 import {
-  PIANO_SAMPLES,
+  DEFAULT_PIANO_SOUND,
   attackStartIndex,
+  getPianoPack,
+  normalizePianoSound,
   playbackRateFor,
   pianoSampleUrl,
   sampleForMidi,
@@ -15,6 +17,57 @@ const resumePromises = new WeakMap();
 let unlockedContexts = new WeakSet();
 let decodeWhileSuspendedFailed = false;
 const recentSchedules = [];
+
+/** Active instrument pack. Switching clears decode caches and rebuilds tone. */
+let activePianoSound = DEFAULT_PIANO_SOUND;
+let toneGeneration = 0;
+
+export const ELECTRIC_TONE = {
+  masterGain: 0.84,
+  filters: [
+    { id: 'highpass', type: 'highpass', frequency: 45, Q: 0.7 },
+    { id: 'body', type: 'lowshelf', frequency: 180, gain: 1.8 },
+    { id: 'lowMid', type: 'peaking', frequency: 520, Q: 0.8, gain: 1.6 },
+    { id: 'bell', type: 'peaking', frequency: 2400, Q: 1.1, gain: 3.2 },
+    { id: 'presence', type: 'peaking', frequency: 4200, Q: 0.9, gain: 1.4 },
+    { id: 'air', type: 'highshelf', frequency: 7500, gain: -2.5 },
+  ],
+};
+
+export function getActivePianoSound() {
+  return activePianoSound;
+}
+
+export function getActivePianoPack() {
+  return getPianoPack(activePianoSound);
+}
+
+export function getActivePianoTone() {
+  return activePianoSound === 'electric' ? ELECTRIC_TONE : PIANO_TONE;
+}
+
+function cacheKey(file, soundId = activePianoSound) {
+  return `${soundId}:${file}`;
+}
+
+function clearInstrumentCaches() {
+  bufferCache.clear();
+  pending.clear();
+  rawCache.clear();
+  rawPending.clear();
+  toneGeneration += 1;
+}
+
+/** Switch Acoustic Grand / Electric Piano. Safe to call from React effects. */
+export function setActivePianoSound(soundId) {
+  const next = normalizePianoSound(soundId);
+  if (next === activePianoSound) return false;
+  activePianoSound = next;
+  clearInstrumentCaches();
+  publishDebug();
+  return true;
+}
+
 
 /**
  * Playback tone for Salamander, tuned toward a GarageBand Steinway feel.
@@ -99,6 +152,7 @@ export function getPianoScheduleTrace() {
 
 export function getPianoDebugState() {
   return {
+    sound: activePianoSound,
     decoded: [...bufferCache.keys()],
     prefetched: [...rawCache.keys()],
     pendingDecodes: [...pending.keys()],
@@ -123,35 +177,38 @@ function trimBuffer(ctx, buffer) {
 }
 
 function prefetchSample(sample) {
-  const cached = rawCache.get(sample.file);
+  const key = cacheKey(sample.file);
+  const cached = rawCache.get(key);
   if (cached) return Promise.resolve(cached);
-  const existing = rawPending.get(sample.file);
+  const existing = rawPending.get(key);
   if (existing) return existing;
   if (typeof window === 'undefined' || typeof window.fetch !== 'function') {
     return Promise.reject(new Error('piano prefetch unavailable'));
   }
-  const url = pianoSampleUrl(sample.file, assetBase());
+  const pack = getActivePianoPack();
+  const url = pianoSampleUrl(sample.file, assetBase(), pack.base);
   const job = window.fetch(url)
     .then((res) => {
-      if (!res.ok) throw new Error(`piano sample ${sample.file} (${res.status})`);
+      if (!res.ok) throw new Error(`piano sample ${pack.id}/${sample.file} (${res.status})`);
       return res.arrayBuffer();
     })
     .then((arr) => {
-      rawCache.set(sample.file, arr);
+      rawCache.set(key, arr);
       publishDebug();
       return arr;
     })
     .finally(() => {
-      if (rawPending.get(sample.file) === job) rawPending.delete(sample.file);
+      if (rawPending.get(key) === job) rawPending.delete(key);
     });
-  rawPending.set(sample.file, job);
+  rawPending.set(key, job);
   return job;
 }
 
-/** Download every m4a without an AudioContext or a user gesture. */
+/** Download every m4a for the active pack without an AudioContext or a user gesture. */
 export function prefetchPianoSamples() {
   if (typeof window === 'undefined' || typeof window.fetch !== 'function') return;
-  for (const sample of PIANO_SAMPLES) {
+  const { samples } = getActivePianoPack();
+  for (const sample of samples) {
     prefetchSample(sample).catch(() => {});
   }
 }
@@ -238,7 +295,7 @@ async function decodeSample(ctx, sample, options) {
 
   try {
     const trimmed = await decodeArrayBuffer(ctx, raw);
-    bufferCache.set(sample.file, trimmed);
+    bufferCache.set(cacheKey(sample.file), trimmed);
     publishDebug();
     return trimmed;
   } catch (err) {
@@ -249,31 +306,33 @@ async function decodeSample(ctx, sample, options) {
     await waitUntilRunning(ctx);
     if (isClosed(ctx)) throw err;
     const trimmed = await decodeArrayBuffer(ctx, raw);
-    bufferCache.set(sample.file, trimmed);
+    bufferCache.set(cacheKey(sample.file), trimmed);
     publishDebug();
     return trimmed;
   }
 }
 
 function loadSample(ctx, sample, options = {}) {
-  const cached = bufferCache.get(sample.file);
+  const key = cacheKey(sample.file);
+  const cached = bufferCache.get(key);
   if (cached) return Promise.resolve(cached);
-  const existing = pending.get(sample.file);
+  const existing = pending.get(key);
   if (existing) return existing;
 
   const job = decodeSample(ctx, sample, options).finally(() => {
-    if (pending.get(sample.file) === job) pending.delete(sample.file);
+    if (pending.get(key) === job) pending.delete(key);
   });
-  pending.set(sample.file, job);
+  pending.set(key, job);
   return job;
 }
 
 function graphFor(ctx) {
   let graph = graphs.get(ctx);
-  if (graph) return graph;
+  if (graph && graph.toneGeneration === toneGeneration) return graph;
 
+  const tone = getActivePianoTone();
   const input = ctx.createGain();
-  const filters = PIANO_TONE.filters.map((spec) => createToneFilter(ctx, spec));
+  const filters = tone.filters.map((spec) => createToneFilter(ctx, spec));
 
   const comp = ctx.createDynamicsCompressor();
   comp.threshold.value = -14;
@@ -283,7 +342,7 @@ function graphFor(ctx) {
   comp.release.value = 0.22;
 
   const master = ctx.createGain();
-  master.gain.value = PIANO_TONE.masterGain;
+  master.gain.value = tone.masterGain;
 
   let node = input;
   for (const filter of filters) {
@@ -294,7 +353,7 @@ function graphFor(ctx) {
   comp.connect(master);
   master.connect(ctx.destination);
 
-  graph = { input, voices: [] };
+  graph = { input, voices: [], toneGeneration };
   graphs.set(ctx, graph);
   return graph;
 }
@@ -517,7 +576,8 @@ export function primePiano(ctx, options = {}) {
     /* graph is rebuilt on the next play */
   }
   const followResume = Boolean(options.followResume);
-  return Promise.all(PIANO_SAMPLES.map((sample) => (
+  const { samples } = getActivePianoPack();
+  return Promise.all(samples.map((sample) => (
     loadSample(ctx, sample, { followResume }).catch(() => null)
   )));
 }
@@ -541,9 +601,10 @@ export function schedulePianoNotes(ctx, specs) {
 
   const ready = [];
   const waiting = [];
+  const packSamples = getActivePianoPack().samples;
   for (const spec of specs) {
-    const sample = sampleForMidi(spec.midi);
-    const buffer = bufferCache.get(sample.file);
+    const sample = sampleForMidi(spec.midi, packSamples);
+    const buffer = bufferCache.get(cacheKey(sample.file));
     if (buffer) ready.push({ spec, sample, buffer });
     else waiting.push({ spec, sample });
   }
@@ -590,14 +651,16 @@ export function schedulePianoNotes(ctx, specs) {
 }
 
 export function installDecodedSampleForTests(file, buffer) {
-  bufferCache.set(file, buffer);
+  bufferCache.set(cacheKey(file), buffer);
 }
 
 export function installPrefetchedSampleForTests(file, arrayBuffer = new ArrayBuffer(8)) {
-  rawCache.set(file, arrayBuffer);
+  rawCache.set(cacheKey(file), arrayBuffer);
 }
 
 export function resetPianoEngineForTests() {
+  activePianoSound = DEFAULT_PIANO_SOUND;
+  toneGeneration = 0;
   bufferCache.clear();
   pending.clear();
   rawCache.clear();

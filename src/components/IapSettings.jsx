@@ -2,13 +2,16 @@ import { priceText } from './PaywallSheet.jsx';
 
 function rowStyle() {
   return {
-    background: 'rgba(255,255,255,0.02)',
-    border: '1px solid rgba(255,255,255,0.05)',
+    background: 'rgba(255,255,255,0.04)',
+    border: '1px solid rgba(255,255,255,0.08)',
   };
 }
 
 export function IapSettings({
   isPro,
+  trialActive = false,
+  trialStarted = false,
+  trialDaysLeft = 0,
   native,
   prices,
   priceStatus,
@@ -19,6 +22,7 @@ export function IapSettings({
   onBuySupport,
   onRestore,
 }) {
+  const busy = Boolean(busyId);
   const smallPrice = priceText({
     price: prices?.[labels.smallId],
     status: priceStatus,
@@ -29,42 +33,61 @@ export function IapSettings({
     status: priceStatus,
     unavailableLabel: labels.priceUnavailable,
   });
-  const busy = Boolean(busyId);
+  const proPrice = priceText({
+    price: prices?.[labels.proId],
+    status: priceStatus,
+    unavailableLabel: labels.priceUnavailable,
+  });
+
+  const accessLabel = isPro
+    ? labels.unlocked
+    : trialActive
+      ? (labels.trialActive || '').replace('{n}', String(trialDaysLeft))
+      : null;
 
   return (
-    <div className="mt-3.5">
+    <div className="mt-3">
       <div className="text-[10px] text-slate-500 uppercase tracking-[0.3em] mb-2.5 font-semibold">
         {labels.proName}
       </div>
       {!native && (
-        <p className="text-xs text-slate-400 mb-2.5" role="status">{labels.unavailable}</p>
+        <p className="text-xs text-slate-500 mb-2">{labels.unavailable}</p>
       )}
-      <div className="flex items-center justify-between gap-2 py-2.5 px-3 rounded-xl mb-1.5" style={rowStyle()}>
+      <div
+        className="flex items-center justify-between gap-3 py-2.5 px-3 rounded-xl mb-1.5"
+        style={rowStyle()}
+      >
         <span className="text-sm font-semibold text-slate-100">{labels.proName}</span>
-        {isPro ? (
-          <span className="text-xs font-semibold text-emerald-300">{labels.unlocked}</span>
+        {accessLabel ? (
+          <span className="text-xs font-semibold text-emerald-300 text-right">{accessLabel}</span>
         ) : (
           <button
             type="button"
-            className="text-xs font-semibold text-amber-200 touch-none disabled:opacity-60"
-            disabled={busy}
+            className="text-xs font-semibold text-amber-200 touch-none active:scale-[0.98] disabled:opacity-50"
+            disabled={busy || !native}
             onClick={onBuyPro}
           >
-            {labels.buy}
+            {labels.buy}{native && proPrice ? ` · ${proPrice}` : ''}
           </button>
         )}
       </div>
+      {!isPro && !trialActive && labels.trialOffer && (
+        <p className="text-xs text-slate-400 mb-2 px-0.5">{labels.trialOffer}</p>
+      )}
+      {!isPro && trialStarted && !trialActive && labels.trialEnded && (
+        <p className="text-xs text-slate-500 mb-2 px-0.5">{labels.trialEnded}</p>
+      )}
       <button
         type="button"
-        className="w-full py-2.5 rounded-xl text-sm text-slate-200 touch-none active:scale-[0.98] disabled:opacity-60"
+        className="w-full py-2.5 px-3 rounded-xl text-sm text-slate-300 touch-none active:scale-[0.98] disabled:opacity-50 mb-3"
         style={rowStyle()}
-        disabled={busy}
+        disabled={busy || !native}
         onClick={onRestore}
       >
-        {labels.restore}
+        {busyId === 'restore' ? '…' : labels.restore}
       </button>
 
-      <div className="text-[10px] text-slate-500 uppercase tracking-[0.3em] mt-3.5 mb-1.5 font-semibold">
+      <div className="text-[10px] text-slate-500 uppercase tracking-[0.3em] mb-2.5 font-semibold">
         {labels.supportSection}
       </div>
       <p className="text-xs text-slate-400 mb-2">{labels.supportDisclaimer}</p>

@@ -25,6 +25,7 @@ import { useI18n } from '../hooks/useI18n.jsx';
 export function EarMode({
   difficulty,
   soundOn,
+  pianoSound,
   stats: _stats,
   setStats,
   onScoreChange,
@@ -60,7 +61,7 @@ export function EarMode({
   const hasFailedRef = useRef(false);
   const autoHintUsedRef = useRef(false);
   const autoPlayedRef = useRef(false);
-  const { playNote, playChord } = usePiano(soundOn);
+  const { playNote, playChord } = usePiano(soundOn, pianoSound);
   const { schedule, clearAll } = useTimeoutCleanup();
   const { t } = useI18n();
   const tRef = useRef(t);

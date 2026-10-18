@@ -27,30 +27,28 @@ class MemoryStorage {
 }
 
 describe('free vs Pro gating', () => {
-  it('keeps free play on Triads and unlocks the rest for Pro', () => {
+  it('allows every difficulty tier without Pro; Pro still gates progressions and full stats', () => {
     expect(difficultyAllowed(false, 'basic')).toBe(true);
-    expect(difficultyAllowed(false, 'seventh')).toBe(false);
-    expect(difficultyAllowed(false, 'extended')).toBe(false);
-    expect(difficultyAllowed(false, 'all')).toBe(false);
-    expect(clampDifficulty(false, 'seventh')).toBe(FREE_DIFFICULTY);
+    expect(difficultyAllowed(false, 'seventh')).toBe(true);
+    expect(difficultyAllowed(false, 'extended')).toBe(true);
+    expect(difficultyAllowed(false, 'all')).toBe(true);
+    expect(clampDifficulty(false, 'seventh')).toBe('seventh');
     expect(canAccessProgression(false)).toBe(false);
     expect(canAccessFullStats(false)).toBe(false);
 
-    expect(difficultyAllowed(true, 'seventh')).toBe(true);
     expect(difficultyAllowed(true, 'extended')).toBe(true);
-    expect(difficultyAllowed(true, 'all')).toBe(true);
     expect(clampDifficulty(true, 'extended')).toBe('extended');
     expect(canAccessProgression(true)).toBe(true);
     expect(canAccessFullStats(true)).toBe(true);
   });
 
-  it('caps a free ramp at Triads and nudges when a promotion would fire', () => {
+  it('ramps difficulty for every player and never nudges a Pro paywall for tiers', () => {
     expect(applyFreeRampCap({
       isPro: false,
       current: 'basic',
       cleanStreak: RAMP_CLEAN_STREAK,
       missStreak: 0,
-    })).toEqual({ difficulty: 'basic', nudge: true });
+    })).toEqual({ difficulty: 'seventh', nudge: false });
 
     expect(applyFreeRampCap({
       isPro: false,
@@ -61,26 +59,19 @@ describe('free vs Pro gating', () => {
 
     expect(applyFreeRampCap({
       isPro: true,
-      current: 'basic',
-      cleanStreak: RAMP_CLEAN_STREAK,
-      missStreak: 0,
-    })).toEqual({ difficulty: 'seventh', nudge: false });
-
-    expect(applyFreeRampCap({
-      isPro: true,
       current: 'seventh',
       cleanStreak: RAMP_CLEAN_STREAK,
       missStreak: 0,
     })).toEqual({ difficulty: 'extended', nudge: false });
   });
 
-  it('does not let a stale Pro level stay selected for a free player', () => {
+  it('keeps a free player on their current tier when the ramp does not promote', () => {
     expect(applyFreeRampCap({
       isPro: false,
       current: 'extended',
-      cleanStreak: RAMP_CLEAN_STREAK,
+      cleanStreak: 0,
       missStreak: 0,
-    })).toEqual({ difficulty: 'basic', nudge: false });
+    })).toEqual({ difficulty: 'extended', nudge: false });
   });
 });
 
