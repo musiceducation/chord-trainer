@@ -72,3 +72,11 @@ asset does not silence a drill.
 
 Users pick **Acoustic Grand** or **Electric Piano** in Settings. Choice is stored in
 `chordTrainerSettings.pianoSound` and applied through `setActivePianoSound`.
+
+
+## Additional free packs (settings picker)
+
+| Id | Label | Source | License | Path |
+| --- | --- | --- | --- | --- |
+| `electricBright` | Electric Bright | FreePats FM Piano 2 | CC0 | `public/audio/piano-ep2/` |
+| `organ` | Drawbar Organ | FreePats Drawbar Organ Emulation | CC0 | `public/audio/piano-organ/` |

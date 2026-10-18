@@ -1,11 +1,27 @@
 import { nextDifficulty } from './difficultyRamp.js';
 
-/** Must match App Store Connect and Products.storekit exactly. */
+/**
+ * Must match App Store Connect and Products.storekit exactly.
+ *
+ * - `pro` — auto-renewable monthly subscription (current purchase SKU)
+ * - `proLegacy` — former Non-Consumable; still honored for existing buyers
+ * - support* — tip jars (consumable); unlock nothing
+ */
 export const PRODUCT_IDS = Object.freeze({
-  pro: 'com.musiceducation.chordtrainer.pro',
+  pro: 'com.musiceducation.chordtrainer.pro.monthly',
+  proLegacy: 'com.musiceducation.chordtrainer.pro',
   supportSmall: 'com.musiceducation.chordtrainer.support.small',
   supportLarge: 'com.musiceducation.chordtrainer.support.large',
 });
+
+/** SKUs shown / purchased as Pro (monthly). */
+export const PRO_SUBSCRIPTION_IDS = Object.freeze([PRODUCT_IDS.pro]);
+
+/** Any product id that can grant Pro access (subscription or legacy NC). */
+export const PRO_PRODUCT_IDS = Object.freeze([
+  PRODUCT_IDS.pro,
+  PRODUCT_IDS.proLegacy,
+]);
 
 export const ALL_PRODUCT_IDS = Object.freeze([
   PRODUCT_IDS.pro,
@@ -36,9 +52,17 @@ export function isSupportProduct(productId) {
   return SUPPORT_PRODUCT_IDS.includes(productId);
 }
 
-/** Support consumables never unlock features. Only the Pro non-consumable does. */
+export function isProProduct(productId) {
+  return PRO_PRODUCT_IDS.includes(productId);
+}
+
+export function isProSubscriptionProduct(productId) {
+  return PRO_SUBSCRIPTION_IDS.includes(productId);
+}
+
+/** Support consumables never unlock features. Pro monthly or legacy NC does. */
 export function accessGrantedByProduct(productId) {
-  return productId === PRODUCT_IDS.pro ? 'pro' : null;
+  return isProProduct(productId) ? 'pro' : null;
 }
 
 /** All practice difficulty tiers are free. `isPro` is ignored (kept for call-site compatibility). */
@@ -63,18 +87,42 @@ function productIdOf(purchase) {
   return purchase.productIdentifier || purchase.productId || purchase.identifier || '';
 }
 
-/** A verified, non-revoked Pro transaction. Pending and support purchases do not count. */
-export function isActiveProTransaction(purchase) {
-  if (productIdOf(purchase) !== PRODUCT_IDS.pro) return false;
+function expirationMs(purchase) {
+  const raw = purchase?.expirationDate;
+  if (!raw) return null;
+  const ms = Date.parse(raw);
+  return Number.isFinite(ms) ? ms : null;
+}
+
+/**
+ * A verified, non-revoked Pro entitlement.
+ * - Legacy Non-Consumable: lifetime unless revoked/pending.
+ * - Monthly subscription: requires active / unexpired StoreKit state.
+ */
+export function isActiveProTransaction(purchase, now = Date.now()) {
+  const id = productIdOf(purchase);
+  if (!isProProduct(id)) return false;
   if (purchase.revocationDate) return false;
   if (purchase.purchaseState === '0' || purchase.purchaseState === 0) return false;
   if (purchase.isPending === true || purchase.pending === true) return false;
+
+  if (isProSubscriptionProduct(id)) {
+    if (purchase.isActive === false) return false;
+    const state = purchase.subscriptionState;
+    if (state === 'expired' || state === 'revoked') return false;
+    const exp = expirationMs(purchase);
+    if (exp != null && exp <= now) return false;
+    // Missing isActive/expiration: treat as active (StoreKit 1 / incomplete mocks).
+    return true;
+  }
+
+  // Legacy one-time unlock.
   return true;
 }
 
-export function entitlementFromPurchases(purchases) {
+export function entitlementFromPurchases(purchases, now = Date.now()) {
   const list = Array.isArray(purchases) ? purchases : [];
-  return list.some(isActiveProTransaction);
+  return list.some((p) => isActiveProTransaction(p, now));
 }
 
 /**
@@ -85,7 +133,13 @@ export function entitlementAfterPurchase(result, previousIsPro = false) {
   if (!result?.ok) return Boolean(previousIsPro);
   if (result.reason === 'pending' || result.pending) return Boolean(previousIsPro);
   if (result.revoked) return Boolean(previousIsPro);
-  if (accessGrantedByProduct(result.productId) === 'pro') return true;
+  if (accessGrantedByProduct(result.productId) === 'pro') {
+    // Prefer live subscription flag when present.
+    if (result.transaction && isProSubscriptionProduct(result.productId)) {
+      return isActiveProTransaction(result.transaction);
+    }
+    return true;
+  }
   return Boolean(previousIsPro);
 }
 

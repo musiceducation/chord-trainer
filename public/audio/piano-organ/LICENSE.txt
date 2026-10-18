@@ -1,0 +1,8 @@
+Drawbar Organ Emulation
+Author: Roberto (FreePats project) <roberto@zenvoid.org>
+Source: https://freepats.zenvoid.org/Organ/electric-organ.html
+License: Creative Commons CC0 1.0 Universal
+https://creativecommons.org/publicdomain/zero/1.0/
+
+Recorded from setBfree. Adaptation: C2–C6 major-third grid; trimmed ~6.5s with
+fade-out for Chord Trainer’s one-shot envelope; AAC 192 kbps 48 kHz.

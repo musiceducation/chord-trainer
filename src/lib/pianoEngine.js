@@ -34,6 +34,30 @@ export const ELECTRIC_TONE = {
   ],
 };
 
+export const ELECTRIC_BRIGHT_TONE = {
+  masterGain: 0.8,
+  filters: [
+    { id: 'highpass', type: 'highpass', frequency: 55, Q: 0.7 },
+    { id: 'body', type: 'lowshelf', frequency: 160, gain: 0.8 },
+    { id: 'lowMid', type: 'peaking', frequency: 700, Q: 0.8, gain: 1.2 },
+    { id: 'bell', type: 'peaking', frequency: 2800, Q: 1.0, gain: 4.0 },
+    { id: 'presence', type: 'peaking', frequency: 5200, Q: 0.9, gain: 2.2 },
+    { id: 'air', type: 'highshelf', frequency: 9000, gain: -1.0 },
+  ],
+};
+
+export const ORGAN_TONE = {
+  masterGain: 0.78,
+  filters: [
+    { id: 'highpass', type: 'highpass', frequency: 40, Q: 0.7 },
+    { id: 'body', type: 'lowshelf', frequency: 120, gain: 2.5 },
+    { id: 'lowMid', type: 'peaking', frequency: 450, Q: 0.7, gain: 1.8 },
+    { id: 'bell', type: 'peaking', frequency: 1800, Q: 0.8, gain: 1.0 },
+    { id: 'presence', type: 'peaking', frequency: 3500, Q: 0.8, gain: -1.5 },
+    { id: 'air', type: 'highshelf', frequency: 7000, gain: -4.0 },
+  ],
+};
+
 export function getActivePianoSound() {
   return activePianoSound;
 }
@@ -43,7 +67,10 @@ export function getActivePianoPack() {
 }
 
 export function getActivePianoTone() {
-  return activePianoSound === 'electric' ? ELECTRIC_TONE : PIANO_TONE;
+  if (activePianoSound === 'electric') return ELECTRIC_TONE;
+  if (activePianoSound === 'electricBright') return ELECTRIC_BRIGHT_TONE;
+  if (activePianoSound === 'organ') return ORGAN_TONE;
+  return PIANO_TONE;
 }
 
 function cacheKey(file, soundId = activePianoSound) {
