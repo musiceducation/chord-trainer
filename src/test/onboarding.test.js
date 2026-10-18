@@ -86,6 +86,7 @@ describe('settings beginner flags', () => {
     expect(normalizeSettings({ difficulty: 'seventh', keyRoot: 'Bb' })).toEqual({
       difficulty: 'seventh',
       keyRoot: 'Bb',
+      pianoSound: 'acoustic',
       onboardingDone: false,
       firstHintUsed: { identify: false, ear: false, progress: false },
     });
@@ -101,6 +102,7 @@ describe('settings beginner flags', () => {
     expect(loadSettings(storage)).toEqual({
       difficulty: 'basic',
       keyRoot: 'C',
+      pianoSound: 'acoustic',
       onboardingDone: true,
       firstHintUsed: { identify: true, ear: false, progress: true },
     });

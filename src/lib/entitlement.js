@@ -19,7 +19,9 @@ export const SUPPORT_PRODUCT_IDS = Object.freeze([
 ]);
 
 export const FREE_DIFFICULTY = 'basic';
-export const PRO_DIFFICULTIES = Object.freeze(['seventh', 'extended', 'all']);
+/** @deprecated Difficulty tiers are free. Kept for older tests/docs. */
+export const PRO_DIFFICULTIES = Object.freeze([]);
+export const ALL_DIFFICULTIES = Object.freeze(['basic', 'seventh', 'extended', 'all']);
 
 /** localStorage hint only. StoreKit is the source of truth. */
 export const PRO_HINT_KEY = 'chordTrainerProHint';
@@ -39,13 +41,13 @@ export function accessGrantedByProduct(productId) {
   return productId === PRODUCT_IDS.pro ? 'pro' : null;
 }
 
-export function difficultyAllowed(isPro, difficulty) {
-  if (difficulty === FREE_DIFFICULTY) return true;
-  return Boolean(isPro) && PRO_DIFFICULTIES.includes(difficulty);
+/** All practice difficulty tiers are free. `isPro` is ignored (kept for call-site compatibility). */
+export function difficultyAllowed(_isPro, difficulty) {
+  return ALL_DIFFICULTIES.includes(difficulty);
 }
 
-export function clampDifficulty(isPro, difficulty) {
-  return difficultyAllowed(isPro, difficulty) ? difficulty : FREE_DIFFICULTY;
+export function clampDifficulty(_isPro, difficulty) {
+  return difficultyAllowed(false, difficulty) ? difficulty : FREE_DIFFICULTY;
 }
 
 export function canAccessProgression(isPro) {
@@ -88,19 +90,17 @@ export function entitlementAfterPurchase(result, previousIsPro = false) {
 }
 
 /**
- * Cap a free player at Triads. `nudge` is true only when the ramp would have
- * left Triads, so the UI can offer a soft Pro hint without changing level.
+ * Auto-ramp across all difficulties for every player.
+ * Difficulty is free; `nudge` is always false (Pro no longer gates tiers).
  */
 export function applyFreeRampCap({
-  isPro = false,
+  isPro: _isPro = false,
   current,
   cleanStreak = 0,
   missStreak = 0,
 } = {}) {
   const proposed = nextDifficulty({ current, cleanStreak, missStreak });
-  if (isPro) return { difficulty: proposed, nudge: false };
-  const nudge = current === FREE_DIFFICULTY && proposed !== FREE_DIFFICULTY;
-  return { difficulty: clampDifficulty(false, proposed), nudge };
+  return { difficulty: proposed, nudge: false };
 }
 
 export function readProHint(storage) {

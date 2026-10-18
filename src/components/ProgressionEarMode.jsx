@@ -46,6 +46,7 @@ export function ProgressionEarMode({
   difficulty,
   keyRoot,
   soundOn,
+  pianoSound,
   stats: _stats,
   setStats,
   onScoreChange,
@@ -72,7 +73,7 @@ export function ProgressionEarMode({
   const hasFailedRef = useRef(false);
   const abortRef = useRef(null);
   const autoHintUsedRef = useRef(false);
-  const { playChord, playSequence } = usePiano(soundOn);
+  const { playChord, playSequence } = usePiano(soundOn, pianoSound);
   const { schedule, clearAll } = useTimeoutCleanup();
   const { t } = useI18n();
 

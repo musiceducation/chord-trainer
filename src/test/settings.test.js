@@ -17,6 +17,7 @@ describe('settings', () => {
     expect(DEFAULT_SETTINGS).toEqual({
       difficulty: 'basic',
       keyRoot: 'C',
+      pianoSound: 'acoustic',
       onboardingDone: false,
       firstHintUsed: { identify: false, ear: false, progress: false },
     });
@@ -24,9 +25,12 @@ describe('settings', () => {
     expect(normalizeSettings({ difficulty: 'seventh', keyRoot: 'Bb' })).toEqual({
       difficulty: 'seventh',
       keyRoot: 'Bb',
+      pianoSound: 'acoustic',
       onboardingDone: false,
       firstHintUsed: { identify: false, ear: false, progress: false },
     });
+    expect(normalizeSettings({ pianoSound: 'electric' }).pianoSound).toBe('electric');
+    expect(normalizeSettings({ pianoSound: 'nope' }).pianoSound).toBe('acoustic');
   });
 
   it('loads and saves settings', () => {
@@ -36,6 +40,7 @@ describe('settings', () => {
     expect(loadSettings(storage)).toEqual({
       difficulty: 'all',
       keyRoot: 'Eb',
+      pianoSound: 'acoustic',
       onboardingDone: false,
       firstHintUsed: { identify: false, ear: false, progress: false },
     });

@@ -1,15 +1,20 @@
 /**
- * Sample map for the in-app piano.
+ * Sample maps for the in-app piano.
  *
- * Source: Salamander Grand Piano V3 by Alexander Holm (CC BY 3.0).
- * One mezzo-forte layer (v10), minor thirds from C2 to C6 — the on-screen
- * keyboard range. See public/audio/piano/LICENSE.txt.
+ * acoustic — Salamander Grand Piano V3 by Alexander Holm (CC BY 3.0).
+ * electric — FreePats FM Piano 1 (CC0). See public/audio/piano(-ep)/LICENSE.txt.
  */
 
+export const PIANO_SOUND_ACOUSTIC = 'acoustic';
+export const PIANO_SOUND_ELECTRIC = 'electric';
+export const PIANO_SOUND_IDS = Object.freeze([PIANO_SOUND_ACOUSTIC, PIANO_SOUND_ELECTRIC]);
+export const DEFAULT_PIANO_SOUND = PIANO_SOUND_ACOUSTIC;
+
+/** @deprecated Prefer getPianoPack(DEFAULT_PIANO_SOUND).base */
 export const PIANO_SAMPLE_BASE = 'audio/piano/';
 
-/** @type {Array<{ file: string, midi: number, lokey: number, hikey: number, gain: number }>} */
-export const PIANO_SAMPLES = [
+/** Acoustic: minor thirds C2–C6 (≤2 semitone pitch-shift). */
+export const ACOUSTIC_SAMPLES = Object.freeze([
   { file: 'C2.m4a', midi: 36, lokey: 35, hikey: 37, gain: 0.93 },
   { file: 'Ds2.m4a', midi: 39, lokey: 38, hikey: 40, gain: 0.87 },
   { file: 'Fs2.m4a', midi: 42, lokey: 41, hikey: 43, gain: 0.76 },
@@ -27,17 +32,63 @@ export const PIANO_SAMPLES = [
   { file: 'Fs5.m4a', midi: 78, lokey: 77, hikey: 79, gain: 1.11 },
   { file: 'A5.m4a', midi: 81, lokey: 80, hikey: 82, gain: 1.93 },
   { file: 'C6.m4a', midi: 84, lokey: 83, hikey: 85, gain: 1.77 },
-];
+]);
 
-export function pianoSampleUrl(file, base = './') {
-  const prefix = base.endsWith('/') ? base : `${base}/`;
-  return `${prefix}${PIANO_SAMPLE_BASE}${file}`;
+/**
+ * Electric (FreePats FM Piano 1 v80): tritones C/F# per SFZ regions.
+ * Pitch-shift at most ±3 semitones across the on-screen keyboard.
+ */
+export const ELECTRIC_SAMPLES = Object.freeze([
+  { file: 'C2.m4a', midi: 36, lokey: 33, hikey: 38, gain: 1.0 },
+  { file: 'Fs2.m4a', midi: 42, lokey: 39, hikey: 44, gain: 1.0 },
+  { file: 'C3.m4a', midi: 48, lokey: 45, hikey: 50, gain: 1.0 },
+  { file: 'Fs3.m4a', midi: 54, lokey: 51, hikey: 56, gain: 1.0 },
+  { file: 'C4.m4a', midi: 60, lokey: 57, hikey: 62, gain: 1.0 },
+  { file: 'Fs4.m4a', midi: 66, lokey: 63, hikey: 68, gain: 1.0 },
+  { file: 'C5.m4a', midi: 72, lokey: 69, hikey: 74, gain: 1.0 },
+  { file: 'Fs5.m4a', midi: 78, lokey: 75, hikey: 80, gain: 1.0 },
+  { file: 'C6.m4a', midi: 84, lokey: 81, hikey: 85, gain: 1.0 },
+]);
+
+/** @deprecated Alias for acoustic samples (tests + older imports). */
+export const PIANO_SAMPLES = ACOUSTIC_SAMPLES;
+
+export const PIANO_PACKS = Object.freeze({
+  [PIANO_SOUND_ACOUSTIC]: Object.freeze({
+    id: PIANO_SOUND_ACOUSTIC,
+    base: 'audio/piano/',
+    samples: ACOUSTIC_SAMPLES,
+    labelKey: 'sound.acoustic',
+    creditKey: 'about.pianoCreditAcoustic',
+  }),
+  [PIANO_SOUND_ELECTRIC]: Object.freeze({
+    id: PIANO_SOUND_ELECTRIC,
+    base: 'audio/piano-ep/',
+    samples: ELECTRIC_SAMPLES,
+    labelKey: 'sound.electric',
+    creditKey: 'about.pianoCreditElectric',
+  }),
+});
+
+export function normalizePianoSound(value) {
+  return PIANO_SOUND_IDS.includes(value) ? value : DEFAULT_PIANO_SOUND;
 }
 
-export function sampleForMidi(midi) {
-  const hit = PIANO_SAMPLES.find((s) => midi >= s.lokey && midi <= s.hikey);
+export function getPianoPack(soundId = DEFAULT_PIANO_SOUND) {
+  return PIANO_PACKS[normalizePianoSound(soundId)];
+}
+
+export function pianoSampleUrl(file, assetBase = './', packBase = PIANO_SAMPLE_BASE) {
+  const prefix = assetBase.endsWith('/') ? assetBase : `${assetBase}/`;
+  const folder = packBase.endsWith('/') ? packBase : `${packBase}/`;
+  return `${prefix}${folder}${file}`;
+}
+
+export function sampleForMidi(midi, samples = ACOUSTIC_SAMPLES) {
+  const list = samples?.length ? samples : ACOUSTIC_SAMPLES;
+  const hit = list.find((s) => midi >= s.lokey && midi <= s.hikey);
   if (hit) return hit;
-  return PIANO_SAMPLES.reduce((best, s) => (
+  return list.reduce((best, s) => (
     Math.abs(s.midi - midi) < Math.abs(best.midi - midi) ? s : best
   ));
 }
