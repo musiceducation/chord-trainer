@@ -183,6 +183,39 @@ body {
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
+.prog-picker {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.35rem;
+  width: min(100%, 28rem);
+  margin: 0 auto 0.85rem;
+}
+
+.prog-picker-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  min-height: 2.25rem;
+  padding: 0.35rem 0.5rem;
+  border-radius: 0.8rem;
+  font-size: clamp(0.8rem, 3.2vw, 0.95rem);
+  letter-spacing: 0.01em;
+  color: #9aa3c7;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.prog-picker-active {
+  color: #e8eeff;
+  background: rgba(122, 162, 247, 0.16);
+  border-color: rgba(122, 162, 247, 0.5);
+}
+
+.prog-picker-locked {
+  color: #6b7396;
+}
+
 .prog-pad-shell {
   height: clamp(72px, 12vh, 96px);
 }

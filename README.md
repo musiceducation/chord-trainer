@@ -9,12 +9,11 @@ Interactive chord recognition and ear training for web, iPhone, and iPad.
 
 - **Recognition mode** — read a chord name, play it on the piano
 - **Ear training** — listen and reproduce chords
-- **Progressions** — hear a diatonic progression and identify I–VII
-- **Difficulty levels** — triads free; Sevenths, Extended, and Mix with Pro
-- **Progressions** — chord progressions with Pro
-- **On-device stats** — today and recent stats free; full history with Pro
+- **Progressions** — hear I–IV–V–I, ii–V–I, I–V–vi–IV, or I–vi–IV–V in a random key, major or minor, and name each Roman numeral in order
+- **Difficulty levels** — triads, sevenths, extended, and mix are free
+- **On-device stats** — this session is free; full stats with Pro
 - **Offline-first** — PWA + Capacitor iOS, no account required
-- **Chord Trainer Pro** — optional one-time unlock on iOS
+- **Chord Trainer Pro** — monthly subscription (`com.musiceducation.chordtrainer.pro.monthly`, $6.99/month, 7-day trial): progressions, full stats
 - **Support the developer** — optional consumable purchases that unlock no features
 
 ## Piano sound

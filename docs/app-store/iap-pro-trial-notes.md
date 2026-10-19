@@ -15,11 +15,11 @@ Introductory offer: **1× P1W free** (7-day free trial), then recurring **P1M** 
 
 Local StoreKit config: `ios/App/App/Products.storekit`.
 
-## App behaviour (1.0.7 build 17+)
+## App behaviour (1.0.8 build 18+)
 
 - Purchase button buys **`…pro.monthly`** via Capgo `PURCHASE_TYPE.SUBS`.
 - Entitlement = active subscription **or** legacy Non-Consumable purchase.
-- Difficulty tiers remain free. Pro still gates **progressions** + **full stats**.
+- Difficulty tiers remain free. Every progression (I–IV–V–I, ii–V–I, I–V–vi–IV, I–vi–IV–V, major and minor) is Pro. Free users can open the mode and see locks; tapping opens the paywall. Pro: **Progressions, full stats**.
 - App-managed localStorage trial was removed in favour of Apple’s introductory offer.
 
 ## ASC console steps (create SKU if missing)
