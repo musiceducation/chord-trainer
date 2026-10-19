@@ -1,3 +1,5 @@
+import fs from 'node:fs';
+import path from 'node:path';
 import { describe, it, expect } from 'vitest';
 import {
   ABRSM5_KEYS,
@@ -5,8 +7,16 @@ import {
   generateAbrsmQuestion,
   scaleSpelling,
 } from '../lib/abrsm.js';
+import { formatPitchText } from '../lib/chords.js';
 
 describe('roman numeral chords', () => {
+  it('keeps the Roman key label from turning Db into DB', () => {
+    expect(formatPitchText('DB 大調')).toBe('Db 大調');
+    const source = fs.readFileSync(path.resolve('src/components/AbrsmMode.jsx'), 'utf8');
+    expect(source).toContain('className="normal-case">{keyName}');
+    expect(source).not.toMatch(/uppercase[^>\n]*\{key(?:Label|Name)\}/);
+  });
+
   it('covers major and minor keys up to six sharps or flats', () => {
     expect(ABRSM5_KEYS.major).toHaveLength(13);
     expect(ABRSM5_KEYS.minor).toHaveLength(13);

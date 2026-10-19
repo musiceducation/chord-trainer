@@ -15,7 +15,7 @@ Introductory offer: **1× P1W free** (7-day free trial), then recurring **P1M** 
 
 Local StoreKit config: `ios/App/App/Products.storekit`.
 
-## App behaviour (1.0.8 build 19+)
+## App behaviour (1.0.8 build 20+)
 
 - Purchase button buys **`…pro.monthly`** via Capgo `PURCHASE_TYPE.SUBS`.
 - Entitlement = active subscription **or** legacy Non-Consumable purchase.

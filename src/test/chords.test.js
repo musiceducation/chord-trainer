@@ -4,6 +4,7 @@ import {
   generateQuestion,
   buildChordVoicing,
   formatChord,
+  formatPitchText,
   isCorrectNote,
   questionFromSpec,
   targetPcsInChordOrder,
@@ -37,6 +38,26 @@ describe('chords', () => {
   it('formats chord names', () => {
     expect(formatChord('Cmaj7')).toBe('Cmaj7');
     expect(formatChord('am')).toBe('Am');
+  });
+
+  it('keeps a flat as lowercase b and a sharp as #', () => {
+    for (const name of ['Db', 'Eb', 'Ab', 'Bb', 'Gb', 'Cb']) {
+      expect(formatPitchText(name)).toBe(name);
+      expect(formatPitchText(name.toUpperCase())).toBe(name);
+      expect(formatPitchText(name.replace('b', '♭'))).toBe(name);
+      expect(formatChord(name)).toBe(name);
+      expect(formatChord(name.toUpperCase())).toBe(name);
+    }
+    expect(formatPitchText('Db 大調')).toBe('Db 大調');
+    expect(formatPitchText('DB 大調')).toBe('Db 大調');
+    expect(formatPitchText('C#')).toBe('C#');
+    expect(formatPitchText('c#')).toBe('C#');
+    expect(formatPitchText('F♯')).toBe('F#');
+    expect(formatChord('Bbm7b5')).toBe('Bbm7b5');
+    expect(formatChord('F#m7b5')).toBe('F#m7b5');
+    expect(formatChord('Bb: I-V-vi-IV')).toBe('Bb: I-V-vi-IV');
+    expect(formatPitchText('Db')).not.toBe('DB');
+    expect(formatPitchText('Db 大調')).not.toMatch(/♭|DB/);
   });
 
   it('checks note correctness by pitch class', () => {

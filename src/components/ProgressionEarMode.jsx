@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Check, SkipForward, Sparkles, Play, Music2, Undo2, Lightbulb, Lock } from 'lucide-react';
 import { usePiano } from '../hooks/usePiano.js';
 import { useTimeoutCleanup } from '../hooks/useTimeoutCleanup.js';
-import { voiceLeadProgression } from '../lib/chords.js';
+import { formatPitchText, voiceLeadProgression } from '../lib/chords.js';
 import {
   PROGRESSION_CATALOG,
   degreeTable,
@@ -432,7 +432,7 @@ export function ProgressionEarMode({
       <div className="flex-1 flex flex-col items-center justify-center min-h-0 relative overflow-y-auto">
         <div key={question.label} className="chord-name text-center relative">
           <div className="text-[10px] tracking-[0.5em] text-slate-500 mb-3 font-medium">
-            <span className="normal-case">{question.keyRoot}</span>
+            <span className="normal-case">{formatPitchText(question.keyRoot)}</span>
             {' '}
             <span className="uppercase">{qualityLabel}</span>
           </div>

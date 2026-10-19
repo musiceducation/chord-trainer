@@ -242,7 +242,7 @@ export function TestMode({
             {t(chordTypeI18nKey(question.type))}
           </div>
           <div
-            className={`display-font font-black leading-[0.85] tracking-tighter relative ${feedback === 'correct' ? 'chord-success' : 'chord-idle'}`}
+            className={`display-font font-black leading-[0.85] tracking-tighter relative normal-case ${feedback === 'correct' ? 'chord-success' : 'chord-idle'}`}
             style={{ fontSize: 'clamp(64px, 18vw, 140px)', color: '#DCE7FF' }}
           >
             {formatChord(question.name)}

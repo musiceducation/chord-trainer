@@ -49,11 +49,26 @@ export function generateQuestion(difficulty, lastName, random = Math.random) {
   return q;
 }
 
+/**
+ * Display spelling. The letter is uppercase, a flat stays ASCII "b"
+ * (Db, not DB or D♭), and a sharp stays "#". Pitch-class ids are unchanged;
+ * call this only when rendering.
+ */
+export function formatPitchText(value) {
+  if (value == null || value === '') return '';
+  return String(value)
+    .replace(/♭/g, 'b')
+    .replace(/♯/g, '#')
+    .replace(/([A-Ga-g])b/gi, (_, letter) => `${letter.toUpperCase()}b`)
+    .replace(/([A-Ga-g])#/g, (_, letter) => `${letter.toUpperCase()}#`);
+}
+
 export function formatChord(name) {
   if (!name) return '';
   // Progression labels like "Bb: I-V-vi-IV" — preserve roman numeral case
-  if (name.includes(': ')) return name;
-  return name.charAt(0).toUpperCase() + name.slice(1).toLowerCase();
+  if (name.includes(': ')) return formatPitchText(name);
+  const normalized = name.charAt(0).toUpperCase() + name.slice(1).toLowerCase();
+  return formatPitchText(normalized);
 }
 
 export function formatChordAnswer(name, quality) {

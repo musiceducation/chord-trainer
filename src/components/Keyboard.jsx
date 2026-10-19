@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { formatPitchText } from '../lib/chords.js';
 import { ALL_KEYS, FULL_END, FULL_START, VISIBLE_WHITE_KEYS } from '../lib/constants.js';
 import { pressPianoKey } from '../lib/keyTrigger.js';
 import { useI18n } from '../hooks/useI18n.jsx';
@@ -31,7 +32,7 @@ export function Keyboard({
   const isHinted = (midi) => hintNotes && hintNotes.has(midi % 12) && !lockedCorrect.has(midi % 12);
 
   const { t } = useI18n();
-  const keyLabel = (key) => `${key.name}${key.octave}`;
+  const keyLabel = (key) => formatPitchText(`${key.name}${key.octave}`);
   const playKey = (midi) => (event) => pressPianoKey(event, () => onKey(midi));
   const startOct = Math.floor(keyboardStart / 12) - 1;
   const endOct = startOct + 1;

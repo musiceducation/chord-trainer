@@ -4,6 +4,7 @@ import { Keyboard } from './Keyboard.jsx';
 import { usePiano } from '../hooks/usePiano.js';
 import { useTimeoutCleanup } from '../hooks/useTimeoutCleanup.js';
 import { ABRSM5_MODE_FILTERS, generateAbrsmQuestion } from '../lib/abrsm.js';
+import { formatChord, formatPitchText } from '../lib/chords.js';
 import { FULL_END, FULL_START } from '../lib/constants.js';
 import {
   computeStreakAfterSuccess,
@@ -131,7 +132,8 @@ export function AbrsmMode({
     if (next >= FULL_START && next + 12 <= FULL_END) setKeyboardStart(next);
   };
 
-  const keyLabel = t(question.mode === 'minor' ? 'abrsm.keyMinor' : 'abrsm.keyMajor', { key: question.tonic });
+  const keyName = formatPitchText(question.tonic);
+  const modeWord = t(question.mode === 'minor' ? 'abrsm.filter.minor' : 'abrsm.filter.major');
 
   return (
     <div className={`mode-panel ${hidden ? 'mode-hidden' : ''}`} aria-hidden={hidden}>
@@ -152,7 +154,11 @@ export function AbrsmMode({
       </div>
       <div className="flex-1 flex flex-col items-center justify-center min-h-0 relative overflow-y-auto">
         <div key={question.id} className="chord-name text-center relative">
-          <div className="text-xs tracking-[0.3em] text-slate-400 uppercase mb-3 font-semibold">{keyLabel}</div>
+          <div className="text-xs tracking-[0.3em] text-slate-400 mb-3 font-semibold">
+            <span className="normal-case">{keyName}</span>
+            {' '}
+            <span className="uppercase">{modeWord}</span>
+          </div>
           <div
             className={`display-font font-black leading-[0.85] tracking-tighter ${feedback === 'correct' ? 'chord-success' : 'chord-idle'}`}
             style={{ fontSize: 'clamp(64px, 18vw, 140px)', color: '#E8DCFF' }}
@@ -170,7 +176,7 @@ export function AbrsmMode({
                 <Check size={12} aria-hidden="true" /><span>{t('action.perfect')}</span>
               </div>
               <div className="text-slate-100 font-semibold normal-case tracking-normal">
-                {question.chordName} · {question.toneNames.join(' ')}
+                {formatChord(question.chordName)} · {question.toneNames.map((name) => formatPitchText(name)).join(' ')}
               </div>
             </div>
           ) : (
