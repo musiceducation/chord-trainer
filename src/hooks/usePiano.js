@@ -119,8 +119,14 @@ export function usePiano(enabled, pianoSound) {
     }
   }, [enabled]);
 
-  const playChord = useCallback((midis, strum = true) => {
+  const playChord = useCallback((midis, strumOrOptions = true) => {
     if (!enabled) return false;
+    const options = typeof strumOrOptions === 'object' && strumOrOptions
+      ? strumOrOptions
+      : { strum: strumOrOptions !== false };
+    const sustain = Number(options.sustain) > 0 ? Number(options.sustain) : CHORD_SUSTAIN;
+    const gain = Number(options.gain) > 0 ? Number(options.gain) : CHORD_GAIN;
+    const strum = options.strum !== false;
     try {
       const ctx = getSharedPianoContext();
       if (!ctx) return false;
@@ -128,20 +134,20 @@ export function usePiano(enabled, pianoSound) {
       return guardPlay(schedulePianoNotes(ctx, sorted.map((midi, i) => ({
         midi,
         offset: strum ? i * STRUM : 0,
-        sustain: CHORD_SUSTAIN,
-        gain: CHORD_GAIN,
+        sustain,
+        gain,
       }))));
     } catch {
       return false;
     }
   }, [enabled]);
 
-  const playSequence = useCallback(async (chordMidisList, gapMs = 1100, signal = null) => {
+  const playSequence = useCallback(async (chordMidisList, gapMs = 1100, signal = null, options = {}) => {
     if (!enabled) return false;
     try {
       for (let i = 0; i < chordMidisList.length; i += 1) {
         if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
-        await playChord(chordMidisList[i], true);
+        await playChord(chordMidisList[i], { strum: true, sustain: options.sustain });
         if (i < chordMidisList.length - 1) {
           await wait(gapMs, signal);
         }

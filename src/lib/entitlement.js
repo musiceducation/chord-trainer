@@ -1,4 +1,5 @@
 import { nextDifficulty } from './difficultyRamp.js';
+import { PROGRESSION_CATALOG } from './diatonic.js';
 
 /**
  * Must match App Store Connect and Products.storekit exactly.
@@ -74,7 +75,14 @@ export function clampDifficulty(_isPro, difficulty) {
   return difficultyAllowed(false, difficulty) ? difficulty : FREE_DIFFICULTY;
 }
 
-export function canAccessProgression(isPro) {
+/**
+ * The Progressions tab stays visible. Every pattern (major and minor) requires Pro.
+ * Called with no id, the mode itself is open so free users can see the locks.
+ */
+export function canAccessProgression(isPro, progressionId) {
+  if (progressionId == null || progressionId === '') return true;
+  const item = PROGRESSION_CATALOG.find((entry) => entry.id === progressionId);
+  if (!item) return false;
   return Boolean(isPro);
 }
 

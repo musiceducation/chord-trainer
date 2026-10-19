@@ -1,12 +1,15 @@
 import { describe, it, expect } from 'vitest';
 import {
+  PROGRESSION_CATALOG,
   buildDiatonicChord,
   formatProgressionAnswer,
+  formatProgressionPattern,
   generateProgressionQuestion,
   getRootForDegree,
   isProgressionAnswerCorrect,
   resolveDegreeChord,
 } from '../lib/diatonic.js';
+import { getChordPitchClasses } from '../lib/chords.js';
 import { formatChord } from '../lib/chords.js';
 
 describe('diatonic', () => {
@@ -52,12 +55,112 @@ describe('diatonic', () => {
     expect(resolved.root).toBe(first.root);
   });
 
-  it('generates a 4-chord progression', () => {
-    const q = generateProgressionQuestion({ keyRoot: 'C', tier: 'basic', random: () => 0.5 });
-    expect(q.chords).toHaveLength(4);
-    expect(q.degreeNums).toHaveLength(4);
-    expect(q.tonic.roman).toBe('I');
-    expect(q.label).toMatch(/^C: /);
+  it('generates the named catalog in major and minor', () => {
+    expect(PROGRESSION_CATALOG.map((item) => item.id)).toEqual([
+      'I-IV-V-I',
+      'ii-V-I',
+      'I-V-vi-IV',
+      'I-vi-IV-V',
+    ]);
+    expect(PROGRESSION_CATALOG.every((item) => item.access === 'pro')).toBe(true);
+    expect(generateProgressionQuestion({ allowedIds: [], random: () => 0 })).toBeNull();
+    expect(formatProgressionPattern('I-IV-V-I', 'major')).toBe('I–IV–V–I');
+    expect(formatProgressionPattern('ii-V-I', 'minor')).toBe('ii°–V–i');
+    expect(formatProgressionPattern('I-V-vi-IV', 'minor')).toBe('i–V–VI–iv');
+    expect(formatProgressionPattern('I-vi-IV-V', 'major')).toBe('I–vi–IV–V');
+
+    const major = generateProgressionQuestion({
+      progressionId: 'I-IV-V-I',
+      quality: 'major',
+      keyRoot: 'C',
+      tier: 'basic',
+      random: () => 0,
+    });
+    expect(major.degreeNums).toEqual([1, 4, 5, 1]);
+    expect(major.chords.map((c) => c.roman)).toEqual(['I', 'IV', 'V', 'I']);
+    expect(major.chords.map((c) => `${c.root}${c.type}`)).toEqual(['C', 'F', 'G', 'C']);
+    expect(major.tonic.roman).toBe('I');
+    expect(major.voicings).toHaveLength(4);
+    expect(major.label).toBe('C major: I-IV-V-I');
+
+    const cadence = generateProgressionQuestion({
+      progressionId: 'ii-V-I',
+      quality: 'minor',
+      keyRoot: 'A',
+      tier: 'basic',
+      random: () => 0,
+    });
+    expect(cadence.length).toBe(3);
+    expect(cadence.chords.map((c) => c.roman)).toEqual(['ii°', 'V', 'i']);
+    expect(cadence.chords.map((c) => c.root)).toEqual(['B', 'E', 'A']);
+    expect(cadence.chords.map((c) => c.type)).toEqual(['dim', '', 'm']);
+
+    const pop = generateProgressionQuestion({
+      progressionId: 'I-V-vi-IV',
+      quality: 'minor',
+      keyRoot: 'C',
+      tier: 'basic',
+      random: () => 0,
+    });
+    expect(pop.chords.map((c) => `${c.root}${c.type}`)).toEqual(['Cm', 'G', 'Ab', 'Fm']);
+
+    const turnaround = generateProgressionQuestion({
+      progressionId: 'I-vi-IV-V',
+      quality: 'major',
+      keyRoot: 'G',
+      tier: 'seventh',
+      random: () => 0,
+    });
+    expect(turnaround.chords.map((c) => c.type)).toEqual(['maj7', 'm7', 'maj7', '7']);
+  });
+
+  it('picks a random training key when the key is not pinned', () => {
+    const values = [0.01, 0.2, 0.45, 0.7, 0.84, 0.97];
+    let cursor = 0;
+    const random = () => {
+      const value = values[cursor % values.length];
+      cursor += 1;
+      return value;
+    };
+    const keys = new Set();
+    for (let n = 0; n < 6; n += 1) {
+      keys.add(generateProgressionQuestion({
+        progressionId: 'ii-V-I',
+        quality: 'major',
+        tier: 'basic',
+        random,
+      }).keyRoot);
+    }
+    expect(keys.size).toBeGreaterThan(1);
+  });
+
+  it('voice-leads each catalog chord inside the piano range', () => {
+    const q = generateProgressionQuestion({
+      progressionId: 'I-IV-V-I',
+      quality: 'major',
+      keyRoot: 'C',
+      tier: 'basic',
+      random: () => 0,
+    });
+    q.voicings.forEach((midis, index) => {
+      const pcs = getChordPitchClasses(q.chords[index].root, q.chords[index].type);
+      expect(midis.length).toBeGreaterThanOrEqual(3);
+      midis.forEach((midi, voice) => {
+        expect(pcs.has(((midi % 12) + 12) % 12)).toBe(true);
+        expect(midi).toBeGreaterThanOrEqual(48);
+        expect(midi).toBeLessThanOrEqual(76);
+        if (voice > 0) expect(midi).toBeGreaterThan(midis[voice - 1]);
+      });
+    });
+    const shared = q.voicings[1].filter((midi) => q.voicings[0].includes(midi));
+    expect(shared.length).toBeGreaterThan(0);
+    q.voicings.slice(1).forEach((midis, index) => {
+      const previous = q.voicings[index];
+      expect(midis.length).toBe(previous.length);
+      midis.forEach((midi, voice) => {
+        expect(Math.abs(midi - previous[voice])).toBeLessThanOrEqual(7);
+      });
+    });
   });
 
   it('formats progression answers', () => {

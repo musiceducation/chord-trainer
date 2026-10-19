@@ -1,6 +1,8 @@
 import { useMemo } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { formatPitchText } from '../lib/chords.js';
 import { ALL_KEYS, FULL_END, FULL_START, VISIBLE_WHITE_KEYS } from '../lib/constants.js';
+import { pressPianoKey } from '../lib/keyTrigger.js';
 import { useI18n } from '../hooks/useI18n.jsx';
 
 export function Keyboard({
@@ -30,7 +32,8 @@ export function Keyboard({
   const isHinted = (midi) => hintNotes && hintNotes.has(midi % 12) && !lockedCorrect.has(midi % 12);
 
   const { t } = useI18n();
-  const keyLabel = (key) => `${key.name}${key.octave}`;
+  const keyLabel = (key) => formatPitchText(`${key.name}${key.octave}`);
+  const playKey = (midi) => (event) => pressPianoKey(event, () => onKey(midi));
   const startOct = Math.floor(keyboardStart / 12) - 1;
   const endOct = startOct + 1;
 
@@ -75,8 +78,7 @@ export function Keyboard({
                   type="button"
                   aria-label={keyLabel(key)}
                   disabled={disabled}
-                  onMouseDown={() => onKey(key.midi)}
-                  onTouchStart={(e) => { e.preventDefault(); onKey(key.midi); }}
+                  onPointerDown={playKey(key.midi)}
                   className={`flex-1 relative rounded-b-lg transition-all duration-100 touch-none active:scale-[0.98] ${locked ? 'key-locked-white' : ''} ${isWrong ? 'wrong-shake' : ''} ${hinted ? 'key-hint-white' : ''}`}
                   style={{
                     background: isWrong
@@ -109,8 +111,7 @@ export function Keyboard({
                       type="button"
                       aria-label={keyLabel(blackKey)}
                       disabled={disabled}
-                      onMouseDown={() => onKey(blackKey.midi)}
-                      onTouchStart={(e) => { e.preventDefault(); onKey(blackKey.midi); }}
+                      onPointerDown={playKey(blackKey.midi)}
                       className={`absolute pointer-events-auto rounded-b-md transition-all duration-100 touch-none active:scale-[0.98] ${locked ? 'key-locked-black' : ''} ${isWrong ? 'wrong-shake' : ''} ${hinted ? 'key-hint-black' : ''}`}
                       style={{
                         // Wider/taller black keys for easier Ab / C# / Eb taps

@@ -27,18 +27,25 @@ class MemoryStorage {
 }
 
 describe('free vs Pro gating', () => {
-  it('allows every difficulty tier without Pro; Pro still gates progressions and full stats', () => {
+  it('allows every difficulty tier without Pro; every progression and full stats need Pro', () => {
     expect(difficultyAllowed(false, 'basic')).toBe(true);
     expect(difficultyAllowed(false, 'seventh')).toBe(true);
     expect(difficultyAllowed(false, 'extended')).toBe(true);
     expect(difficultyAllowed(false, 'all')).toBe(true);
     expect(clampDifficulty(false, 'seventh')).toBe('seventh');
-    expect(canAccessProgression(false)).toBe(false);
+    expect(canAccessProgression(false)).toBe(true);
+    expect(canAccessProgression(false, 'I-IV-V-I')).toBe(false);
+    expect(canAccessProgression(false, 'ii-V-I')).toBe(false);
+    expect(canAccessProgression(false, 'I-V-vi-IV')).toBe(false);
+    expect(canAccessProgression(false, 'I-vi-IV-V')).toBe(false);
     expect(canAccessFullStats(false)).toBe(false);
 
     expect(difficultyAllowed(true, 'extended')).toBe(true);
     expect(clampDifficulty(true, 'extended')).toBe('extended');
-    expect(canAccessProgression(true)).toBe(true);
+    expect(canAccessProgression(true, 'I-IV-V-I')).toBe(true);
+    expect(canAccessProgression(true, 'ii-V-I')).toBe(true);
+    expect(canAccessProgression(true, 'I-V-vi-IV')).toBe(true);
+    expect(canAccessProgression(true, 'I-vi-IV-V')).toBe(true);
     expect(canAccessFullStats(true)).toBe(true);
   });
 

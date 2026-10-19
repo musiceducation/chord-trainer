@@ -81,12 +81,12 @@
           },
           "localizations": [
             {
-              "description": "Monthly access to chord progressions and full stats after a 7-day free trial. All difficulty tiers stay free.",
+              "description": "Monthly access after a 7-day free trial. Progressions, full stats. All difficulty tiers stay free.",
               "displayName": "Chord Trainer Pro Monthly",
               "locale": "en_US"
             },
             {
-              "description": "七日免費試用後，每月解鎖和弦進行與完整統計。所有難度維持免費。",
+              "description": "七日免費試用後，每月可使用和弦進行、完整統計。所有難度維持免費。",
               "displayName": "Chord Trainer Pro 月費",
               "locale": "zh_Hant"
             }

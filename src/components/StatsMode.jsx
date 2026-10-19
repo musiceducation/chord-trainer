@@ -93,7 +93,7 @@ export function StatsMode({
             <div className="space-y-2">
               {weakChords.map((c) => (
                 <div key={c.name} className="flex items-center gap-3">
-                  <div className="display-font text-base font-bold text-slate-200 w-20">{formatChord(c.name)}</div>
+                  <div className="display-font text-base font-bold text-slate-200 w-20 normal-case">{formatChord(c.name)}</div>
                   <div className="flex-1 h-2 rounded-full overflow-hidden bg-white/5">
                     <div
                       className="h-full rounded-full transition-all"

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { PIANO_SAMPLES } from '../lib/pianoSamples.js';
+import { getPianoPack, PIANO_SAMPLES, PIANO_SOUND_IDS } from '../lib/pianoSamples.js';
 import {
   getPianoDebugState,
   getPianoScheduleTrace,
@@ -11,6 +11,7 @@ import {
   renderQuantumSeconds,
   resetPianoEngineForTests,
   schedulePianoNotes,
+  setActivePianoSound,
 } from '../lib/pianoEngine.js';
 import {
   getSharedPianoContext,
@@ -32,9 +33,18 @@ function deferred() {
 function param(value = 0) {
   return {
     value,
-    setValueAtTime(next) { this.value = next; },
-    exponentialRampToValueAtTime(next) { this.value = next; },
-    cancelScheduledValues() {},
+    automation: [],
+    setValueAtTime(next, time) {
+      this.value = next;
+      this.automation.push({ method: 'set', value: next, time });
+    },
+    exponentialRampToValueAtTime(next, time) {
+      this.value = next;
+      this.automation.push({ method: 'exp', value: next, time });
+    },
+    cancelScheduledValues() {
+      this.automation.push({ method: 'cancel' });
+    },
   };
 }
 
@@ -62,10 +72,14 @@ function makeCtx({ state = 'running', currentTime = 0, sampleRate = 48000 } = {}
     destination: {},
     resumeCalls: 0,
     starts: [],
+    stops: [],
+    gains: [],
     oscStarts: [],
     decodeCalls: 0,
     createGain() {
-      return { ...port(), gain: param(1) };
+      const node = { ...port(), gain: param(1) };
+      ctx.gains.push(node);
+      return node;
     },
     createBiquadFilter() {
       return {
@@ -104,7 +118,9 @@ function makeCtx({ state = 'running', currentTime = 0, sampleRate = 48000 } = {}
         start(when) {
           ctx.starts.push({ when, buffer: source.buffer });
         },
-        stop() {},
+        stop(when) {
+          ctx.stops.push({ when, buffer: source.buffer });
+        },
       };
       return source;
     },
@@ -227,6 +243,32 @@ describe('schedulePianoNotes', () => {
     expect(cached).toHaveLength(2);
     expect(cached[1].jsUntilStartMs).toBeLessThan(15);
     expect(silenceStarts(ctx)).toHaveLength(1);
+  });
+
+  it('fades each keyboard sound out before the buffer stops, and does not re-attack', () => {
+    for (const id of PIANO_SOUND_IDS) {
+      setActivePianoSound(id);
+      const pack = getPianoPack(id);
+      for (const sample of pack.samples) {
+        installDecodedSampleForTests(sample.file, fakeBuffer(`${id}:${sample.file}`));
+      }
+      const ctx = makeCtx({ state: 'running', currentTime: 1, sampleRate: 48000 });
+      schedulePianoNotes(ctx, [{ midi: 60, offset: 0, sustain: 3, gain: 0.78 }]);
+
+      const notes = noteStarts(ctx);
+      expect(notes, id).toHaveLength(1);
+      const noteGain = ctx.gains.find((node) => node.gain.automation.some(
+        (step) => step.method === 'exp' && step.value <= 0.001,
+      ));
+      expect(noteGain, id).toBeTruthy();
+      const hold = [...noteGain.gain.automation].reverse().find((step) => step.method === 'set');
+      const ramp = noteGain.gain.automation.find((step) => step.method === 'exp');
+      const stop = ctx.stops.find((entry) => entry.buffer?.tag);
+      expect(ramp.time - hold.time, id).toBeGreaterThanOrEqual(0.2);
+      expect(ramp.time - hold.time, id).toBeLessThanOrEqual(0.45);
+      expect(stop.when, id).toBeGreaterThan(ramp.time);
+      expect(ctx.stops.filter((entry) => entry.buffer?.tag), id).toHaveLength(1);
+    }
   });
 
   it('resumes and starts a cached note in the suspended gesture without extra lookahead', () => {

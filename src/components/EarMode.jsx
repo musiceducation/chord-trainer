@@ -286,8 +286,9 @@ export function EarMode({
 
         <div className="mt-3 min-h-10 text-xs tracking-wider text-center px-3">
           {feedback === 'correct' ? (
-            <div className="flex items-center justify-center gap-1.5 text-emerald-300 font-semibold uppercase">
-              <Check size={12} aria-hidden="true" /><span>{formatChord(question.name)} ✓</span>
+            <div className="flex items-center justify-center gap-1.5 text-emerald-300 font-semibold">
+              <Check size={12} aria-hidden="true" />
+              <span className="normal-case">{formatChord(question.name)} ✓</span>
             </div>
           ) : (
             <div className="text-slate-600 uppercase">

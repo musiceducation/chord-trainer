@@ -1,4 +1,5 @@
 import { NOTE_TO_PC, PC_TO_NOTE } from './constants.js';
+import { voiceLeadProgression } from './chords.js';
 
 /** Diatonic degrees in a major key (scale steps are semitones above tonic). */
 export const MAJOR_DEGREES = [
@@ -9,6 +10,17 @@ export const MAJOR_DEGREES = [
   { num: 5, roman: 'V', scaleStep: 7, triad: '', seventh: '7', extended: '9' },
   { num: 6, roman: 'vi', scaleStep: 9, triad: 'm', seventh: 'm7', extended: 'm7' },
   { num: 7, roman: 'vii°', scaleStep: 11, triad: 'dim', seventh: 'm7b5', extended: 'm7b5' },
+];
+
+/** Functional minor: natural-minor i, ii°, III, iv, VI, with harmonic-minor V and vii°. */
+export const MINOR_DEGREES = [
+  { num: 1, roman: 'i', scaleStep: 0, triad: 'm', seventh: 'm7', extended: 'm7' },
+  { num: 2, roman: 'ii°', scaleStep: 2, triad: 'dim', seventh: 'm7b5', extended: 'm7b5' },
+  { num: 3, roman: 'III', scaleStep: 3, triad: '', seventh: 'maj7', extended: 'maj7' },
+  { num: 4, roman: 'iv', scaleStep: 5, triad: 'm', seventh: 'm7', extended: 'm7' },
+  { num: 5, roman: 'V', scaleStep: 7, triad: '', seventh: '7', extended: '9' },
+  { num: 6, roman: 'VI', scaleStep: 8, triad: '', seventh: 'maj7', extended: 'maj7' },
+  { num: 7, roman: 'vii°', scaleStep: 11, triad: 'dim', seventh: 'dim7', extended: 'dim7' },
 ];
 
 export const TRAINING_KEYS = ['C', 'G', 'F', 'D', 'A', 'Bb', 'Eb'];
@@ -24,33 +36,56 @@ export const KEY_SCALE_SPELLINGS = {
   Eb: ['Eb', 'F', 'G', 'Ab', 'Bb', 'C', 'D'],
 };
 
-const COMMON_PROGRESSIONS = [
-  [1, 5, 6, 4],
-  [1, 6, 4, 5],
-  [2, 5, 1, 1],
-  [1, 4, 1, 5],
-  [6, 4, 1, 5],
-  [1, 3, 4, 5],
-  [4, 5, 1, 1],
-  [1, 5, 4, 1],
-  [1, 4, 5, 1],
-  [2, 5, 1, 6],
-];
+/** Harmonic-minor spellings (raised leading tone) for the same training keys. */
+export const MINOR_KEY_SPELLINGS = {
+  C: ['C', 'D', 'Eb', 'F', 'G', 'Ab', 'B'],
+  G: ['G', 'A', 'Bb', 'C', 'D', 'Eb', 'F#'],
+  F: ['F', 'G', 'Ab', 'Bb', 'C', 'Db', 'E'],
+  D: ['D', 'E', 'F', 'G', 'A', 'Bb', 'C#'],
+  A: ['A', 'B', 'C', 'D', 'E', 'F', 'G#'],
+  Bb: ['Bb', 'C', 'Db', 'Eb', 'F', 'Gb', 'A'],
+  Eb: ['Eb', 'F', 'Gb', 'Ab', 'Bb', 'Cb', 'D'],
+};
 
-const PROGRESSION_LENGTH = 4;
+/**
+ * Named progressions. Degree numbers are the same in major and minor;
+ * Roman numerals and qualities come from the mode's degree table.
+ * Every pattern, including its minor variant, requires Pro.
+ */
+export const PROGRESSION_CATALOG = Object.freeze([
+  Object.freeze({ id: 'I-IV-V-I', degrees: Object.freeze([1, 4, 5, 1]), access: 'pro' }),
+  Object.freeze({ id: 'ii-V-I', degrees: Object.freeze([2, 5, 1]), access: 'pro' }),
+  Object.freeze({ id: 'I-V-vi-IV', degrees: Object.freeze([1, 5, 6, 4]), access: 'pro' }),
+  Object.freeze({ id: 'I-vi-IV-V', degrees: Object.freeze([1, 6, 4, 5]), access: 'pro' }),
+]);
 
-export function getDegreeByNum(num) {
-  return MAJOR_DEGREES.find((d) => d.num === num) || MAJOR_DEGREES[0];
+export function getProgressionById(id) {
+  return PROGRESSION_CATALOG.find((item) => item.id === id) || null;
 }
 
-export function getRootForDegree(keyRoot, degree) {
-  const spelling = KEY_SCALE_SPELLINGS[keyRoot];
+export function formatProgressionPattern(id, quality = 'major') {
+  const item = getProgressionById(id);
+  if (!item) return '';
+  return item.degrees.map((num) => getDegreeByNum(num, quality).roman).join('–');
+}
+
+export function degreeTable(quality = 'major') {
+  return quality === 'minor' ? MINOR_DEGREES : MAJOR_DEGREES;
+}
+
+export function getDegreeByNum(num, quality = 'major') {
+  const table = degreeTable(quality);
+  return table.find((d) => d.num === num) || table[0];
+}
+
+export function getRootForDegree(keyRoot, degree, quality = 'major') {
+  const spelling = quality === 'minor' ? MINOR_KEY_SPELLINGS[keyRoot] : KEY_SCALE_SPELLINGS[keyRoot];
   if (spelling) {
     let idx = 0;
     if (degree?.num != null) {
       idx = degree.num - 1;
     } else if (degree?.scaleStep != null) {
-      const match = MAJOR_DEGREES.find((d) => d.scaleStep === degree.scaleStep);
+      const match = degreeTable(quality).find((d) => d.scaleStep === degree.scaleStep);
       idx = match ? match.num - 1 : 0;
     }
     if (idx >= 0 && idx < spelling.length) return spelling[idx];
@@ -69,9 +104,9 @@ function getChordTypeForTier(degree, tier, random = Math.random) {
   return options[Math.floor(random() * options.length)];
 }
 
-export function buildDiatonicChord(keyRoot, degreeNum, tier, random = Math.random) {
-  const degree = getDegreeByNum(degreeNum);
-  const root = getRootForDegree(keyRoot, degree);
+export function buildDiatonicChord(keyRoot, degreeNum, tier, random = Math.random, quality = 'major') {
+  const degree = getDegreeByNum(degreeNum, quality);
+  const root = getRootForDegree(keyRoot, degree, quality);
   const type = getChordTypeForTier(degree, tier, random);
   return {
     degreeNum: degree.num,
@@ -79,68 +114,100 @@ export function buildDiatonicChord(keyRoot, degreeNum, tier, random = Math.rando
     root,
     type,
     name: root + type,
+    quality,
   };
 }
 
-function randomDiatonicProgression(random) {
-  const degrees = [];
-  for (let i = 0; i < PROGRESSION_LENGTH; i += 1) {
-    degrees.push(1 + Math.floor(random() * 7));
+function resolveCatalogItem(progressionId, allowedIds, random) {
+  const pool = Array.isArray(allowedIds)
+    ? PROGRESSION_CATALOG.filter((item) => allowedIds.includes(item.id))
+    : PROGRESSION_CATALOG;
+  if (!pool.length) return null;
+  if (progressionId) {
+    const found = pool.find((item) => item.id === progressionId);
+    if (found) return found;
   }
-  return degrees;
+  return pool[Math.floor(random() * pool.length)] || null;
 }
 
-function pickProgressionDegrees(random) {
-  if (random() < 0.65) {
-    const template = COMMON_PROGRESSIONS[Math.floor(random() * COMMON_PROGRESSIONS.length)];
-    return [...template];
-  }
-  return randomDiatonicProgression(random);
+function resolveQuality(quality, random) {
+  if (quality === 'major' || quality === 'minor') return quality;
+  return random() < 0.5 ? 'major' : 'minor';
 }
 
+function resolveKey(keyRoot, random) {
+  if (keyRoot && TRAINING_KEYS.includes(keyRoot)) return keyRoot;
+  return TRAINING_KEYS[Math.floor(random() * TRAINING_KEYS.length)];
+}
+
+/**
+ * One ear-training item: a catalog progression in a major or minor key.
+ * Key and mode are random unless the caller pins them (retry, tests).
+ * `random` is consumed only for fields that were not pinned, then once per
+ * chord when the difficulty tier picks among qualities.
+ */
 export function generateProgressionQuestion({
-  keyRoot = 'C',
+  keyRoot = null,
   tier = 'basic',
   lastLabel = null,
+  progressionId = null,
+  quality = null,
+  allowedIds = null,
   random = Math.random,
 } = {}) {
   let degreeNums;
   let chords;
   let label;
+  let resolvedId;
+  let resolvedQuality;
+  let resolvedKey;
   let attempts = 0;
 
   do {
-    degreeNums = pickProgressionDegrees(random);
-    chords = degreeNums.map((num) => buildDiatonicChord(keyRoot, num, tier, random));
-    label = `${keyRoot}: ${chords.map((c) => c.roman).join('-')}`;
+    const item = resolveCatalogItem(progressionId, allowedIds, random);
+    if (!item) return null;
+    resolvedId = item.id;
+    resolvedQuality = resolveQuality(quality, random);
+    resolvedKey = resolveKey(keyRoot, random);
+    degreeNums = [...item.degrees];
+    chords = degreeNums.map((num) => (
+      buildDiatonicChord(resolvedKey, num, tier, random, resolvedQuality)
+    ));
+    label = `${resolvedKey} ${resolvedQuality}: ${chords.map((c) => c.roman).join('-')}`;
     attempts += 1;
   } while (label === lastLabel && attempts < 40);
 
-  const tonic = buildDiatonicChord(keyRoot, 1, tier, random);
+  const tonic = buildDiatonicChord(resolvedKey, 1, tier, () => 0, resolvedQuality);
+  const voicings = voiceLeadProgression(chords);
 
   return {
-    keyRoot,
+    progressionId: resolvedId,
+    access: getProgressionById(resolvedId)?.access || 'pro',
+    quality: resolvedQuality,
+    keyRoot: resolvedKey,
     tier,
     degreeNums,
     chords,
     tonic,
+    tonicVoicing: voiceLeadProgression([tonic])[0],
+    voicings,
     label,
-    length: PROGRESSION_LENGTH,
+    length: degreeNums.length,
   };
 }
 
-export function formatProgressionAnswer(degreeNums) {
-  return degreeNums.map((num) => getDegreeByNum(num).roman).join(' → ');
+export function formatProgressionAnswer(degreeNums, quality = 'major') {
+  return degreeNums.map((num) => getDegreeByNum(num, quality).roman).join(' → ');
 }
 
 export function isProgressionAnswerCorrect(answerNums, correctNums) {
-  if (answerNums.length !== correctNums.length) return false;
+  if (!answerNums || !correctNums || answerNums.length !== correctNums.length) return false;
   return answerNums.every((num, i) => num === correctNums[i]);
 }
 
 /** Prefer the sounding quality from the current question when previewing a degree. */
-export function resolveDegreeChord(keyRoot, degreeNum, tier, questionChords = []) {
+export function resolveDegreeChord(keyRoot, degreeNum, tier, questionChords = [], quality = 'major') {
   const fromQuestion = questionChords.find((c) => c.degreeNum === degreeNum);
   if (fromQuestion) return fromQuestion;
-  return buildDiatonicChord(keyRoot, degreeNum, tier, () => 0);
+  return buildDiatonicChord(keyRoot, degreeNum, tier, () => 0, quality);
 }

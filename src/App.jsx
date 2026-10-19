@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import {
-  Volume2, VolumeX, Flame, Settings, Sparkles, Headphones, BarChart3, ListMusic, Lock, GraduationCap,
+  Volume2, VolumeX, Flame, Settings, Sparkles, Headphones, BarChart3, ListMusic, GraduationCap,
 } from 'lucide-react';
 import { TestMode } from './components/TestMode.jsx';
 import { AbrsmMode } from './components/AbrsmMode.jsx';
@@ -9,7 +9,6 @@ import { ProgressionEarMode } from './components/ProgressionEarMode.jsx';
 import { StatsMode } from './components/StatsMode.jsx';
 import { GuideOverlay } from './components/GuideOverlay.jsx';
 import { DIFFICULTY_LEVELS, TABS } from './lib/constants.js';
-import { TRAINING_KEYS } from './lib/diatonic.js';
 import { loadStats, saveStats } from './lib/stats.js';
 import { loadSettings, saveSettings } from './lib/settings.js';
 import { applyFreeRampCap, canAccessProgression, PRODUCT_IDS } from './lib/entitlement.js';
@@ -65,6 +64,12 @@ const TAB_ICONS = {
   stats: BarChart3,
 };
 
+function tabForQuestion(question) {
+  if (question?.mode === 'progression' || question?.kind === 'progression') return 'progression';
+  if (question?.mode === 'test') return 'test';
+  return 'ear';
+}
+
 function settingButtonStyle(active) {
   return {
     background: active
@@ -83,7 +88,6 @@ export default function App() {
   const [tab, setTab] = useState(shot?.tab || 'test');
   const [settings, setSettingsState] = useState(() => loadSettings());
   const difficulty = settings.difficulty;
-  const keyRoot = settings.keyRoot;
   const [soundOn, setSoundOn] = useState(true);
   const [showSettings, setShowSettings] = useState(Boolean(shot?.settings));
   const [stats, setStatsState] = useState(() => loadStats());
@@ -114,9 +118,6 @@ export default function App() {
   useEffect(() => { difficultyRef.current = difficulty; }, [difficulty]);
   useEffect(() => { missBookRef.current = missBook; }, [missBook]);
   useEffect(() => { isProRef.current = proAccess; }, [proAccess]);
-  useEffect(() => {
-    if (!proAccess && tab === 'progression') setTab('test');
-  }, [proAccess, tab]);
   useEffect(() => {
     setActivePianoSound(pianoSound);
   }, [pianoSound]);
@@ -247,7 +248,7 @@ export default function App() {
       setDrill(next);
       if (!next.done) {
         const upcoming = next.questions[next.index];
-        if (upcoming?.mode) setTab(upcoming.mode);
+        if (upcoming) setTab(tabForQuestion(upcoming));
       } else {
         const correct = drillCorrectCount(next);
         if (isPositiveDrillResult(correct, next.questions.length)) {
@@ -264,7 +265,8 @@ export default function App() {
     const blockingGuide = guided?.kind === 'onboarding' || guided?.kind === 'pack' || guided?.kind === 'packDone';
     if (blockingGuide) return;
 
-    if (payload?.question?.root) {
+    const roundQuestion = payload?.question;
+    if (roundQuestion && (roundQuestion.root || roundQuestion.kind === 'progression')) {
       setMissBook((prev) => {
         const next = applyRoundToBook(prev, payload.question, {
           missed: payload.missed,
@@ -312,13 +314,20 @@ export default function App() {
     setShowSettings(false);
     setDrillPromptDismissed(true);
     const first = session.questions[Math.min(session.index || 0, session.questions.length - 1)];
-    setTab(first.mode === 'test' ? 'test' : 'ear');
+    setTab(tabForQuestion(first));
   }, []);
 
 
   const startRetry = useCallback(() => {
-    const questions = buildMissRetryQuestions(missBookRef.current.items);
-    if (!questions.length) return;
+    const all = buildMissRetryQuestions(missBookRef.current.items);
+    const questions = all.filter((question) => (
+      question.kind !== 'progression'
+      || canAccessProgression(isProRef.current, question.progressionId)
+    ));
+    if (!questions.length) {
+      if (all.some((question) => question.kind === 'progression')) setPaywallOpen(true);
+      return;
+    }
     beginDrill({
       kind: 'misses',
       questions,
@@ -375,12 +384,13 @@ export default function App() {
 
   const drillQuestion = drill && !drill.done ? drill.questions[drill.index] : null;
   const drillEpoch = drillQuestion
-    ? `${drill.kind}:${drill.index}:${drillQuestion.root}:${drillQuestion.type}`
+    ? `${drill.kind}:${drill.index}:${drillQuestion.root || ''}:${drillQuestion.type || ''}:${drillQuestion.progressionId || ''}:${drillQuestion.quality || ''}:${drillQuestion.keyRoot || ''}`
     : '';
   const identifyFromGuide = identifyPracticeSpec(guide);
   const earFromGuide = earPracticeSpec(guide);
   const identifySpec = drillQuestion?.mode === 'test' ? drillQuestion : identifyFromGuide;
   const earSpec = drillQuestion?.mode === 'ear' ? drillQuestion : earFromGuide;
+  const progressionSpec = drillQuestion?.mode === 'progression' ? drillQuestion : null;
   const guidedIdentify = Boolean(identifyFromGuide) && !drillQuestion;
   const guidedEar = Boolean(earFromGuide) && !drillQuestion;
   const lockTabs = tabsLocked(guide) || Boolean(drillQuestion);
@@ -536,7 +546,6 @@ export default function App() {
           {TABS.map((item) => {
             const active = tab === item.key;
             const Icon = TAB_ICONS[item.key];
-            const locked = item.key === 'progression' && !canAccessProgression(proAccess);
             return (
               <button
                 key={item.key}
@@ -544,10 +553,6 @@ export default function App() {
                 aria-current={active ? 'page' : undefined}
                 disabled={lockTabs}
                 onClick={() => {
-                  if (locked) {
-                    setPaywallOpen(true);
-                    return;
-                  }
                   setTab(item.key);
                   setShowSettings(false);
                 }}
@@ -562,7 +567,6 @@ export default function App() {
                 <Icon size={14} aria-hidden="true" />
                 <span className="flex items-center gap-0.5">
                   {t(`tab.${item.key}`)}
-                  {locked && <Lock size={9} className="text-amber-300" aria-hidden="true" />}
                 </span>
               </button>
             );
@@ -647,27 +651,6 @@ export default function App() {
                     );
                   })}
                 </div>
-                {tab === 'progression' && (
-                  <>
-                    <div className="text-[10px] text-slate-500 uppercase tracking-[0.3em] mt-3.5 mb-2.5 font-semibold">{t('settings.key')}</div>
-                    <div className="grid grid-cols-4 gap-1.5">
-                      {TRAINING_KEYS.map((key) => {
-                        const active = keyRoot === key;
-                        return (
-                          <button
-                            key={key}
-                            type="button"
-                            onClick={() => { updateSettings({ keyRoot: key }); setShowSettings(false); }}
-                            className="py-2.5 rounded-xl text-sm transition-all touch-none active:scale-[0.98]"
-                            style={settingButtonStyle(active)}
-                          >
-                            {key}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </>
-                )}
               </>
             )}
             <div className={`text-[10px] text-slate-500 uppercase tracking-[0.3em] mb-2.5 font-semibold ${tab !== 'stats' && tab !== 'abrsm' ? 'mt-3.5' : ''}`}>
@@ -816,16 +799,20 @@ export default function App() {
           />
           <ProgressionEarMode
             difficulty={practiceDifficulty}
-            keyRoot={keyRoot}
             soundOn={soundOn}
             pianoSound={pianoSound}
             stats={stats}
             setStats={setStats}
             onScoreChange={setScoreInfo}
-            hidden={tab !== 'progression' || !proAccess}
+            hidden={tab !== 'progression'}
             autoHint={firstHintReady && !settings.firstHintUsed.progress}
             onAutoHintUsed={() => markHintUsed('progress')}
             onRoundSettled={handleRoundSettled}
+            onQuestionComplete={progressionSpec ? handleQuestionComplete : undefined}
+            fixedQuestion={progressionSpec}
+            questionEpoch={progressionSpec ? drillEpoch : ''}
+            isPro={proAccess}
+            onLockedProgression={() => setPaywallOpen(true)}
           />
           <AbrsmMode
             soundOn={soundOn}

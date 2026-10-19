@@ -46,6 +46,36 @@ describe('miss book', () => {
     expect(removeMiss(book, { root: 'E', type: '' }).items).toHaveLength(0);
   });
 
+  it('records a progression miss and retries that key and mode', () => {
+    let book = emptyMissBook();
+    const question = {
+      kind: 'progression',
+      mode: 'progression',
+      progressionId: 'ii-V-I',
+      quality: 'minor',
+      keyRoot: 'D',
+    };
+    book = applyRoundToBook(book, question, { missed: true, at: '2026-02-01' });
+    expect(book.items).toHaveLength(1);
+    expect(book.items[0].id).toBe('prog:ii-V-I:minor:D');
+    book = applyRoundToBook(book, question, { missed: true, at: '2026-02-02' });
+    expect(book.items[0].misses).toBe(2);
+    const retry = buildMissRetryQuestions(book.items);
+    expect(retry).toEqual([{
+      kind: 'progression',
+      mode: 'progression',
+      progressionId: 'ii-V-I',
+      quality: 'minor',
+      keyRoot: 'D',
+      source: 'miss',
+    }]);
+    book = applyRoundToBook(book, question, { missed: false });
+    expect(book.items).toHaveLength(0);
+    book = recordMiss(emptyMissBook(), { ...question, at: '2026-03-01' });
+    book = applyRoundToBook(book, question, { skipped: true, missed: false });
+    expect(book.items).toHaveLength(1);
+  });
+
   it('persists through storage', () => {
     const storage = new MemoryStorage();
     const book = recordMiss(emptyMissBook(), { root: 'A', type: '', mode: 'test', at: 'x' });
