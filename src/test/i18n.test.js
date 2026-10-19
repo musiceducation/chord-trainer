@@ -100,6 +100,12 @@ describe('i18n', () => {
     expect(STRINGS['zh-Hant']['ramp.proNudge']).toContain('和弦進行、完整統計');
     expect(STRINGS['zh-Hant']['progression.minorSuffix']).toBe('小調');
     expect(STRINGS['zh-Hant']['progression.choose']).toBe('選擇進行');
+    expect(STRINGS.en['progression.previewBody']).toMatch(/tonic/i);
+    expect(STRINGS.en['progression.previewBody']).toMatch(/Pro/);
+    expect(STRINGS['zh-Hant']['progression.previewLabel']).toBe('範例');
+    expect(STRINGS['zh-Hant']['progression.previewBody']).toContain('依聽到的順序');
+    expect(STRINGS['zh-Hant']['progression.stepListen']).toBe('聆聽');
+    expect(STRINGS['zh-Hans']['progression.previewLabel']).toBe('示例');
     expect(STRINGS.en['sound.electricBright']).toBeTruthy();
     expect(STRINGS.en['sound.organ']).toBeTruthy();
     expect(STRINGS['zh-Hans']['pro.paywallBody']).toBe(STRINGS['zh-Hant']['pro.paywallBody']);

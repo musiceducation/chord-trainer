@@ -401,43 +401,35 @@ export function ProgressionEarMode({
   return (
     <div className={`mode-panel ${hidden ? 'mode-hidden' : ''}`} aria-hidden={hidden}>
       <div aria-live="polite" className="sr-only">{liveMessage}</div>
+      <div className="prog-picker" role="listbox" aria-label={t('progression.choose')}>
+        {PROGRESSION_CATALOG.map((item) => {
+          const locked = !canAccessProgression(isPro, item.id);
+          const label = formatProgressionPattern(item.id, 'major');
+          const active = question?.progressionId === item.id;
+          return (
+            <button
+              key={item.id}
+              type="button"
+              role="option"
+              aria-selected={active}
+              aria-label={locked ? `${label}, ${t('pro.lockLabel')}` : label}
+              disabled={Boolean(fixedKey)}
+              onClick={() => chooseProgression(item)}
+              className={`prog-picker-btn touch-none ${active ? 'prog-picker-active' : ''} ${locked ? 'prog-picker-locked' : ''}`}
+            >
+              <span className="display-font font-bold">{label}</span>
+              {locked && <Lock size={12} className="text-amber-300 shrink-0" aria-hidden="true" />}
+            </button>
+          );
+        })}
+      </div>
+
+      {!question && (
+        <LockedProgressionPreview t={t} onUnlock={() => onLockedProgression?.()} />
+      )}
+
+      {question && (
       <div className="flex-1 flex flex-col items-center justify-center min-h-0 relative overflow-y-auto">
-        <div className="prog-picker" role="listbox" aria-label={t('progression.choose')}>
-          {PROGRESSION_CATALOG.map((item) => {
-            const locked = !canAccessProgression(isPro, item.id);
-            const label = formatProgressionPattern(item.id, 'major');
-            const active = question?.progressionId === item.id;
-            return (
-              <button
-                key={item.id}
-                type="button"
-                role="option"
-                aria-selected={active}
-                aria-label={locked ? `${label}, ${t('pro.lockLabel')}` : label}
-                disabled={Boolean(fixedKey)}
-                onClick={() => chooseProgression(item)}
-                className={`prog-picker-btn touch-none ${active ? 'prog-picker-active' : ''} ${locked ? 'prog-picker-locked' : ''}`}
-              >
-                <span className="display-font font-bold">{label}</span>
-                {locked && <Lock size={12} className="text-amber-300 shrink-0" aria-hidden="true" />}
-              </button>
-            );
-          })}
-        </div>
-
-        {!question && (
-          <button
-            type="button"
-            onClick={() => onLockedProgression?.()}
-            className="prog-picker-btn prog-picker-locked mt-2 px-4 touch-none"
-          >
-            <Lock size={14} className="text-amber-300" aria-hidden="true" />
-            <span>{t('ramp.proNudge')}</span>
-          </button>
-        )}
-
-        {question && (
-        <>
         <div key={question.label} className="chord-name text-center relative">
           <div className="text-[10px] tracking-[0.5em] text-slate-500 mb-3 font-medium">
             <span className="normal-case">{question.keyRoot}</span>
@@ -514,9 +506,8 @@ export function ProgressionEarMode({
             </div>
           )}
         </div>
-        </>
-        )}
       </div>
+      )}
 
       {question && (
       <>
@@ -622,6 +613,60 @@ export function ProgressionEarMode({
       </>
       )}
     </div>
+  );
+}
+
+function LockedProgressionPreview({ t, onUnlock }) {
+  const example = formatProgressionPattern('I-IV-V-I', 'major').split('–');
+  const degrees = degreeTable('major');
+  return (
+    <section className="prog-preview" aria-label={t('progression.previewLabel')}>
+      <div>
+        <div className="text-[10px] tracking-[0.35em] text-slate-500 uppercase mb-3 font-medium">
+          {t('progression.previewLabel')}
+        </div>
+        <div className="flex items-end justify-center gap-3 sm:gap-4" aria-hidden="true">
+          {example.map((roman, index) => (
+            <div
+              key={`${roman}-${index}`}
+              className="display-font font-black leading-[0.85] tracking-tighter"
+              style={{ fontSize: 'clamp(36px, 10vw, 72px)', color: '#DCE7FF' }}
+            >
+              {roman}
+            </div>
+          ))}
+        </div>
+      </div>
+      <p className="prog-preview-body">{t('progression.previewBody')}</p>
+      <div className="prog-preview-steps" aria-hidden="true">
+        <span className="prog-preview-step">{t('progression.stepListen')}</span>
+        <span className="prog-preview-arrow">→</span>
+        <span className="prog-preview-step">{t('progression.stepPick')}</span>
+        <span className="prog-preview-arrow">→</span>
+        <span className="prog-preview-step">{t('progression.stepCheck')}</span>
+      </div>
+      <button
+        type="button"
+        className="prog-preview-pad touch-none"
+        onClick={onUnlock}
+        aria-label={`${t('progression.degreePad')}, ${t('pro.lockLabel')}`}
+      >
+        <span className="prog-preview-pad-row prog-preview-pad-row-4">
+          {degrees.slice(0, 4).map((degree) => (
+            <span key={degree.num} className="prog-preview-degree display-font font-black">{degree.roman}</span>
+          ))}
+        </span>
+        <span className="prog-preview-pad-row prog-preview-pad-row-3">
+          {degrees.slice(4).map((degree) => (
+            <span key={degree.num} className="prog-preview-degree display-font font-black">{degree.roman}</span>
+          ))}
+        </span>
+      </button>
+      <button type="button" onClick={onUnlock} className="prog-preview-cta touch-none">
+        <Lock size={14} className="text-amber-300 shrink-0" aria-hidden="true" />
+        <span>{t('ramp.proNudge')}</span>
+      </button>
+    </section>
   );
 }
 
