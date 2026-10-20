@@ -1,4 +1,5 @@
 import { normalizeRomanTier } from './abrsm.js';
+import { normalizeReadTier } from './readIdentify.js';
 import { DIFFICULTY_LEVELS } from './constants.js';
 import { TRAINING_KEYS } from './diatonic.js';
 import { DEFAULT_PIANO_SOUND, normalizePianoSound } from './pianoSamples.js';
@@ -21,6 +22,7 @@ export const DEFAULT_SETTINGS = {
   firstHintUsed: { ...DEFAULT_FIRST_HINT_USED },
   answerSurface: 'keyboard',
   romanTier: 'easy',
+  readTier: 'easy',
   identifyInversions: false,
   romanInversions: false,
 };
@@ -61,6 +63,7 @@ export function normalizeSettings(raw) {
     firstHintUsed: normalizeFirstHintUsed(raw.firstHintUsed),
     answerSurface: isValidAnswerSurface(raw.answerSurface) ? raw.answerSurface : DEFAULT_SETTINGS.answerSurface,
     romanTier: normalizeRomanTier(raw.romanTier),
+    readTier: normalizeReadTier(raw.readTier),
     identifyInversions: raw.identifyInversions === true,
     romanInversions: raw.romanInversions === true,
   };

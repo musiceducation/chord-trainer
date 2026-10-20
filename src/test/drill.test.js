@@ -10,6 +10,7 @@ import {
   recordMiss,
   removeMiss,
   saveMissBook,
+  tabForDrillQuestion,
 } from '../lib/drill.js';
 
 class MemoryStorage {
@@ -51,6 +52,40 @@ describe('miss book', () => {
     const book = recordMiss(emptyMissBook(), { root: 'A', type: '', mode: 'test', at: 'x' });
     expect(saveMissBook(book, storage)).toBe(true);
     expect(loadMissBook(storage).items).toHaveLength(1);
+  });
+});
+
+describe('read & identify misses', () => {
+  it('keeps a staff miss separate from the same chord in another mode', () => {
+    let book = recordMiss(emptyMissBook(), { root: 'F#', type: 'm7', mode: 'ear', at: '2026-01-01' });
+    book = recordMiss(book, {
+      root: 'F#',
+      type: 'm7',
+      mode: 'read',
+      inversion: 1,
+      keyId: 'D',
+      at: '2026-01-02',
+    });
+    expect(book.items).toHaveLength(2);
+    const staff = book.items.find((item) => item.mode === 'read');
+    expect(staff).toMatchObject({ root: 'F#', type: 'm7', inversion: 1, keyId: 'D', misses: 1 });
+    const questions = buildMissRetryQuestions(book.items);
+    expect(questions.find((q) => q.mode === 'read')).toEqual({
+      root: 'F#',
+      type: 'm7',
+      mode: 'read',
+      source: 'miss',
+      inversion: 1,
+      keyId: 'D',
+    });
+    expect(tabForDrillQuestion(questions.find((q) => q.mode === 'read'))).toBe('read');
+    book = applyRoundToBook(book, {
+      root: 'F#',
+      type: 'm7',
+      mode: 'read',
+    }, { missed: false });
+    expect(book.items.some((item) => item.mode === 'read')).toBe(false);
+    expect(book.items.some((item) => item.mode === 'ear')).toBe(true);
   });
 });
 
