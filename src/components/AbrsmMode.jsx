@@ -65,6 +65,10 @@ export function AbrsmMode({
   const lastInputRef = useRef({ midi: null, at: 0 });
   const advanceRoundRef = useRef(() => {});
   const settledWhileHidden = useRef(false);
+  const lockedRef = useRef(lockedCorrect);
+  const pressedRef = useRef(pressed);
+  lockedRef.current = lockedCorrect;
+  pressedRef.current = pressed;
   const { playNote, playChord } = usePiano(soundOn && !hidden, pianoSound);
   const { schedule, clearAll } = useTimeoutCleanup();
   const { t } = useI18n();
@@ -167,9 +171,9 @@ export function AbrsmMode({
       return;
     }
 
-    const nextLocked = new Set(lockedCorrect);
+    const nextLocked = new Set(lockedRef.current);
     nextLocked.add(pc);
-    const nextPressed = new Set([...pressed].filter((played) => ((played % 12) + 12) % 12 !== pc));
+    const nextPressed = new Set([...pressedRef.current].filter((played) => ((played % 12) + 12) % 12 !== pc));
     nextPressed.add(midi);
     const complete = nextLocked.size === question.pcs.size
       && [...question.pcs].every((tone) => nextLocked.has(tone));
@@ -180,10 +184,14 @@ export function AbrsmMode({
       bassPc: question.bassPc,
       requireBass: true,
     })) {
+      lockedRef.current = new Set();
+      pressedRef.current = new Set();
       markWrongBass();
       return;
     }
 
+    lockedRef.current = nextLocked;
+    pressedRef.current = nextPressed;
     setLockedCorrect(nextLocked);
     setPressed(nextPressed);
     setMessage('');
@@ -192,8 +200,6 @@ export function AbrsmMode({
     feedback,
     playNote,
     question,
-    lockedCorrect,
-    pressed,
     inversions,
     schedule,
     setStats,
