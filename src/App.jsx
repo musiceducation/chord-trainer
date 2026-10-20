@@ -445,13 +445,18 @@ export default function App() {
     : '';
 
   const guideTab = tab !== 'abrsm';
-  const coachLine = !guideTab
+  let coachLine = !guideTab
     ? t('guide.oneLiner.abrsm')
     : isOnboardingPractice(guide)
     ? (guide.step === ONBOARDING_STEPS.IDENTIFY ? t('onboarding.identifyCoach') : t('onboarding.trainCoach'))
     : guide?.kind === 'pack'
       ? `${t('pack.name')} · ${t('pack.progress', { n: guide.index + 1 })}`
       : t(`guide.oneLiner.${tab}`);
+  if (!guide && !drillQuestion && tab === 'abrsm' && settings.romanInversions) {
+    coachLine = t('abrsm.listenChoose');
+  } else if (!guide && !drillQuestion && tab === 'test' && settings.identifyInversions && !guidedIdentify) {
+    coachLine = t('identify.listenChoose');
+  }
 
   const closeReviewGate = useCallback((answer) => {
     const answered = recordSoftAnswer(reviewStateRef.current, answer);
@@ -692,6 +697,26 @@ export default function App() {
               })}
             </div>
             <div className="text-[10px] text-slate-500 uppercase tracking-[0.3em] mt-3.5 mb-2.5 font-semibold">
+              {t('settings.answerSurface')}
+            </div>
+            <div className="grid grid-cols-2 gap-1.5">
+              {['keyboard', 'noteNames'].map((id) => {
+                const active = settings.answerSurface === id;
+                return (
+                  <button
+                    key={id}
+                    type="button"
+                    aria-pressed={active}
+                    onClick={() => updateSettings({ answerSurface: id })}
+                    className="py-2.5 rounded-xl text-sm transition-all touch-none active:scale-[0.98]"
+                    style={settingButtonStyle(active)}
+                  >
+                    {t(`settings.answer.${id}`)}
+                  </button>
+                );
+              })}
+            </div>
+            <div className="text-[10px] text-slate-500 uppercase tracking-[0.3em] mt-3.5 mb-2.5 font-semibold">
               {t('settings.pianoSound')}
             </div>
             <div className="grid grid-cols-2 gap-1.5">
@@ -794,6 +819,9 @@ export default function App() {
             forceSequentialHint={guide?.kind === 'onboarding' && guide.step === ONBOARDING_STEPS.IDENTIFY}
             autoHint={firstHintReady && !settings.firstHintUsed.identify}
             onAutoHintUsed={() => markHintUsed('identify')}
+            answerSurface={settings.answerSurface}
+            inversions={settings.identifyInversions}
+            onInversionsChange={(identifyInversions) => updateSettings({ identifyInversions })}
           />
           <EarMode
             difficulty={practiceDifficulty}
@@ -813,6 +841,7 @@ export default function App() {
             hintAfterListen={guide?.kind === 'onboarding' && guide.step === ONBOARDING_STEPS.TRAIN}
             autoHint={firstHintReady && !settings.firstHintUsed.ear}
             onAutoHintUsed={() => markHintUsed('ear')}
+            answerSurface={settings.answerSurface}
           />
           <ProgressionEarMode
             difficulty={practiceDifficulty}
@@ -833,6 +862,11 @@ export default function App() {
             setStats={setStats}
             onScoreChange={setScoreInfo}
             hidden={tab !== 'abrsm'}
+            answerSurface={settings.answerSurface}
+            tier={settings.romanTier}
+            onTierChange={(romanTier) => updateSettings({ romanTier })}
+            inversions={settings.romanInversions}
+            onInversionsChange={(romanInversions) => updateSettings({ romanInversions })}
           />
           <StatsMode
             stats={stats}

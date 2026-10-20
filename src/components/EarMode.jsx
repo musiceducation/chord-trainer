@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Check, SkipForward, Headphones, Play, Lightbulb } from 'lucide-react';
-import { Keyboard } from './Keyboard.jsx';
+import { AnswerSurface } from './AnswerSurface.jsx';
 import { usePiano } from '../hooks/usePiano.js';
 import { useTimeoutCleanup } from '../hooks/useTimeoutCleanup.js';
 import {
@@ -40,6 +40,7 @@ export function EarMode({
   onAutoHintUsed,
   questionEpoch = '',
   onRoundSettled,
+  answerSurface = 'keyboard',
 }) {
   const fixedKey = fixedQuestion ? `${fixedQuestion.root}:${fixedQuestion.type}` : null;
   const [question, setQuestion] = useState(() => (
@@ -263,7 +264,9 @@ export function EarMode({
 
         <div className="mt-4 text-center px-4">
           <div className="text-sm text-slate-300 font-semibold tracking-wider mb-1">{t('ear.tapToHear')}</div>
-          <div className="text-xs text-slate-500 tracking-wider">{t('ear.playOnKeyboard')}</div>
+          <div className="text-xs text-slate-500 tracking-wider">
+            {t(answerSurface === 'noteNames' ? 'ear.playOnNoteNames' : 'ear.playOnKeyboard')}
+          </div>
           {!soundOn && <div className="text-xs text-amber-300/80 mt-2">{t('ear.soundOff')}</div>}
         </div>
 
@@ -297,7 +300,8 @@ export function EarMode({
         </div>
       </div>
 
-      <Keyboard
+      <AnswerSurface
+        surface={answerSurface}
         pressed={pressed}
         lockedCorrect={lockedCorrect}
         wrongFlash={wrongFlash}

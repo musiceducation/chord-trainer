@@ -5,8 +5,12 @@ import {
   buildChordVoicing,
   formatChord,
   isCorrectNote,
+  playedInversionMatches,
   questionFromSpec,
+  soundedInversion,
   targetPcsInChordOrder,
+  voicePitchClasses,
+  withInversion,
 } from '../lib/chords.js';
 
 describe('chords', () => {
@@ -43,6 +47,25 @@ describe('chords', () => {
     const pcs = getChordPitchClasses('C', '');
     expect(isCorrectNote(60, pcs)).toBe(true);
     expect(isCorrectNote(61, pcs)).toBe(false);
+  });
+
+  it('voices inversions from the bass and scores that bass', () => {
+    const root = voicePitchClasses([0, 4, 7], 0, 48);
+    expect(root).toEqual([48, 52, 55]);
+    const first = voicePitchClasses([0, 4, 7], 1, 48);
+    expect(first[0] % 12).toBe(4);
+    expect(first).toEqual([52, 55, 60]);
+    expect(first[first.length - 1]).toBeLessThan(48 + 24);
+    const second = voicePitchClasses([0, 4, 7], 2, 48);
+    expect(second[0] % 12).toBe(7);
+    expect(soundedInversion([0, 4, 7], second)).toBe(2);
+
+    const played = withInversion(questionFromSpec('C', ''), 1);
+    expect(playedInversionMatches(played.voicing, played)).toBe(true);
+    expect(playedInversionMatches([48, 52, 55], played)).toBe(false);
+    const seventh = voicePitchClasses([7, 11, 2, 5], 2, 48);
+    expect(seventh[0] % 12).toBe(2);
+    expect(soundedInversion([7, 11, 2, 5], seventh)).toBe(2);
   });
 
   it('builds a fixed question and chord-tone order', () => {
