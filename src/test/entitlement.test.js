@@ -10,6 +10,7 @@ import {
   clampDifficulty,
   canAccessProgression,
   canAccessFullStats,
+  tabRequiresPro,
   entitlementFromPurchases,
   entitlementAfterPurchase,
   applyFreeRampCap,
@@ -40,6 +41,12 @@ describe('free vs Pro gating', () => {
     expect(clampDifficulty(true, 'extended')).toBe('extended');
     expect(canAccessProgression(true)).toBe(true);
     expect(canAccessFullStats(true)).toBe(true);
+    expect(tabRequiresPro('progression')).toBe(true);
+    expect(tabRequiresPro('read')).toBe(false);
+    expect(tabRequiresPro('test')).toBe(false);
+    expect(tabRequiresPro('ear')).toBe(false);
+    expect(tabRequiresPro('abrsm')).toBe(false);
+    expect(tabRequiresPro('stats')).toBe(false);
   });
 
   it('ramps difficulty for every player and never nudges a Pro paywall for tiers', () => {

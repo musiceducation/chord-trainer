@@ -10,7 +10,34 @@ export function emptyMissBook() {
 }
 
 function asMode(mode) {
-  return mode === 'test' ? 'test' : 'ear';
+  if (mode === 'test' || mode === 'read') return mode;
+  return 'ear';
+}
+
+function missIdentity({ root, type = '', mode } = {}) {
+  const resolvedType = typeof type === 'string' ? type : '';
+  const resolvedMode = asMode(mode);
+  const base = `${root}${resolvedType}`;
+  return {
+    id: resolvedMode === 'read' ? `read:${base}` : base,
+    type: resolvedType,
+    mode: resolvedMode,
+  };
+}
+
+function readDetails(item, mode) {
+  if (mode !== 'read' || !item) return {};
+  const details = {};
+  const inversion = Number(item.inversion);
+  if (Number.isInteger(inversion) && inversion >= 0 && inversion <= 3) details.inversion = inversion;
+  if (typeof item.keyId === 'string' && item.keyId) details.keyId = item.keyId;
+  return details;
+}
+
+/** Tab a miss-retry question should open. */
+export function tabForDrillQuestion(question) {
+  if (question?.mode === 'test' || question?.mode === 'read') return question.mode;
+  return 'ear';
 }
 
 export function normalizeMissBook(raw) {
@@ -18,8 +45,7 @@ export function normalizeMissBook(raw) {
   const byId = new Map();
   items.forEach((item) => {
     if (!item || typeof item.root !== 'string' || !item.root) return;
-    const type = typeof item.type === 'string' ? item.type : '';
-    const id = `${item.root}${type}`;
+    const { id, type, mode } = missIdentity(item);
     const misses = Math.max(0, Number(item.misses) || 0);
     if (!misses) return;
     const prev = byId.get(id);
@@ -27,14 +53,17 @@ export function normalizeMissBook(raw) {
       id,
       root: item.root,
       type,
-      mode: asMode(item.mode),
+      mode,
       misses: (prev?.misses || 0) + misses,
       lastMissed: String(item.lastMissed || prev?.lastMissed || ''),
     };
+    let details = readDetails(item, mode);
     if (prev && String(prev.lastMissed) > candidate.lastMissed) {
       candidate.lastMissed = prev.lastMissed;
       candidate.mode = prev.mode;
+      details = readDetails(prev, prev.mode);
     }
+    Object.assign(candidate, details);
     byId.set(id, candidate);
   });
   return { items: [...byId.values()] };
@@ -61,26 +90,36 @@ export function saveMissBook(book, storage = typeof localStorage !== 'undefined'
   }
 }
 
-export function recordMiss(book, { root, type = '', mode = 'ear', at = '' } = {}) {
+export function recordMiss(book, {
+  root,
+  type = '',
+  mode = 'ear',
+  at = '',
+  inversion,
+  keyId,
+} = {}) {
   if (!root) return normalizeMissBook(book);
   const normalized = normalizeMissBook(book);
-  const id = `${root}${type || ''}`;
-  const prev = normalized.items.find((item) => item.id === id);
-  const items = normalized.items.filter((item) => item.id !== id);
+  const identity = missIdentity({ root, type, mode: mode || undefined });
+  const prev = normalized.items.find((item) => item.id === identity.id);
+  const items = normalized.items.filter((item) => item.id !== identity.id);
+  const resolvedMode = asMode(mode || prev?.mode);
   items.push({
-    id,
+    id: identity.id,
     root,
-    type: type || '',
-    mode: asMode(mode || prev?.mode),
+    type: identity.type,
+    mode: resolvedMode,
     misses: (prev?.misses || 0) + 1,
     lastMissed: String(at || prev?.lastMissed || ''),
+    ...readDetails(prev, resolvedMode),
+    ...readDetails({ inversion, keyId }, resolvedMode),
   });
   return { items };
 }
 
-export function removeMiss(book, { root, type = '' } = {}) {
+export function removeMiss(book, { root, type = '', mode } = {}) {
   if (!root) return normalizeMissBook(book);
-  const id = `${root}${type || ''}`;
+  const { id } = missIdentity({ root, type, mode });
   return { items: normalizeMissBook(book).items.filter((item) => item.id !== id) };
 }
 
@@ -92,6 +131,8 @@ export function applyRoundToBook(book, question, { missed = false, skipped = fal
       root: question.root,
       type: question.type,
       mode: question.mode,
+      inversion: question.inversion,
+      keyId: question.keyId,
       at,
     });
   }
@@ -105,12 +146,18 @@ function rankMisses(misses) {
 }
 
 function toDrillQuestion(miss) {
-  return {
+  const mode = asMode(miss.mode);
+  const question = {
     root: miss.root,
     type: miss.type || '',
-    mode: asMode(miss.mode),
+    mode,
     source: 'miss',
   };
+  if (mode === 'read') {
+    if (Number.isInteger(miss.inversion)) question.inversion = miss.inversion;
+    if (miss.keyId) question.keyId = miss.keyId;
+  }
+  return question;
 }
 
 export function buildMissRetryQuestions(misses = []) {

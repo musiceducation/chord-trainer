@@ -78,6 +78,16 @@ export function canAccessProgression(isPro) {
   return Boolean(isPro);
 }
 
+/**
+ * Pro unlocks chord progressions (and full stats, checked separately).
+ * Identify, Train, Roman, and Read & Identify stay free. No extra SKU.
+ */
+const PRO_TABS = new Set(['progression']);
+
+export function tabRequiresPro(tab) {
+  return PRO_TABS.has(tab);
+}
+
 export function canAccessFullStats(isPro) {
   return Boolean(isPro);
 }

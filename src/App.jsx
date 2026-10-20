@@ -1,9 +1,10 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import {
-  Volume2, VolumeX, Flame, Settings, Sparkles, Headphones, BarChart3, ListMusic, Lock, GraduationCap,
+  Volume2, VolumeX, Flame, Settings, Sparkles, Headphones, BarChart3, ListMusic, Lock, GraduationCap, BookOpen,
 } from 'lucide-react';
 import { TestMode } from './components/TestMode.jsx';
 import { AbrsmMode } from './components/AbrsmMode.jsx';
+import { ReadIdentifyMode } from './components/ReadIdentifyMode.jsx';
 import { EarMode } from './components/EarMode.jsx';
 import { ProgressionEarMode } from './components/ProgressionEarMode.jsx';
 import { StatsMode } from './components/StatsMode.jsx';
@@ -12,7 +13,7 @@ import { DIFFICULTY_LEVELS, TABS } from './lib/constants.js';
 import { TRAINING_KEYS } from './lib/diatonic.js';
 import { loadStats, saveStats } from './lib/stats.js';
 import { loadSettings, saveSettings } from './lib/settings.js';
-import { applyFreeRampCap, canAccessProgression, PRODUCT_IDS } from './lib/entitlement.js';
+import { applyFreeRampCap, canAccessProgression, tabRequiresPro, PRODUCT_IDS } from './lib/entitlement.js';
 import {
   DEFAULT_PIANO_SOUND,
   PIANO_SOUND_IDS,
@@ -27,6 +28,7 @@ import {
   drillCorrectCount,
   loadMissBook,
   saveMissBook,
+  tabForDrillQuestion,
 } from './lib/drill.js';
 import { LANGUAGES, htmlLangFor } from './lib/i18n.js';
 import { useI18n } from './hooks/useI18n.jsx';
@@ -62,6 +64,7 @@ const TAB_ICONS = {
   ear: Headphones,
   progression: ListMusic,
   abrsm: GraduationCap,
+  read: BookOpen,
   stats: BarChart3,
 };
 
@@ -281,6 +284,11 @@ export default function App() {
     if (payload?.skipped && !payload?.missed) return;
 
     const missed = Boolean(payload?.missed);
+    if (payload?.skipRamp) {
+      if (!missed && isStreakMilestone(payload?.streak || 0)) queueReviewPrompt('streak');
+      return;
+    }
+
     const missStreak = missed ? rampMissRef.current + 1 : 0;
     const cleanStreak = missed ? 0 : (payload?.streak || 0);
     const current = difficultyRef.current;
@@ -312,7 +320,7 @@ export default function App() {
     setShowSettings(false);
     setDrillPromptDismissed(true);
     const first = session.questions[Math.min(session.index || 0, session.questions.length - 1)];
-    setTab(first.mode === 'test' ? 'test' : 'ear');
+    setTab(tabForDrillQuestion(first));
   }, []);
 
 
@@ -444,9 +452,9 @@ export default function App() {
     ? t('drill.retryProgress', { n: drill.index + 1, total: drill.questions.length })
     : '';
 
-  const guideTab = tab !== 'abrsm';
+  const guideTab = tab !== 'abrsm' && tab !== 'read';
   let coachLine = !guideTab
-    ? t('guide.oneLiner.abrsm')
+    ? t(`guide.oneLiner.${tab}`)
     : isOnboardingPractice(guide)
     ? (guide.step === ONBOARDING_STEPS.IDENTIFY ? t('onboarding.identifyCoach') : t('onboarding.trainCoach'))
     : guide?.kind === 'pack'
@@ -482,6 +490,8 @@ export default function App() {
             ? 'radial-gradient(circle, rgba(122,220,200,0.18) 0%, transparent 70%)'
             : tab === 'stats'
             ? 'radial-gradient(circle, rgba(255,215,130,0.15) 0%, transparent 70%)'
+            : tab === 'read'
+            ? 'radial-gradient(circle, rgba(147,197,253,0.18) 0%, transparent 70%)'
             : 'radial-gradient(circle, rgba(122,162,247,0.18) 0%, transparent 70%)',
           transition: 'background 0.8s',
         }}
@@ -535,11 +545,11 @@ export default function App() {
           </div>
         </header>
 
-        <nav aria-label={t('nav.main')} className="flex gap-1.5 mb-3 p-1 rounded-2xl panel-soft">
+        <nav aria-label={t('nav.main')} className="flex gap-1 mb-3 p-1 rounded-2xl panel-soft">
           {TABS.map((item) => {
             const active = tab === item.key;
             const Icon = TAB_ICONS[item.key];
-            const locked = item.key === 'progression' && !canAccessProgression(proAccess);
+            const locked = tabRequiresPro(item.key) && !canAccessProgression(proAccess);
             return (
               <button
                 key={item.key}
@@ -554,7 +564,7 @@ export default function App() {
                   setTab(item.key);
                   setShowSettings(false);
                 }}
-                className="flex-1 min-w-0 flex flex-col items-center justify-center gap-0.5 py-1.5 rounded-xl text-[11px] font-semibold whitespace-nowrap transition-all touch-none active:scale-[0.98] disabled:opacity-40"
+                className="flex-1 min-w-0 flex flex-col items-center justify-center gap-0.5 py-1.5 rounded-xl text-[10px] sm:text-[11px] font-semibold leading-none whitespace-nowrap transition-all touch-none active:scale-[0.98] disabled:opacity-40"
                 style={{
                   background: active ? `linear-gradient(135deg, ${item.accent.replace('0.4', '0.18')}, ${item.accent.replace('0.4', '0.06')})` : 'transparent',
                   border: `1px solid ${active ? item.accent : 'transparent'}`,
@@ -631,7 +641,7 @@ export default function App() {
             aria-label={t('settings.aria')}
             className="mb-3 p-3 rounded-2xl chord-name panel-solid relative z-20 max-h-[min(62dvh,560px)] overflow-y-auto overscroll-contain"
           >
-            {tab !== 'stats' && tab !== 'abrsm' && (
+            {tab !== 'stats' && tab !== 'abrsm' && tab !== 'read' && (
               <>
                 <div className="text-[10px] text-slate-500 uppercase tracking-[0.3em] mb-2.5 font-semibold">{t('settings.difficulty')}</div>
                 <div className="grid grid-cols-2 gap-1.5">
@@ -673,7 +683,7 @@ export default function App() {
                 )}
               </>
             )}
-            <div className={`text-[10px] text-slate-500 uppercase tracking-[0.3em] mb-2.5 font-semibold ${tab !== 'stats' && tab !== 'abrsm' ? 'mt-3.5' : ''}`}>
+            <div className={`text-[10px] text-slate-500 uppercase tracking-[0.3em] mb-2.5 font-semibold ${tab !== 'stats' && tab !== 'abrsm' && tab !== 'read' ? 'mt-3.5' : ''}`}>
               {t('settings.language')}
             </div>
             <div className="grid grid-cols-3 gap-1.5">
@@ -865,6 +875,19 @@ export default function App() {
             onTierChange={(romanTier) => updateSettings({ romanTier })}
             inversions={settings.romanInversions}
             onInversionsChange={(romanInversions) => updateSettings({ romanInversions })}
+          />
+          <ReadIdentifyMode
+            soundOn={soundOn}
+            pianoSound={pianoSound}
+            setStats={setStats}
+            onScoreChange={setScoreInfo}
+            hidden={tab !== 'read'}
+            tier={settings.readTier}
+            onTierChange={(readTier) => updateSettings({ readTier })}
+            fixedQuestion={drillQuestion?.mode === 'read' ? drillQuestion : null}
+            questionEpoch={drillQuestion?.mode === 'read' ? drillEpoch : ''}
+            onQuestionComplete={drillQuestion?.mode === 'read' ? handleQuestionComplete : undefined}
+            onRoundSettled={handleRoundSettled}
           />
           <StatsMode
             stats={stats}

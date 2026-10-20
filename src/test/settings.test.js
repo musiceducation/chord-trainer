@@ -22,6 +22,7 @@ describe('settings', () => {
       firstHintUsed: { identify: false, ear: false, progress: false },
       answerSurface: 'keyboard',
       romanTier: 'easy',
+      readTier: 'easy',
       identifyInversions: false,
       romanInversions: false,
     });
@@ -34,6 +35,7 @@ describe('settings', () => {
       firstHintUsed: { identify: false, ear: false, progress: false },
       answerSurface: 'keyboard',
       romanTier: 'easy',
+      readTier: 'easy',
       identifyInversions: false,
       romanInversions: false,
     });
@@ -69,6 +71,7 @@ describe('settings', () => {
       firstHintUsed: { identify: false, ear: false, progress: false },
       answerSurface: 'keyboard',
       romanTier: 'easy',
+      readTier: 'easy',
       identifyInversions: false,
       romanInversions: false,
     });
