@@ -13,9 +13,11 @@
  * Augmented `+` (for example a future III+ tier) is intentionally absent
  * from the basic, +V7, and +V/V pools.
  *
- * Inversions use standard figures. Triads: ⁶ and ⁶₄. V7 (root / 1st / 2nd
- * only in v1; no third inversion): V7, V⁶₅, V⁴₃. Secondary dominants put the
- * figure on the first V: V⁶/V, V⁶₄/V.
+ * Inversions use standard figures as the prompt to play (see the figure,
+ * play the chord). Triads: ⁶ and ⁶₄. V7 (root / 1st / 2nd only in v1; no
+ * third inversion): V7, V⁶₅, V⁴₃. Secondary dominants put the figure on the
+ * first V: V⁶/V, V⁶₄/V. Grading stays bass-aware. Roman never offers a
+ * listen-and-pick list.
  */
 
 import { voicePitchClasses } from './chords.js';
@@ -199,35 +201,6 @@ export function buildAbrsmChord({
   };
 }
 
-function shuffle(list, random) {
-  const next = [...list];
-  for (let i = next.length - 1; i > 0; i -= 1) {
-    const j = Math.floor(random() * (i + 1));
-    [next[i], next[j]] = [next[j], next[i]];
-  }
-  return next;
-}
-
-function figureChoices(question, tier, random) {
-  const figures = new Set([question.figure]);
-  const pool = poolForTier(tier);
-  let guard = 0;
-  while (figures.size < 4 && guard < 80) {
-    guard += 1;
-    const spec = pool[Math.floor(random() * pool.length)];
-    const inversion = ROMAN_INVERSIONS[Math.floor(random() * ROMAN_INVERSIONS.length)];
-    const other = buildAbrsmChord({
-      tonic: question.tonic,
-      mode: question.mode,
-      kind: spec.kind,
-      degree: spec.degree,
-      inversion,
-    });
-    figures.add(other.figure);
-  }
-  return shuffle([...figures], random);
-}
-
 export function generateAbrsmQuestion({
   modeFilter = 'both',
   tier = 'basic',
@@ -255,7 +228,5 @@ export function generateAbrsmQuestion({
     attempts += 1;
   } while (question.id === lastId && attempts < 50);
 
-  return inversions
-    ? { ...question, choices: figureChoices(question, resolvedTier, random) }
-    : question;
+  return question;
 }

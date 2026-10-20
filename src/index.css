@@ -116,33 +116,48 @@ body {
 
 .note-name-pad {
   display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 6px;
-  max-height: 168px;
-  overflow-y: auto;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
   padding: 2px 2px 8px;
 }
 
-.keyboard-compact .note-name-pad {
-  max-height: 128px;
+.note-name-modifiers,
+.note-name-row {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+}
+
+.note-name-modifiers {
+  gap: 8px;
+}
+
+.note-name-accidental {
+  min-width: 56px;
+  min-height: 34px;
+  padding: 0 14px;
+  border-radius: 999px;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
 }
 
 .note-name-key {
-  min-width: 52px;
-  min-height: 38px;
-  padding: 0 8px;
+  flex: 1;
+  max-width: 64px;
+  min-width: 0;
+  min-height: 44px;
+  padding: 0 4px;
   border-radius: 10px;
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 700;
   letter-spacing: 0.02em;
 }
 
-.note-name-oct {
-  margin-left: 1px;
-  font-size: 10px;
-  font-weight: 600;
-  opacity: 0.7;
+.keyboard-compact .note-name-key {
+  min-height: 38px;
 }
 
 .keyboard-octave-bar {

@@ -157,8 +157,9 @@ describe('roman numeral chords', () => {
       random: () => 0.99,
     });
     expect(ROMAN_TIERS).toContain('vOfV');
-    expect(forced.inversion).toBeGreaterThanOrEqual(0);
-    expect(forced.choices).toContain(forced.figure);
+    expect(forced.inversion).toBe(2);
+    expect(forced.choices).toBeUndefined();
+    expect(forced.figure).toBeTruthy();
     expect(soundedInversion(forced.tonePcs, forced.voicing)).toBe(forced.inversion);
   });
 

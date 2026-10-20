@@ -128,6 +128,24 @@ export function playedInversionMatches(pressedMidis, { tonePcs, inversion }) {
   return soundedInversion(tonePcs, [bassMidi]) === inversion;
 }
 
+/**
+ * Roman play-out: every chord pitch class is present.
+ * When `requireBass` is set, the lowest played note must be `bassPc`.
+ */
+export function romanPlayIsCorrect(pressedMidis, { pcs, bassPc, requireBass = false } = {}) {
+  if (!pressedMidis?.length || !pcs) return false;
+  const target = pcs instanceof Set ? pcs : new Set(pcs);
+  if (!target.size) return false;
+  const played = new Set([...pressedMidis].map((midi) => ((midi % 12) + 12) % 12));
+  if (played.size !== target.size) return false;
+  for (const pc of target) {
+    if (!played.has(((pc % 12) + 12) % 12)) return false;
+  }
+  if (!requireBass) return true;
+  const bassMidi = Math.min(...pressedMidis);
+  return ((bassMidi % 12) + 12) % 12 === ((bassPc % 12) + 12) % 12;
+}
+
 export function withInversion(question, inversion = 0, baseMidi = 48) {
   const tonePcs = targetPcsInChordOrder(question.root, question.type);
   const inv = Math.max(0, Math.min(inversion, Math.min(2, tonePcs.length - 1)));

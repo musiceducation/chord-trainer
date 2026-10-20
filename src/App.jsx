@@ -452,9 +452,7 @@ export default function App() {
     : guide?.kind === 'pack'
       ? `${t('pack.name')} · ${t('pack.progress', { n: guide.index + 1 })}`
       : t(`guide.oneLiner.${tab}`);
-  if (!guide && !drillQuestion && tab === 'abrsm' && settings.romanInversions) {
-    coachLine = t('abrsm.listenChoose');
-  } else if (!guide && !drillQuestion && tab === 'test' && settings.identifyInversions && !guidedIdentify) {
+  if (!guide && !drillQuestion && tab === 'test' && settings.identifyInversions && !guidedIdentify) {
     coachLine = t('identify.listenChoose');
   }
 

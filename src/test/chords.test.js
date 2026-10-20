@@ -6,6 +6,7 @@ import {
   formatChord,
   isCorrectNote,
   playedInversionMatches,
+  romanPlayIsCorrect,
   questionFromSpec,
   soundedInversion,
   targetPcsInChordOrder,
@@ -66,6 +67,16 @@ describe('chords', () => {
     const seventh = voicePitchClasses([7, 11, 2, 5], 2, 48);
     expect(seventh[0] % 12).toBe(2);
     expect(soundedInversion([7, 11, 2, 5], seventh)).toBe(2);
+  });
+
+  it('scores Roman play-out by pitch class, and by bass when asked', () => {
+    const pcs = new Set([0, 4, 7]);
+    expect(romanPlayIsCorrect([48, 52, 55], { pcs, bassPc: 0 })).toBe(true);
+    expect(romanPlayIsCorrect([48, 52, 55], { pcs, bassPc: 4, requireBass: true })).toBe(false);
+    expect(romanPlayIsCorrect([52, 55, 60], { pcs, bassPc: 4, requireBass: true })).toBe(true);
+    expect(romanPlayIsCorrect([52, 55], { pcs, bassPc: 4, requireBass: true })).toBe(false);
+    expect(romanPlayIsCorrect([48, 52, 55, 58], { pcs, bassPc: 0 })).toBe(false);
+    expect(romanPlayIsCorrect([60, 64, 67], { pcs, bassPc: 0, requireBass: true })).toBe(true);
   });
 
   it('builds a fixed question and chord-tone order', () => {

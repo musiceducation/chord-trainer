@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Check, SkipForward, Sparkles, Lightbulb, Play } from 'lucide-react';
+import { Check, SkipForward, Sparkles, Lightbulb } from 'lucide-react';
 import { AnswerSurface } from './AnswerSurface.jsx';
-import { ChoiceButtons } from './ChoiceButtons.jsx';
 import { usePiano } from '../hooks/usePiano.js';
 import { useTimeoutCleanup } from '../hooks/useTimeoutCleanup.js';
 import {
@@ -9,6 +8,7 @@ import {
   ROMAN_TIERS,
   generateAbrsmQuestion,
 } from '../lib/abrsm.js';
+import { romanPlayIsCorrect } from '../lib/chords.js';
 import { FULL_END, FULL_START } from '../lib/constants.js';
 import {
   computeStreakAfterSuccess,
@@ -52,7 +52,6 @@ export function AbrsmMode({
   const [pressed, setPressed] = useState(new Set());
   const [lockedCorrect, setLockedCorrect] = useState(new Set());
   const [wrongFlash, setWrongFlash] = useState(null);
-  const [wrongChoice, setWrongChoice] = useState(null);
   const [feedback, setFeedback] = useState(null);
   const [message, setMessage] = useState('');
   const [streak, setStreak] = useState(0);
@@ -62,6 +61,7 @@ export function AbrsmMode({
   const [hintNotes, setHintNotes] = useState(null);
   const streakRef = useRef(0);
   const hasFailedRef = useRef(false);
+  const lastInputRef = useRef({ midi: null, at: 0 });
   const { playNote, playChord } = usePiano(soundOn, pianoSound);
   const { schedule, clearAll } = useTimeoutCleanup();
   const { t } = useI18n();
@@ -77,7 +77,6 @@ export function AbrsmMode({
   const resetRound = useCallback(() => {
     setPressed(new Set());
     setLockedCorrect(new Set());
-    setWrongChoice(null);
     setFeedback(null);
     setHintNotes(null);
     setHasFailed(false);
@@ -115,70 +114,77 @@ export function AbrsmMode({
     nextQuestion(modeFilter, tier, next);
   };
 
-  useEffect(() => {
-    if (!inversions || hidden || feedback || !question.voicing) return undefined;
-    const timer = window.setTimeout(() => { playChord(question.voicing); }, 400);
-    return () => window.clearTimeout(timer);
-  }, [inversions, hidden, feedback, question, playChord]);
-
-  useEffect(() => {
-    if (inversions) return;
-    if (feedback || hidden) return;
-    if (lockedCorrect.size !== question.pcs.size) return;
-    if (![...question.pcs].every((pc) => lockedCorrect.has(pc))) return;
-
+  const markCorrect = useCallback((midis) => {
     setFeedback('correct');
     setMessage('');
-    playChord([...pressed]);
+    playChord(midis);
     const newStreak = computeStreakAfterSuccess(streakRef.current, hasFailedRef.current);
     setStats((prev) => recordCorrectAttempt(prev, { chordName: statsKey(question), newStreak }));
     setStreak(newStreak);
     setScore((s) => ({ correct: s.correct + 1, total: s.total + 1 }));
     schedule(() => nextQuestion(modeFilter), 1800);
-  }, [inversions, lockedCorrect, pressed, question, feedback, hidden, playChord, setStats, schedule, nextQuestion, modeFilter]);
+  }, [playChord, question, setStats, schedule, nextQuestion, modeFilter]);
 
-  const handleKey = useCallback((midi) => {
-    if (feedback === 'correct') return;
-    if (inversions) {
-      playNote(midi);
-      return;
-    }
-    playNote(midi);
-    const pc = midi % 12;
-    if (question.pcs.has(pc)) {
-      setLockedCorrect((prev) => (prev.has(pc) ? prev : new Set(prev).add(pc)));
-      setPressed((prev) => new Set(prev).add(midi));
-      return;
-    }
-    setWrongFlash(midi);
-    setMessage(t('live.tryAgain'));
-    schedule(() => setWrongFlash((prev) => (prev === midi ? null : prev)), 350);
+  const markWrongBass = useCallback(() => {
+    setMessage(t('abrsm.wrongBass'));
     setStreak(computeStreakAfterWrong());
     setHasFailed(true);
     setStats((prev) => recordWrongAttempt(prev, statsKey(question)));
-  }, [feedback, inversions, playNote, question, schedule, setStats, t]);
+    setPressed(new Set());
+    setLockedCorrect(new Set());
+  }, [question, setStats, t]);
 
-  const chooseFigure = (figure) => {
-    if (!inversions || feedback === 'correct') return;
-    if (figure !== question.figure) {
-      setWrongChoice(figure);
+  const handleKey = useCallback((midi) => {
+    if (feedback === 'correct') return;
+    const now = performance.now();
+    if (lastInputRef.current.midi === midi && now - lastInputRef.current.at < 40) return;
+    lastInputRef.current = { midi, at: now };
+    playNote(midi);
+    const pc = ((midi % 12) + 12) % 12;
+    if (!question.pcs.has(pc)) {
+      setWrongFlash(midi);
       setMessage(t('live.tryAgain'));
-      schedule(() => setWrongChoice((prev) => (prev === figure ? null : prev)), 350);
+      schedule(() => setWrongFlash((prev) => (prev === midi ? null : prev)), 350);
       setStreak(computeStreakAfterWrong());
       setHasFailed(true);
       setStats((prev) => recordWrongAttempt(prev, statsKey(question)));
       return;
     }
-    setWrongChoice(null);
-    setFeedback('correct');
+
+    const nextLocked = new Set(lockedCorrect);
+    nextLocked.add(pc);
+    const nextPressed = new Set([...pressed].filter((played) => ((played % 12) + 12) % 12 !== pc));
+    nextPressed.add(midi);
+    const complete = nextLocked.size === question.pcs.size
+      && [...question.pcs].every((tone) => nextLocked.has(tone));
+    const played = [...nextPressed];
+
+    if (complete && inversions && !romanPlayIsCorrect(played, {
+      pcs: question.pcs,
+      bassPc: question.bassPc,
+      requireBass: true,
+    })) {
+      markWrongBass();
+      return;
+    }
+
+    setLockedCorrect(nextLocked);
+    setPressed(nextPressed);
     setMessage('');
-    playChord(question.voicing);
-    const newStreak = computeStreakAfterSuccess(streakRef.current, hasFailedRef.current);
-    setStats((prev) => recordCorrectAttempt(prev, { chordName: statsKey(question), newStreak }));
-    setStreak(newStreak);
-    setScore((s) => ({ correct: s.correct + 1, total: s.total + 1 }));
-    schedule(() => nextQuestion(modeFilter), 1800);
-  };
+    if (complete) markCorrect(played);
+  }, [
+    feedback,
+    playNote,
+    question,
+    lockedCorrect,
+    pressed,
+    inversions,
+    schedule,
+    setStats,
+    t,
+    markWrongBass,
+    markCorrect,
+  ]);
 
   const skip = () => {
     clearAll();
@@ -189,10 +195,17 @@ export function AbrsmMode({
   };
 
   const showHint = () => {
-    if (inversions && question.voicing?.length) {
-      setHintNotes(new Set([question.voicing[0]]));
-      schedule(() => setHintNotes(null), 2000);
-      return;
+    if (feedback === 'correct') return;
+    if (inversions) {
+      const lowest = pressed.size ? Math.min(...pressed) : null;
+      const bassSounding = lowest !== null
+        && ((lowest % 12) + 12) % 12 === question.bassPc
+        && lockedCorrect.has(question.bassPc);
+      if (!bassSounding) {
+        setHintNotes(new Set([question.bassPc]));
+        schedule(() => setHintNotes(null), 2000);
+        return;
+      }
     }
     const remaining = [...question.pcs].filter((pc) => !lockedCorrect.has(pc));
     if (!remaining.length) return;
@@ -206,8 +219,8 @@ export function AbrsmMode({
   };
 
   const keyLabel = t(question.mode === 'minor' ? 'abrsm.keyMinor' : 'abrsm.keyMajor', { key: question.tonic });
-  const shownSymbol = feedback === 'correct' || !inversions ? (question.figure || question.symbol) : '';
-  const symbolSize = (question.figure || '').length > 3
+  const shownSymbol = question.figure || question.symbol;
+  const symbolSize = shownSymbol.length > 3
     ? 'clamp(42px, 12vw, 96px)'
     : 'clamp(64px, 18vw, 140px)';
 
@@ -253,38 +266,17 @@ export function AbrsmMode({
       </div>
       <div className="flex-1 flex flex-col items-center justify-center min-h-0 relative overflow-y-auto">
         <div key={question.id} className="chord-name text-center relative">
-          <div className="text-xs tracking-[0.3em] text-slate-400 uppercase mb-3 font-semibold">{keyLabel}</div>
-          {inversions && !shownSymbol ? (
-            <div className="text-sm text-slate-300 font-semibold tracking-wide">{t('abrsm.listenChoose')}</div>
-          ) : (
-            <div
-              className={`display-font font-black leading-[0.85] tracking-tighter ${feedback === 'correct' ? 'chord-success' : 'chord-idle'}`}
-              style={{ fontSize: symbolSize, color: '#E8DCFF' }}
-            >
-              {shownSymbol || question.symbol}
-            </div>
-          )}
+          <div className="text-xs tracking-[0.3em] text-slate-400 mb-3 font-semibold">{keyLabel}</div>
+          <div
+            className={`display-font font-black leading-[0.85] tracking-tighter ${feedback === 'correct' ? 'chord-success' : 'chord-idle'}`}
+            style={{ fontSize: symbolSize, color: '#E8DCFF' }}
+          >
+            {shownSymbol}
+          </div>
           {feedback === 'correct' && (
             <div className="absolute -top-3 -right-1 sparkle-anim"><Sparkles size={22} className="text-emerald-200" /></div>
           )}
         </div>
-        {inversions && (
-          <div className="mt-3 w-full">
-            <ChoiceButtons
-              ariaLabel={t('abrsm.listenChoose')}
-              choices={question.choices || [question.figure]}
-              disabled={feedback === 'correct'}
-              wrongId={wrongChoice}
-              columns={2}
-              onChoose={chooseFigure}
-              getId={(choice) => choice}
-              getLabel={(choice) => choice}
-            />
-            <p className="mt-2 text-[11px] text-center text-slate-500 px-4">
-              {t(answerSurface === 'noteNames' ? 'abrsm.tryInputNotes' : 'abrsm.tryInput')}
-            </p>
-          </div>
-        )}
         <div className="mt-3 min-h-10 text-xs tracking-wider text-center px-3">
           {feedback === 'correct' ? (
             <div className="flex flex-col items-center gap-1">
@@ -295,11 +287,14 @@ export function AbrsmMode({
                 {question.chordName} · {question.toneNames.join(' ')}
               </div>
             </div>
-          ) : inversions ? (
-            <div className="text-slate-500">{t('abrsm.listenChoose')}</div>
           ) : (
-            <div className="text-slate-600 uppercase">
-              {t('common.notesCount', { n: lockedCorrect.size, total: question.pcs.size })}
+            <div className="flex flex-col items-center gap-1">
+              <div className="text-slate-600 uppercase">
+                {t('common.notesCount', { n: lockedCorrect.size, total: question.pcs.size })}
+              </div>
+              {message && (
+                <div className="text-rose-300 font-semibold normal-case tracking-normal">{message}</div>
+              )}
             </div>
           )}
         </div>
@@ -307,39 +302,27 @@ export function AbrsmMode({
 
       <AnswerSurface
         surface={answerSurface}
-        pressed={inversions ? new Set() : pressed}
-        lockedCorrect={inversions ? new Set() : lockedCorrect}
-        wrongFlash={inversions ? null : wrongFlash}
+        pressed={pressed}
+        lockedCorrect={lockedCorrect}
+        wrongFlash={wrongFlash}
         hintNotes={hintNotes}
         keyboardStart={keyboardStart}
         onKey={handleKey}
         onShiftKeyboard={shiftKeyboard}
         disabled={feedback === 'correct'}
         wide={inversions}
-        compact={inversions}
       />
 
       <div className="flex justify-center gap-2 pb-2 safe-bottom">
         <button
           type="button"
           onClick={showHint}
-          disabled={feedback === 'correct' || (!inversions && lockedCorrect.size === question.pcs.size)}
+          disabled={feedback === 'correct' || lockedCorrect.size === question.pcs.size}
           className="btn-action btn-hint disabled:opacity-30 touch-none"
         >
           <Lightbulb size={13} className="text-amber-300" aria-hidden="true" />
           <span className="text-xs text-amber-200 tracking-wider uppercase font-medium">{t('action.hint')}</span>
         </button>
-        {inversions && (
-          <button
-            type="button"
-            onClick={() => playChord(question.voicing)}
-            disabled={!soundOn || feedback === 'correct'}
-            className="btn-action btn-ear disabled:opacity-40 touch-none"
-          >
-            <Play size={13} className="text-emerald-300" aria-hidden="true" />
-            <span className="text-xs text-emerald-200 tracking-wider uppercase font-medium">{t('action.replay')}</span>
-          </button>
-        )}
         <button type="button" onClick={skip} className="btn-action btn-neutral touch-none">
           <SkipForward size={13} className="text-slate-400" aria-hidden="true" />
           <span className="text-xs text-slate-400 tracking-wider uppercase font-medium">{t('action.skip')}</span>
