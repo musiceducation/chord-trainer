@@ -90,7 +90,7 @@ describe('settings beginner flags', () => {
       onboardingDone: false,
       firstHintUsed: { identify: false, ear: false, progress: false },
       answerSurface: 'keyboard',
-      romanTier: 'basic',
+      romanTier: 'easy',
       identifyInversions: false,
       romanInversions: false,
     });
@@ -110,7 +110,7 @@ describe('settings beginner flags', () => {
       onboardingDone: true,
       firstHintUsed: { identify: true, ear: false, progress: true },
       answerSurface: 'keyboard',
-      romanTier: 'basic',
+      romanTier: 'easy',
       identifyInversions: false,
       romanInversions: false,
     });

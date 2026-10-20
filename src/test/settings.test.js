@@ -21,7 +21,7 @@ describe('settings', () => {
       onboardingDone: false,
       firstHintUsed: { identify: false, ear: false, progress: false },
       answerSurface: 'keyboard',
-      romanTier: 'basic',
+      romanTier: 'easy',
       identifyInversions: false,
       romanInversions: false,
     });
@@ -33,23 +33,26 @@ describe('settings', () => {
       onboardingDone: false,
       firstHintUsed: { identify: false, ear: false, progress: false },
       answerSurface: 'keyboard',
-      romanTier: 'basic',
+      romanTier: 'easy',
       identifyInversions: false,
       romanInversions: false,
     });
     expect(normalizeSettings({
       answerSurface: 'noteNames',
-      romanTier: 'vOfV',
+      romanTier: 'hard',
       identifyInversions: true,
       romanInversions: true,
     })).toMatchObject({
       answerSurface: 'noteNames',
-      romanTier: 'vOfV',
+      romanTier: 'hard',
       identifyInversions: true,
       romanInversions: true,
     });
     expect(normalizeSettings({ answerSurface: 'buttons', romanTier: 'aug' }).answerSurface).toBe('keyboard');
-    expect(normalizeSettings({ romanTier: 'III+' }).romanTier).toBe('basic');
+    expect(normalizeSettings({ romanTier: 'III+' }).romanTier).toBe('easy');
+    expect(normalizeSettings({ romanTier: 'basic' }).romanTier).toBe('easy');
+    expect(normalizeSettings({ romanTier: 'v7' }).romanTier).toBe('medium');
+    expect(normalizeSettings({ romanTier: 'vOfV' }).romanTier).toBe('hard');
     expect(normalizeSettings({ pianoSound: 'electric' }).pianoSound).toBe('electric');
     expect(normalizeSettings({ pianoSound: 'nope' }).pianoSound).toBe('acoustic');
   });
@@ -65,7 +68,7 @@ describe('settings', () => {
       onboardingDone: false,
       firstHintUsed: { identify: false, ear: false, progress: false },
       answerSurface: 'keyboard',
-      romanTier: 'basic',
+      romanTier: 'easy',
       identifyInversions: false,
       romanInversions: false,
     });

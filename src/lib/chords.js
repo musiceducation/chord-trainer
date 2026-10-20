@@ -62,6 +62,61 @@ export function formatChordAnswer(name, quality) {
   return `${chord} · ${quality}`;
 }
 
+const LETTERS = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
+const NATURAL_PC = [0, 2, 4, 5, 7, 9, 11];
+const LETTER_STEPS = {
+  '': [0, 2, 4],
+  m: [0, 2, 4],
+  dim: [0, 2, 4],
+  aug: [0, 2, 4],
+  sus2: [0, 1, 4],
+  sus4: [0, 3, 4],
+  maj7: [0, 2, 4, 6],
+  m7: [0, 2, 4, 6],
+  '7': [0, 2, 4, 6],
+  m7b5: [0, 2, 4, 6],
+  dim7: [0, 2, 4, 6],
+  '7b9': [0, 2, 4, 6, 8],
+  '9': [0, 2, 4, 6, 8],
+  maj9: [0, 2, 4, 6, 8],
+};
+
+function parseRootName(name) {
+  const letterIdx = LETTERS.indexOf(name?.[0]);
+  if (letterIdx < 0) return { letterIdx: 0, pc: 0 };
+  let offset = 0;
+  for (const ch of name.slice(1)) {
+    if (ch === '#') offset += 1;
+    else if (ch === 'b') offset -= 1;
+  }
+  return { letterIdx, pc: (NATURAL_PC[letterIdx] + offset + 12) % 12 };
+}
+
+function spellLetter(letterIdx, pc) {
+  const offset = ((pc - NATURAL_PC[letterIdx] + 18) % 12) - 6;
+  if (offset > 0) return LETTERS[letterIdx] + '#'.repeat(offset);
+  if (offset < 0) return LETTERS[letterIdx] + 'b'.repeat(-offset);
+  return LETTERS[letterIdx];
+}
+
+/** Spelled chord tones in stack order, so a slash bass can keep the key's spelling. */
+export function chordToneNames(root, type) {
+  const { letterIdx, pc } = parseRootName(root);
+  const intervals = getIntervals(type);
+  const steps = LETTER_STEPS[type] || intervals.map((_, index) => index * 2);
+  return intervals.map((semitones, index) => {
+    const tonePc = (pc + semitones) % 12;
+    const idx = (letterIdx + (steps[index] % 7)) % 7;
+    return spellLetter(idx, tonePc);
+  });
+}
+
+export function formatSlashChord(question) {
+  const chord = formatChord(question?.name || '');
+  if (!question?.inversion || !question.bassName) return chord;
+  return `${chord}/${question.bassName}`;
+}
+
 export function chordTypeI18nKey(chordType) {
   const map = {
     '': 'chordType.major',
@@ -83,17 +138,15 @@ export function chordTypeI18nKey(chordType) {
 }
 
 /**
- * Close-position voicing with `inversion` in the bass (0 root, 1 first, 2 second).
- * The bass sits at or above `baseMidi` and the top stays inside two octaves,
- * so a common inversion is not pushed into a higher octave.
- * Seventh chords stop at second inversion in v1 (the seventh is not the bass).
+ * Close-position voicing with `inversion` in the bass
+ * (0 root, 1 first, 2 second, 3 third). The bass sits at or above `baseMidi`
+ * and the top stays inside two octaves.
  */
 export function voicePitchClasses(tonePcs, inversion = 0, baseMidi = 48) {
   const count = tonePcs?.length ?? 0;
   if (!count) return [];
-  const inv = ((inversion % count) + count) % count;
-  const capped = Math.min(inv, Math.min(2, count - 1));
-  const ordered = Array.from({ length: count }, (_, i) => tonePcs[(capped + i) % count]);
+  const inv = Math.max(0, Math.min(inversion, count - 1));
+  const ordered = Array.from({ length: count }, (_, i) => tonePcs[(inv + i) % count]);
   const bassPc = ((ordered[0] % 12) + 12) % 12;
   const bass = baseMidi + ((bassPc - (baseMidi % 12) + 12) % 12);
   const midis = [bass];
@@ -112,7 +165,7 @@ export function soundedInversion(tonePcs, voicing) {
   const bass = ((voicing[0] % 12) + 12) % 12;
   const idx = tonePcs.indexOf(bass);
   if (idx < 0) return 0;
-  return Math.min(idx, 2);
+  return idx;
 }
 
 /**
@@ -147,25 +200,31 @@ export function romanPlayIsCorrect(pressedMidis, { pcs, bassPc, requireBass = fa
 }
 
 export function withInversion(question, inversion = 0, baseMidi = 48) {
+  const toneNames = chordToneNames(question.root, question.type);
   const tonePcs = targetPcsInChordOrder(question.root, question.type);
-  const inv = Math.max(0, Math.min(inversion, Math.min(2, tonePcs.length - 1)));
+  const inv = Math.max(0, Math.min(inversion, Math.max(0, tonePcs.length - 1)));
   const voicing = voicePitchClasses(tonePcs, inv, baseMidi);
   return {
     ...question,
     inversion: inv,
+    toneNames,
     tonePcs,
     voicing,
     bassPc: voicing[0] % 12,
+    bassName: toneNames[inv] || toneNames[0],
     id: `${question.name}:${inv}`,
   };
 }
 
+/** Inverted Identify questions are never root position, so the prompt always has a slash bass. */
 export function generateInvertedQuestion(difficulty, lastId = null, random = Math.random) {
   let question;
   let attempts = 0;
   do {
     const base = generateQuestion(difficulty, null, random);
-    const inversion = Math.floor(random() * 3);
+    const toneCount = targetPcsInChordOrder(base.root, base.type).length;
+    const maxInv = Math.min(3, Math.max(1, toneCount - 1));
+    const inversion = 1 + Math.floor(random() * maxInv);
     question = withInversion(base, inversion);
     attempts += 1;
   } while (question.id === lastId && attempts < 50);

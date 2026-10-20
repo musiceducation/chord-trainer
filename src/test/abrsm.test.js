@@ -5,8 +5,10 @@ import {
   buildAbrsmChord,
   formatRomanFigure,
   generateAbrsmQuestion,
+  normalizeRomanTier,
   poolForTier,
   scaleSpelling,
+  splitRomanFigure,
 } from '../lib/abrsm.js';
 import { soundedInversion } from '../lib/chords.js';
 
@@ -61,44 +63,55 @@ describe('roman numeral chords', () => {
     expect(two.chordName).toBe('Ddim');
   });
 
-  it('adds V7 on the +V7 tier and keeps it out of basic', () => {
-    const major = buildAbrsmChord({ tonic: 'C', mode: 'major', kind: 'V7' });
-    expect(major.symbol).toBe('V7');
-    expect(major.toneNames).toEqual(['G', 'B', 'D', 'F']);
-    expect(major.chordName).toBe('G7');
-    const minor = buildAbrsmChord({ tonic: 'A', mode: 'minor', kind: 'V7' });
+  it('keeps easy on triads and medium on the seven diatonic sevenths', () => {
+    expect(normalizeRomanTier('basic')).toBe('easy');
+    expect(normalizeRomanTier('v7')).toBe('medium');
+    expect(normalizeRomanTier('vOfV')).toBe('hard');
+    expect(poolForTier('easy').every((item) => item.kind === 'triad')).toBe(true);
+    expect(poolForTier('basic').every((item) => item.kind === 'triad')).toBe(true);
+    expect(poolForTier('medium')).toHaveLength(7);
+    expect(poolForTier('medium').every((item) => item.kind === 'seventh')).toBe(true);
+    expect(poolForTier('v7').some((item) => item.degree === 5)).toBe(true);
+    const symbols = [1, 2, 3, 4, 5, 6, 7].map((degree) => (
+      buildAbrsmChord({ tonic: 'C', mode: 'major', degree, kind: 'seventh' }).symbol
+    ));
+    expect(symbols).toEqual(['IM7', 'ii7', 'iii7', 'IVM7', 'V7', 'vi7', 'vii\u00F87']);
+    const dominant = buildAbrsmChord({ tonic: 'C', mode: 'major', degree: 5, kind: 'seventh' });
+    expect(dominant.toneNames).toEqual(['G', 'B', 'D', 'F']);
+    expect(dominant.chordName).toBe('G7');
+    const minor = buildAbrsmChord({ tonic: 'A', mode: 'minor', degree: 5, kind: 'seventh' });
     expect(minor.toneNames).toEqual(['E', 'G#', 'B', 'D']);
     expect(minor.chordName).toBe('E7');
-    expect(poolForTier('basic').map((item) => item.kind)).not.toContain('V7');
-    expect(poolForTier('v7').map((item) => item.kind)).toContain('V7');
-    expect(poolForTier('v7').map((item) => item.kind)).not.toContain('V/V');
+    const ninth = buildAbrsmChord({ tonic: 'C', mode: 'major', degree: 5, kind: 'ninth' });
+    expect(ninth.symbol).toBe('V9');
+    expect(ninth.toneNames).toEqual(['G', 'B', 'D', 'F', 'A']);
+    expect(poolForTier('hard').map((item) => item.kind)).toEqual([
+      ...Array(7).fill('triad'),
+      ...Array(7).fill('seventh'),
+      ...Array(7).fill('ninth'),
+    ]);
+    expect(poolForTier('hard').some((item) => item.kind === 'V/V')).toBe(false);
   });
 
-  it('adds V/V as a major triad only on the +V/V tier', () => {
-    const major = buildAbrsmChord({ tonic: 'C', mode: 'major', kind: 'V/V' });
-    expect(major.symbol).toBe('V/V');
-    expect(major.quality).toBe('');
-    expect(major.toneNames).toEqual(['D', 'F#', 'A']);
-    const minor = buildAbrsmChord({ tonic: 'A', mode: 'minor', kind: 'V/V' });
-    expect(minor.toneNames).toEqual(['B', 'D#', 'F#']);
-    const flat = buildAbrsmChord({ tonic: 'Eb', mode: 'major', kind: 'V/V' });
-    expect(flat.toneNames).toEqual(['F', 'A', 'C']);
-    expect(poolForTier('vOfV').some((item) => item.kind === 'V/V')).toBe(true);
-    expect(poolForTier('basic').some((item) => item.kind === 'V/V')).toBe(false);
-  });
-
-  it('figures triad and seventh inversions in standard notation', () => {
+  it('figures triad, seventh, and ninth inversions, including third inversion', () => {
     expect(formatRomanFigure('I', 0)).toBe('I');
     expect(formatRomanFigure('I', 1)).toBe('I\u2076');
     expect(formatRomanFigure('V', 2)).toBe('V\u2076\u2084');
     expect(formatRomanFigure('ii', 1)).toBe('ii\u2076');
     expect(formatRomanFigure('vii\u00B0', 2)).toBe('vii\u00B0\u2076\u2084');
-    expect(formatRomanFigure('V/V', 0)).toBe('V/V');
-    expect(formatRomanFigure('V/V', 1)).toBe('V\u2076/V');
-    expect(formatRomanFigure('V/V', 2)).toBe('V\u2076\u2084/V');
     expect(formatRomanFigure('V7', 0, { seventh: true })).toBe('V7');
     expect(formatRomanFigure('V7', 1, { seventh: true })).toBe('V\u2076\u2085');
     expect(formatRomanFigure('V7', 2, { seventh: true })).toBe('V\u2074\u2083');
+    expect(formatRomanFigure('V7', 3, { seventh: true })).toBe('V\u2074\u2082');
+    expect(formatRomanFigure('V9', 1, { ninth: true })).toBe('V9\u2076\u2085');
+    expect(splitRomanFigure('V\u2076\u2085')).toEqual({
+      body: 'V',
+      stack: ['6', '5'],
+      text: 'V\u2076\u2085',
+    });
+    expect(splitRomanFigure('V9\u2076\u2085').body).toBe('V9');
+    expect(splitRomanFigure('vii\u00B0\u2076\u2084').body).toBe('vii\u00B0');
+    expect(splitRomanFigure('V\u2074\u2082').stack).toEqual(['4', '2']);
   });
 
   it('voices inversions with the correct bass and figure', () => {
@@ -114,14 +127,16 @@ describe('roman numeral chords', () => {
     expect(second.voicing[0] % 12).toBe(2);
     expect(soundedInversion(second.tonePcs, second.voicing)).toBe(2);
 
-    const dominant = buildAbrsmChord({ tonic: 'C', mode: 'major', kind: 'V7', inversion: 1 });
+    const dominant = buildAbrsmChord({ tonic: 'C', mode: 'major', degree: 5, kind: 'seventh', inversion: 1 });
     expect(dominant.figure).toBe('V\u2076\u2085');
     expect(dominant.voicing[0] % 12).toBe(11);
     expect(dominant.voicing[dominant.voicing.length - 1]).toBeLessThan(48 + 24);
 
-    const secondary = buildAbrsmChord({ tonic: 'A', mode: 'minor', kind: 'V/V', inversion: 1 });
-    expect(secondary.figure).toBe('V\u2076/V');
-    expect(soundedInversion(secondary.tonePcs, secondary.voicing)).toBe(1);
+    const third = buildAbrsmChord({ tonic: 'C', mode: 'major', degree: 5, kind: 'seventh', inversion: 3 });
+    expect(third.figure).toBe('V\u2074\u2082');
+    expect(third.bassName).toBe('F');
+    expect(third.voicing[0] % 12).toBe(5);
+    expect(soundedInversion(third.tonePcs, third.voicing)).toBe(3);
   });
 
   it('keeps augmented sonorities out of the shipped tiers', () => {
@@ -142,25 +157,24 @@ describe('roman numeral chords', () => {
     }
   });
 
-  it('draws V7 and V/V only from the tiers that include them', () => {
-    for (let i = 0; i < 40; i += 1) {
-      const basic = generateAbrsmQuestion({ tier: 'basic', random: () => ((i * 17) % 100) / 100 });
-      expect(basic.kind).toBe('triad');
-      const v7 = generateAbrsmQuestion({ tier: 'v7', random: () => ((i * 13) % 100) / 100 });
-      expect(v7.kind === 'triad' || v7.kind === 'V7').toBe(true);
-      expect(v7.kind).not.toBe('V/V');
+  it('draws each tier from its pool and never asks for root position when inversions are on', () => {
+    expect(ROMAN_TIERS).toEqual(['easy', 'medium', 'hard']);
+    for (let i = 0; i < 24; i += 1) {
+      const easy = generateAbrsmQuestion({ tier: 'easy', random: () => ((i * 17) % 100) / 100 });
+      expect(easy.kind).toBe('triad');
+      const medium = generateAbrsmQuestion({ tier: 'medium', random: () => ((i * 13) % 100) / 100 });
+      expect(medium.kind).toBe('seventh');
+      const hard = generateAbrsmQuestion({ tier: 'hard', inversions: true, random: () => ((i * 19) % 97) / 97 });
+      expect(['triad', 'seventh', 'ninth']).toContain(hard.kind);
+      expect(hard.inversion).toBeGreaterThan(0);
+      expect(hard.figureParts.stack.length).toBeGreaterThan(0);
+      expect(hard.choices).toBeUndefined();
+      expect(soundedInversion(hard.tonePcs, hard.voicing)).toBe(hard.inversion);
     }
-    const forced = generateAbrsmQuestion({
-      tier: 'vOfV',
-      modeFilter: 'major',
-      inversions: true,
-      random: () => 0.99,
-    });
-    expect(ROMAN_TIERS).toContain('vOfV');
-    expect(forced.inversion).toBe(2);
-    expect(forced.choices).toBeUndefined();
-    expect(forced.figure).toBeTruthy();
-    expect(soundedInversion(forced.tonePcs, forced.voicing)).toBe(forced.inversion);
+    const triad = generateAbrsmQuestion({ tier: 'easy', inversions: true, random: () => 0.99 });
+    expect(triad.kind).toBe('triad');
+    expect(triad.inversion).toBe(2);
+    expect(triad.figure).toContain('\u2076\u2084');
   });
 
   it('respects the major/minor filter and avoids repeating the last question', () => {

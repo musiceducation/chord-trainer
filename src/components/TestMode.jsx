@@ -1,17 +1,17 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Check, SkipForward, Sparkles, Lightbulb, Play } from 'lucide-react';
+import { Check, SkipForward, Sparkles, Lightbulb } from 'lucide-react';
 import { AnswerSurface } from './AnswerSurface.jsx';
-import { ChoiceButtons } from './ChoiceButtons.jsx';
 import { usePiano } from '../hooks/usePiano.js';
 import { useTimeoutCleanup } from '../hooks/useTimeoutCleanup.js';
 import {
   chordTypeI18nKey,
   formatChord,
+  formatSlashChord,
   generateInvertedQuestion,
   generateQuestion,
   isCorrectNote,
   questionFromSpec,
-  soundedInversion,
+  romanPlayIsCorrect,
   targetPcsInChordOrder,
 } from '../lib/chords.js';
 import {
@@ -65,11 +65,12 @@ export function TestMode({
   const [score, setScore] = useState({ correct: 0, total: 0 });
   const [hasFailed, setHasFailed] = useState(false);
   const [liveMessage, setLiveMessage] = useState('');
-  const [wrongChoice, setWrongChoice] = useState(null);
   const streakRef = useRef(0);
   const hasFailedRef = useRef(false);
   const autoHintUsedRef = useRef(false);
-  const { playNote, playChord } = usePiano(soundOn, pianoSound);
+  const advanceRoundRef = useRef(() => {});
+  const settledWhileHidden = useRef(false);
+  const { playNote, playChord } = usePiano(soundOn && !hidden, pianoSound);
   const { schedule, clearAll } = useTimeoutCleanup();
   const { t } = useI18n();
   const tRef = useRef(t);
@@ -93,7 +94,6 @@ export function TestMode({
     setHasFailed(false);
     setScore({ correct: 0, total: 0 });
     setLiveMessage('');
-    setWrongChoice(null);
     if (practiceInversions) setKeyboardStart(48);
   }, [difficulty, fixedKey, questionEpoch, practiceInversions, clearAll]);
 
@@ -116,13 +116,6 @@ export function TestMode({
   }, [hidden, feedback, forceSequentialHint, autoHint, question, schedule, onAutoHintUsed]);
 
   useEffect(() => {
-    if (!practiceInversions || hidden || feedback || !question.voicing) return undefined;
-    const timer = window.setTimeout(() => { playChord(question.voicing); }, 400);
-    return () => window.clearTimeout(timer);
-  }, [practiceInversions, hidden, feedback, question, playChord]);
-
-  useEffect(() => {
-    if (practiceInversions) return;
     if (feedback || hidden) return;
     if (lockedCorrect.size !== question.pcs.size || lockedCorrect.size === 0) return;
 
@@ -156,7 +149,7 @@ export function TestMode({
         mode: 'test',
       },
     };
-    schedule(() => {
+    const advance = () => {
       if (!tutorial) onRoundSettled?.(payload);
       if (onQuestionComplete) {
         onQuestionComplete(payload);
@@ -170,20 +163,40 @@ export function TestMode({
       setFeedback(null);
       setHintNotes(null);
       setHasFailed(false);
-      setWrongChoice(null);
       setLiveMessage('');
-    }, 1400);
+    };
+    advanceRoundRef.current = advance;
+    schedule(advance, 1400);
   }, [practiceInversions, lockedCorrect, question, feedback, difficulty, pressed, playChord, setStats, schedule, hidden, tutorial, onQuestionComplete, onRoundSettled]);
+
+  useEffect(() => {
+    if (feedback !== 'correct') {
+      settledWhileHidden.current = false;
+      return;
+    }
+    if (!hidden || settledWhileHidden.current) return;
+    settledWhileHidden.current = true;
+    clearAll();
+    advanceRoundRef.current();
+  }, [hidden, feedback, clearAll]);
 
   const handleKey = useCallback((midi) => {
     if (feedback === 'correct') return;
-    if (practiceInversions) {
-      playNote(midi);
+    playNote(midi);
+    const pc = ((midi % 12) + 12) % 12;
+    if (!isCorrectNote(midi, question.pcs)) {
+      setWrongFlash(midi);
+      setLiveMessage(t('live.tryAgain'));
+      schedule(() => setWrongFlash((prev) => (prev === midi ? null : prev)), 350);
+      if (!tutorial) {
+        setStreak(computeStreakAfterWrong());
+        setHasFailed(true);
+        setStats((prev) => recordWrongAttempt(prev, question.name));
+      }
       return;
     }
-    playNote(midi);
-    const pc = midi % 12;
-    if (isCorrectNote(midi, question.pcs)) {
+
+    if (!practiceInversions) {
       setLockedCorrect((prev) => {
         if (prev.has(pc)) return prev;
         const next = new Set(prev);
@@ -195,25 +208,23 @@ export function TestMode({
         next.add(midi);
         return next;
       });
-    } else {
-      setWrongFlash(midi);
-      setLiveMessage(t('live.tryAgain'));
-      schedule(() => setWrongFlash((prev) => (prev === midi ? null : prev)), 350);
-      if (!tutorial) {
-        setStreak(computeStreakAfterWrong());
-        setHasFailed(true);
-        setStats((prev) => recordWrongAttempt(prev, question.name));
-      }
+      return;
     }
-  }, [feedback, playNote, practiceInversions, question, schedule, setStats, t, tutorial]);
 
-  const chooseInversion = (choice) => {
-    if (!practiceInversions || feedback === 'correct') return;
-    const sounded = soundedInversion(question.tonePcs, question.voicing);
-    if (choice !== sounded) {
-      setWrongChoice(choice);
-      setLiveMessage(t('live.tryAgain'));
-      schedule(() => setWrongChoice((prev) => (prev === choice ? null : prev)), 350);
+    const nextLocked = new Set(lockedCorrect);
+    nextLocked.add(pc);
+    const nextPressed = new Set([...pressed].filter((played) => ((played % 12) + 12) % 12 !== pc));
+    nextPressed.add(midi);
+    const complete = nextLocked.size === question.pcs.size
+      && [...question.pcs].every((tone) => nextLocked.has(tone));
+    if (complete && !romanPlayIsCorrect([...nextPressed], {
+      pcs: question.pcs,
+      bassPc: question.bassPc,
+      requireBass: true,
+    })) {
+      setLiveMessage(t('abrsm.wrongBass'));
+      setPressed(new Set());
+      setLockedCorrect(new Set());
       if (!tutorial) {
         setStreak(computeStreakAfterWrong());
         setHasFailed(true);
@@ -221,48 +232,11 @@ export function TestMode({
       }
       return;
     }
-    setWrongChoice(null);
-    setFeedback('correct');
-    setLiveMessage(t('live.correct'));
-    playChord(question.voicing);
-    const missed = hasFailedRef.current;
-    const newStreak = computeStreakAfterSuccess(streakRef.current, missed);
-    if (!tutorial) {
-      setStats((prev) => recordCorrectAttempt(prev, {
-        chordName: question.name,
-        newStreak,
-        isEarMode: false,
-      }));
-      setStreak(newStreak);
-      setScore((s) => ({ correct: s.correct + 1, total: s.total + 1 }));
-    }
-    const payload = {
-      missed,
-      skipped: false,
-      streak: missed ? 0 : newStreak,
-      question: {
-        root: question.root,
-        type: question.type,
-        name: question.name,
-        mode: 'test',
-      },
-    };
-    schedule(() => {
-      if (!tutorial) onRoundSettled?.(payload);
-      if (onQuestionComplete) {
-        onQuestionComplete(payload);
-        return;
-      }
-      setQuestion((q) => generateInvertedQuestion(difficulty, q.id));
-      setPressed(new Set());
-      setLockedCorrect(new Set());
-      setFeedback(null);
-      setHintNotes(null);
-      setHasFailed(false);
-      setWrongChoice(null);
-      setLiveMessage('');
-    }, 1400);
-  };
+
+    setLockedCorrect(nextLocked);
+    setPressed(nextPressed);
+    setLiveMessage('');
+  }, [feedback, playNote, practiceInversions, lockedCorrect, pressed, question, schedule, setStats, t, tutorial]);
 
   const skip = () => {
     if (hideSkip) return;
@@ -296,15 +270,17 @@ export function TestMode({
     setFeedback(null);
     setHintNotes(null);
     setHasFailed(false);
-    setWrongChoice(null);
     setLiveMessage(t('live.skipped'));
   };
 
   const showHint = () => {
-    if (practiceInversions && question.voicing?.length) {
-      setHintNotes(new Set([question.voicing[0]]));
-      schedule(() => setHintNotes(null), 2000);
-      return;
+    if (practiceInversions) {
+      const rootPc = question.tonePcs?.[0];
+      if (rootPc != null && !lockedCorrect.has(rootPc)) {
+        setHintNotes(new Set([rootPc]));
+        schedule(() => setHintNotes(null), 2000);
+        return;
+      }
     }
     const remaining = forceSequentialHint
       ? targetPcsInChordOrder(question.root, question.type).filter((pc) => !lockedCorrect.has(pc))
@@ -326,11 +302,15 @@ export function TestMode({
     }
   };
 
-  const inversionLabels = ['inversion.root', 'inversion.first', 'inversion.second'];
   const showInversionToggle = !tutorial && !fixedQuestion && typeof onInversionsChange === 'function';
+  const prompt = practiceInversions ? formatSlashChord(question) : formatChord(question.name);
+  const promptSize = prompt.length > 6
+    ? 'clamp(36px, 10vw, 72px)'
+    : 'clamp(64px, 18vw, 140px)';
+  const errorCopy = liveMessage === t('abrsm.wrongBass') || liveMessage === t('live.tryAgain');
 
   return (
-    <div className={`mode-panel ${hidden ? 'mode-hidden' : ''}`} aria-hidden={hidden}>
+    <div className={`mode-panel ${hidden ? 'mode-hidden' : ''}`} aria-hidden={hidden} inert={hidden ? true : undefined}>
       <div aria-live="polite" className="sr-only">{liveMessage}</div>
       {showInversionToggle && (
         <div className="flex justify-center mb-1">
@@ -350,15 +330,15 @@ export function TestMode({
         </div>
       )}
       <div className="flex-1 flex flex-col items-center justify-center min-h-0 relative overflow-y-auto">
-        <div key={question.name} className="chord-name text-center relative">
+        <div key={question.id || question.name} className="chord-name text-center relative">
           <div className="text-[10px] tracking-[0.5em] text-slate-500 uppercase mb-3 font-medium">
             {t(chordTypeI18nKey(question.type))}
           </div>
           <div
             className={`display-font font-black leading-[0.85] tracking-tighter relative ${feedback === 'correct' ? 'chord-success' : 'chord-idle'}`}
-            style={{ fontSize: practiceInversions ? 'clamp(40px, 12vw, 72px)' : 'clamp(64px, 18vw, 140px)', color: '#DCE7FF' }}
+            style={{ fontSize: promptSize, color: '#DCE7FF' }}
           >
-            {formatChord(question.name)}
+            {prompt}
           </div>
           {feedback === 'correct' && (
             <>
@@ -368,25 +348,7 @@ export function TestMode({
           )}
         </div>
 
-        {practiceInversions && (
-          <div className="mt-4 w-full">
-            <ChoiceButtons
-              ariaLabel={t('identify.listenChoose')}
-              choices={[0, 1, 2]}
-              disabled={feedback === 'correct'}
-              wrongId={wrongChoice}
-              columns={3}
-              onChoose={chooseInversion}
-              getId={(choice) => choice}
-              getLabel={(choice) => t(inversionLabels[choice])}
-            />
-            <p className="mt-2 text-[11px] text-center text-slate-500 px-4">
-              {t(answerSurface === 'noteNames' ? 'identify.tryInputNotes' : 'identify.tryInput')}
-            </p>
-          </div>
-        )}
-
-        {!practiceInversions && <div className="mt-5 flex items-center gap-2.5">
+        <div className="mt-5 flex items-center gap-2.5">
           {[...Array(question.pcs.size)].map((_, i) => {
             const filled = i < lockedCorrect.size;
             return (
@@ -405,63 +367,51 @@ export function TestMode({
               />
             );
           })}
-        </div>}
+        </div>
 
         <div className="mt-3 min-h-10 text-xs tracking-wider text-center px-3">
           {feedback === 'correct' ? (
             <div className="flex items-center justify-center gap-1.5 text-emerald-300 font-semibold uppercase">
               <Check size={12} aria-hidden="true" />
-              <span>
-                {practiceInversions
-                  ? t(inversionLabels[soundedInversion(question.tonePcs, question.voicing)])
-                  : t('action.perfect')}
-              </span>
+              <span>{t('action.perfect')}</span>
             </div>
-          ) : practiceInversions ? (
-            <div className="text-slate-500">{t('identify.listenChoose')}</div>
           ) : (
-            <div className="text-slate-600 uppercase">
-              {t('common.notesCount', { n: lockedCorrect.size, total: question.pcs.size })}
+            <div className="flex flex-col items-center gap-1">
+              <div className="text-slate-600 uppercase">
+                {t('common.notesCount', { n: lockedCorrect.size, total: question.pcs.size })}
+              </div>
+              {errorCopy && (
+                <div className="text-rose-300 font-semibold normal-case tracking-normal">{liveMessage}</div>
+              )}
             </div>
           )}
         </div>
       </div>
 
       <AnswerSurface
+        key={answerSurface}
         surface={answerSurface}
-        pressed={practiceInversions ? new Set() : pressed}
-        lockedCorrect={practiceInversions ? new Set() : lockedCorrect}
-        wrongFlash={practiceInversions ? null : wrongFlash}
+        pressed={pressed}
+        lockedCorrect={lockedCorrect}
+        wrongFlash={wrongFlash}
         hintNotes={hintNotes}
         keyboardStart={keyboardStart}
         onKey={handleKey}
         onShiftKeyboard={shiftKeyboard}
         disabled={feedback === 'correct'}
         wide={practiceInversions}
-        compact={practiceInversions}
       />
 
       <div className="flex justify-center gap-2 pb-2 safe-bottom">
         <button
           type="button"
           onClick={showHint}
-          disabled={practiceInversions ? feedback === 'correct' : lockedCorrect.size === question.pcs.size}
+          disabled={feedback === 'correct' || lockedCorrect.size === question.pcs.size}
           className="btn-action btn-hint disabled:opacity-30 touch-none"
         >
           <Lightbulb size={13} className="text-amber-300" aria-hidden="true" />
           <span className="text-xs text-amber-200 tracking-wider uppercase font-medium">{t('action.hint')}</span>
         </button>
-        {practiceInversions && (
-          <button
-            type="button"
-            onClick={() => playChord(question.voicing)}
-            disabled={!soundOn || feedback === 'correct'}
-            className="btn-action btn-ear disabled:opacity-40 touch-none"
-          >
-            <Play size={13} className="text-emerald-300" aria-hidden="true" />
-            <span className="text-xs text-emerald-200 tracking-wider uppercase font-medium">{t('action.replay')}</span>
-          </button>
-        )}
         {!hideSkip && (
           <button type="button" onClick={skip} className="btn-action btn-neutral touch-none">
             <SkipForward size={13} className="text-slate-400" aria-hidden="true" />

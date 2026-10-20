@@ -453,7 +453,7 @@ export default function App() {
       ? `${t('pack.name')} · ${t('pack.progress', { n: guide.index + 1 })}`
       : t(`guide.oneLiner.${tab}`);
   if (!guide && !drillQuestion && tab === 'test' && settings.identifyInversions && !guidedIdentify) {
-    coachLine = t('identify.listenChoose');
+    coachLine = t('identify.findRoot');
   }
 
   const closeReviewGate = useCallback((answer) => {

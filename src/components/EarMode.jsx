@@ -62,7 +62,9 @@ export function EarMode({
   const hasFailedRef = useRef(false);
   const autoHintUsedRef = useRef(false);
   const autoPlayedRef = useRef(false);
-  const { playNote, playChord } = usePiano(soundOn, pianoSound);
+  const advanceRoundRef = useRef(() => {});
+  const settledWhileHidden = useRef(false);
+  const { playNote, playChord } = usePiano(soundOn && !hidden, pianoSound);
   const { schedule, clearAll } = useTimeoutCleanup();
   const { t } = useI18n();
   const tRef = useRef(t);
@@ -151,7 +153,7 @@ export function EarMode({
         mode: 'ear',
       },
     };
-    schedule(() => {
+    const advance = () => {
       if (!tutorial) onRoundSettled?.(payload);
       if (onQuestionComplete) {
         onQuestionComplete(payload);
@@ -164,8 +166,21 @@ export function EarMode({
       setHintNotes(null);
       setHasFailed(false);
       setLiveMessage('');
-    }, 1400);
+    };
+    advanceRoundRef.current = advance;
+    schedule(advance, 1400);
   }, [lockedCorrect, question, feedback, difficulty, replayChord, setStats, schedule, hidden, tutorial, onQuestionComplete, onRoundSettled]);
+
+  useEffect(() => {
+    if (feedback !== 'correct') {
+      settledWhileHidden.current = false;
+      return;
+    }
+    if (!hidden || settledWhileHidden.current) return;
+    settledWhileHidden.current = true;
+    clearAll();
+    advanceRoundRef.current();
+  }, [hidden, feedback, clearAll]);
 
   const handleKey = useCallback((midi) => {
     if (feedback === 'correct') return;
@@ -244,7 +259,7 @@ export function EarMode({
   };
 
   return (
-    <div className={`mode-panel ${hidden ? 'mode-hidden' : ''}`} aria-hidden={hidden}>
+    <div className={`mode-panel ${hidden ? 'mode-hidden' : ''}`} aria-hidden={hidden} inert={hidden ? true : undefined}>
       <div aria-live="polite" className="sr-only">{liveMessage}</div>
       <div className="flex-1 flex flex-col items-center justify-center min-h-0 relative overflow-y-auto">
         <div className="text-[10px] tracking-[0.5em] text-emerald-400/70 uppercase mb-3 font-medium">
@@ -301,6 +316,7 @@ export function EarMode({
       </div>
 
       <AnswerSurface
+        key={answerSurface}
         surface={answerSurface}
         pressed={pressed}
         lockedCorrect={lockedCorrect}

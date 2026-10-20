@@ -4,6 +4,8 @@ import {
   generateQuestion,
   buildChordVoicing,
   formatChord,
+  formatSlashChord,
+  generateInvertedQuestion,
   isCorrectNote,
   playedInversionMatches,
   romanPlayIsCorrect,
@@ -67,6 +69,26 @@ describe('chords', () => {
     const seventh = voicePitchClasses([7, 11, 2, 5], 2, 48);
     expect(seventh[0] % 12).toBe(2);
     expect(soundedInversion([7, 11, 2, 5], seventh)).toBe(2);
+    const third = voicePitchClasses([7, 11, 2, 5], 3, 48);
+    expect(third[0] % 12).toBe(5);
+    expect(soundedInversion([7, 11, 2, 5], third)).toBe(3);
+  });
+
+  it('names inverted chords with a slash bass and never asks for root position', () => {
+    const first = withInversion(questionFromSpec('C', ''), 1);
+    expect(formatSlashChord(first)).toBe('C/E');
+    expect(formatSlashChord(withInversion(questionFromSpec('A', 'm'), 1))).toBe('Am/C');
+    const third = withInversion(questionFromSpec('G', '7'), 3);
+    expect(third.bassName).toBe('F');
+    expect(third.inversion).toBe(3);
+    expect(formatSlashChord(third)).toBe('G7/F');
+    expect(third.voicing[0] % 12).toBe(5);
+    for (let i = 0; i < 16; i += 1) {
+      const question = generateInvertedQuestion('seventh', null, () => ((i * 7) % 90) / 90);
+      expect(question.inversion).toBeGreaterThan(0);
+      expect(question.inversion).toBeLessThanOrEqual(3);
+      expect(formatSlashChord(question)).toContain('/');
+    }
   });
 
   it('scores Roman play-out by pitch class, and by bass when asked', () => {

@@ -71,6 +71,12 @@ export function Keyboard({
   const keyLabel = (key) => `${key.name}${key.octave}`;
   const startOct = visibleKeys[0]?.octave ?? Math.floor(keyboardStart / 12) - 1;
   const endOct = visibleKeys[visibleKeys.length - 1]?.octave ?? startOct;
+  const pressKey = (event, midi) => {
+    if (disabled) return;
+    if (event.button != null && event.button !== 0) return;
+    event.preventDefault();
+    onKey(midi);
+  };
 
   return (
     <section aria-label={t('keyboard.piano')} className={`keyboard-section ${compact ? 'keyboard-compact' : ''}`}>
@@ -95,10 +101,9 @@ export function Keyboard({
                   key={key.midi}
                   type="button"
                   aria-label={keyLabel(key)}
-                  disabled={disabled}
-                  onMouseDown={() => onKey(key.midi)}
-                  onTouchStart={(e) => { e.preventDefault(); onKey(key.midi); }}
-                  className={`flex-1 relative rounded-b-lg transition-all duration-100 touch-none active:scale-[0.98] ${locked ? 'key-locked-white' : ''} ${isWrong ? 'wrong-shake' : ''} ${hinted ? 'key-hint-white' : ''}`}
+                  aria-disabled={disabled || undefined}
+                  onPointerDown={(event) => pressKey(event, key.midi)}
+                  className={`piano-key flex-1 relative rounded-b-lg transition-all duration-100 touch-none active:scale-[0.98] ${locked ? 'key-locked-white' : ''} ${isWrong ? 'wrong-shake' : ''} ${hinted ? 'key-hint-white' : ''}`}
                   style={{
                     background: isWrong
                       ? 'linear-gradient(180deg, #F7768E 0%, #c44e64 100%)'
@@ -129,10 +134,9 @@ export function Keyboard({
                     <button
                       type="button"
                       aria-label={keyLabel(blackKey)}
-                      disabled={disabled}
-                      onMouseDown={() => onKey(blackKey.midi)}
-                      onTouchStart={(e) => { e.preventDefault(); onKey(blackKey.midi); }}
-                      className={`absolute pointer-events-auto rounded-b-md transition-all duration-100 touch-none active:scale-[0.98] ${locked ? 'key-locked-black' : ''} ${isWrong ? 'wrong-shake' : ''} ${hinted ? 'key-hint-black' : ''}`}
+                      aria-disabled={disabled || undefined}
+                      onPointerDown={(event) => pressKey(event, blackKey.midi)}
+                      className={`piano-key absolute pointer-events-auto rounded-b-md transition-all duration-100 touch-none active:scale-[0.98] ${locked ? 'key-locked-black' : ''} ${isWrong ? 'wrong-shake' : ''} ${hinted ? 'key-hint-black' : ''}`}
                       style={{
                         // Wider/taller black keys for easier Ab / C# / Eb taps
                         width: '72%', height: '58%', right: '-36%', top: 0, zIndex: 10,

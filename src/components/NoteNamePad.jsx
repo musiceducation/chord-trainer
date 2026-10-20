@@ -36,6 +36,7 @@ export function NoteNamePad({
   };
 
   const playLetter = (letter) => {
+    if (disabled) return;
     const midi = midiForLetter(letter, accidental, octave);
     const pc = ((midi % 12) + 12) % 12;
     spelled.current.set(pc, letter);
@@ -104,8 +105,8 @@ export function NoteNamePad({
             type="button"
             aria-label={t('noteNames.sharp')}
             aria-pressed={accidental === 1}
-            disabled={disabled}
-            onClick={() => toggleAccidental(1)}
+            aria-disabled={disabled || undefined}
+            onClick={() => { if (!disabled) toggleAccidental(1); }}
             className="note-name-accidental touch-none active:scale-[0.98]"
             style={accidentalStyle(accidental === 1)}
           >
@@ -115,8 +116,8 @@ export function NoteNamePad({
             type="button"
             aria-label={t('noteNames.flat')}
             aria-pressed={accidental === -1}
-            disabled={disabled}
-            onClick={() => toggleAccidental(-1)}
+            aria-disabled={disabled || undefined}
+            onClick={() => { if (!disabled) toggleAccidental(-1); }}
             className="note-name-accidental touch-none active:scale-[0.98]"
             style={accidentalStyle(accidental === -1)}
           >
@@ -133,13 +134,13 @@ export function NoteNamePad({
                 key={letter}
                 type="button"
                 aria-label={letter}
-                disabled={disabled}
+                aria-disabled={disabled || undefined}
                 onPointerDown={(e) => {
-                  if (e.button !== 0) return;
+                  if (disabled || e.button !== 0) return;
                   e.preventDefault();
                   playLetter(letter);
                 }}
-                className={`note-name-key touch-none active:scale-[0.98] ${isWrong ? 'wrong-shake' : ''}`}
+                className={`piano-key note-name-key touch-none active:scale-[0.98] ${isWrong ? 'wrong-shake' : ''}`}
                 style={{
                   background: isWrong
                     ? 'linear-gradient(180deg, #F7768E 0%, #c44e64 100%)'

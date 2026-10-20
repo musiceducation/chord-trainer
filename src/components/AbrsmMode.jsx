@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Check, SkipForward, Sparkles, Lightbulb } from 'lucide-react';
 import { AnswerSurface } from './AnswerSurface.jsx';
+import { RomanFigure } from './RomanFigure.jsx';
 import { usePiano } from '../hooks/usePiano.js';
 import { useTimeoutCleanup } from '../hooks/useTimeoutCleanup.js';
 import {
@@ -38,7 +39,7 @@ export function AbrsmMode({
   onScoreChange,
   hidden,
   answerSurface = 'keyboard',
-  tier = 'basic',
+  tier = 'easy',
   onTierChange,
   inversions = false,
   onInversionsChange,
@@ -62,7 +63,9 @@ export function AbrsmMode({
   const streakRef = useRef(0);
   const hasFailedRef = useRef(false);
   const lastInputRef = useRef({ midi: null, at: 0 });
-  const { playNote, playChord } = usePiano(soundOn, pianoSound);
+  const advanceRoundRef = useRef(() => {});
+  const settledWhileHidden = useRef(false);
+  const { playNote, playChord } = usePiano(soundOn && !hidden, pianoSound);
   const { schedule, clearAll } = useTimeoutCleanup();
   const { t } = useI18n();
 
@@ -122,8 +125,21 @@ export function AbrsmMode({
     setStats((prev) => recordCorrectAttempt(prev, { chordName: statsKey(question), newStreak }));
     setStreak(newStreak);
     setScore((s) => ({ correct: s.correct + 1, total: s.total + 1 }));
-    schedule(() => nextQuestion(modeFilter), 1800);
+    const advance = () => nextQuestion(modeFilter);
+    advanceRoundRef.current = advance;
+    schedule(advance, 1800);
   }, [playChord, question, setStats, schedule, nextQuestion, modeFilter]);
+
+  useEffect(() => {
+    if (feedback !== 'correct') {
+      settledWhileHidden.current = false;
+      return;
+    }
+    if (!hidden || settledWhileHidden.current) return;
+    settledWhileHidden.current = true;
+    clearAll();
+    advanceRoundRef.current();
+  }, [hidden, feedback, clearAll]);
 
   const markWrongBass = useCallback(() => {
     setMessage(t('abrsm.wrongBass'));
@@ -220,12 +236,13 @@ export function AbrsmMode({
 
   const keyLabel = t(question.mode === 'minor' ? 'abrsm.keyMinor' : 'abrsm.keyMajor', { key: question.tonic });
   const shownSymbol = question.figure || question.symbol;
-  const symbolSize = shownSymbol.length > 3
+  const figureBody = question.figureParts?.body || shownSymbol;
+  const symbolSize = figureBody.length > 4
     ? 'clamp(42px, 12vw, 96px)'
     : 'clamp(64px, 18vw, 140px)';
 
   return (
-    <div className={`mode-panel ${hidden ? 'mode-hidden' : ''}`} aria-hidden={hidden}>
+    <div className={`mode-panel ${hidden ? 'mode-hidden' : ''}`} aria-hidden={hidden} inert={hidden ? true : undefined}>
       <div aria-live="polite" className="sr-only">{feedback === 'correct' ? t('live.correct') : message}</div>
       <div className="flex flex-wrap justify-center gap-1.5 mb-1">
         {ROMAN_TIERS.map((item) => (
@@ -268,10 +285,10 @@ export function AbrsmMode({
         <div key={question.id} className="chord-name text-center relative">
           <div className="text-xs tracking-[0.3em] text-slate-400 mb-3 font-semibold">{keyLabel}</div>
           <div
-            className={`display-font font-black leading-[0.85] tracking-tighter ${feedback === 'correct' ? 'chord-success' : 'chord-idle'}`}
+            className={`display-font font-black leading-none ${feedback === 'correct' ? 'chord-success' : 'chord-idle'}`}
             style={{ fontSize: symbolSize, color: '#E8DCFF' }}
           >
-            {shownSymbol}
+            <RomanFigure text={shownSymbol} />
           </div>
           {feedback === 'correct' && (
             <div className="absolute -top-3 -right-1 sparkle-anim"><Sparkles size={22} className="text-emerald-200" /></div>
@@ -301,6 +318,7 @@ export function AbrsmMode({
       </div>
 
       <AnswerSurface
+        key={answerSurface}
         surface={answerSurface}
         pressed={pressed}
         lockedCorrect={lockedCorrect}
