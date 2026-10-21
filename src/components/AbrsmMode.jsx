@@ -11,6 +11,7 @@ import {
 } from '../lib/abrsm.js';
 import { romanPlayIsCorrect } from '../lib/chords.js';
 import { FULL_END, FULL_START } from '../lib/constants.js';
+import { chordAccidentalSide, displayOctave, pressedAfterNote } from '../lib/noteNames.js';
 import {
   computeStreakAfterSuccess,
   computeStreakAfterWrong,
@@ -159,9 +160,9 @@ export function AbrsmMode({
     const now = performance.now();
     if (lastInputRef.current.midi === midi && now - lastInputRef.current.at < 40) return;
     lastInputRef.current = { midi, at: now };
-    playNote(midi);
     const pc = ((midi % 12) + 12) % 12;
     if (!question.pcs.has(pc)) {
+      playNote(midi);
       setWrongFlash(midi);
       setMessage(t('live.tryAgain'));
       schedule(() => setWrongFlash((prev) => (prev === midi ? null : prev)), 350);
@@ -171,10 +172,15 @@ export function AbrsmMode({
       return;
     }
 
+    const placed = pressedAfterNote(pressedRef.current, midi, {
+      voice: answerSurface === 'noteNames' && inversions,
+      bassPc: question.bassPc,
+      octave: displayOctave(keyboardStart),
+    });
+    playNote(placed.sounding);
     const nextLocked = new Set(lockedRef.current);
-    nextLocked.add(pc);
-    const nextPressed = new Set([...pressedRef.current].filter((played) => ((played % 12) + 12) % 12 !== pc));
-    nextPressed.add(midi);
+    nextLocked.add(placed.pc);
+    const nextPressed = new Set(placed.midis);
     const complete = nextLocked.size === question.pcs.size
       && [...question.pcs].every((tone) => nextLocked.has(tone));
     const played = [...nextPressed];
@@ -206,6 +212,8 @@ export function AbrsmMode({
     t,
     markWrongBass,
     markCorrect,
+    answerSurface,
+    keyboardStart,
   ]);
 
   const skip = () => {
@@ -335,6 +343,7 @@ export function AbrsmMode({
         onShiftKeyboard={shiftKeyboard}
         disabled={feedback === 'correct'}
         wide={inversions}
+        accidentalSpelling={chordAccidentalSide(question)}
       />
 
       <div className="flex justify-center gap-2 pb-2 safe-bottom">

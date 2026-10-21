@@ -149,46 +149,52 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   padding: 2px 2px 8px;
 }
 
-.note-name-modifiers,
+.note-name-black-row,
 .note-name-row {
-  display: flex;
-  justify-content: center;
+  display: grid;
   gap: 6px;
   width: 100%;
 }
 
-.note-name-modifiers {
-  gap: 8px;
+.note-name-black-row {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  width: calc(100% * 5 / 7);
 }
 
-.note-name-accidental {
-  min-width: 56px;
-  min-height: 34px;
-  padding: 0 14px;
-  border-radius: 999px;
-  font-size: 16px;
+.note-name-row {
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+
+.note-name-black,
+.note-name-key {
+  min-width: 0;
+  padding: 0 2px;
+  border-radius: 10px;
   font-weight: 700;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.01em;
+}
+
+.note-name-black {
+  min-height: 36px;
+  font-size: 13px;
 }
 
 .note-name-key {
-  flex: 1;
-  max-width: 64px;
-  min-width: 0;
   min-height: 44px;
-  padding: 0 4px;
-  border-radius: 10px;
   font-size: 15px;
-  font-weight: 700;
-  letter-spacing: 0.02em;
 }
 
 .keyboard-compact .note-name-key {
   min-height: 38px;
+}
+
+.keyboard-compact .note-name-black {
+  min-height: 32px;
+  font-size: 12px;
 }
 
 .keyboard-octave-bar {
@@ -336,11 +342,6 @@ body {
   background: rgba(122, 162, 247, 0.12);
   border: 1px solid rgba(122, 162, 247, 0.35);
   color: #C0CAF5;
-}
-
-.drill-card {
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 .answer-reveal {

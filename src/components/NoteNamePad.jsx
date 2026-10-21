@@ -1,17 +1,57 @@
-import { useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import {
   NATURAL_LETTERS,
+  blackKeyButtons,
   canShiftSharedOctave,
   displayOctave,
-  letterForPitchClass,
-  midiForLetter,
+  midiInDisplayOctave,
+  pitchClassForLetter,
 } from '../lib/noteNames.js';
 import { useI18n } from '../hooks/useI18n.jsx';
 
+function pcOf(value) {
+  return ((value % 12) + 12) % 12;
+}
+
 function pcsOf(notes) {
   if (!notes) return [];
-  return [...notes].map((value) => ((value % 12) + 12) % 12);
+  return [...notes].map((value) => pcOf(value));
+}
+
+function keyFace({ locked, hinted, wrong, black }) {
+  if (wrong) {
+    return {
+      background: 'linear-gradient(180deg, #F7768E 0%, #c44e64 100%)',
+      color: '#F0F4FF',
+      border: '1px solid rgba(255,255,255,0.08)',
+    };
+  }
+  if (locked) {
+    return {
+      background: 'linear-gradient(180deg, #B8F2D8 0%, #7ADCC8 100%)',
+      color: '#12382f',
+      border: '1px solid rgba(122,220,200,0.7)',
+    };
+  }
+  if (hinted) {
+    return {
+      background: 'linear-gradient(180deg, #FFE7A8 0%, #F0D080 100%)',
+      color: '#3a2c10',
+      border: '1px solid rgba(255,255,255,0.08)',
+    };
+  }
+  if (black) {
+    return {
+      background: 'linear-gradient(180deg, #3A4464 0%, #1C2236 100%)',
+      color: '#E8EEFF',
+      border: '1px solid rgba(255,255,255,0.14)',
+    };
+  }
+  return {
+    background: 'linear-gradient(180deg, #F0EEE8 0%, #D8D4CA 100%)',
+    color: '#1A1D2E',
+    border: '1px solid rgba(255,255,255,0.08)',
+  };
 }
 
 export function NoteNamePad({
@@ -24,54 +64,48 @@ export function NoteNamePad({
   onShiftKeyboard,
   disabled,
   compact = false,
+  accidentalSpelling = 'sharp',
 }) {
   const { t } = useI18n();
-  const [accidental, setAccidental] = useState(0);
-  const lastTap = useRef(null);
-  const spelled = useRef(new Map());
   const octave = displayOctave(keyboardStart);
+  const blackKeys = blackKeyButtons(accidentalSpelling === 'flat' ? 'flat' : 'sharp');
+  const pressedPcs = new Set(pcsOf(pressed));
+  const wrongPc = wrongFlash == null ? null : pcOf(wrongFlash);
 
-  const toggleAccidental = (value) => {
-    setAccidental((prev) => (prev === value ? 0 : value));
+  const lockedPc = (pc) => lockedCorrect?.has(pc) && pressedPcs.has(pc);
+  const hintedPc = (pc) => {
+    if (!hintNotes || lockedPc(pc)) return false;
+    return pcsOf(hintNotes).includes(pc) && !lockedCorrect?.has(pc);
   };
 
-  const playLetter = (letter) => {
+  const playPc = (pc) => {
     if (disabled) return;
-    const midi = midiForLetter(letter, accidental, octave);
-    const pc = ((midi % 12) + 12) % 12;
-    spelled.current.set(pc, letter);
-    lastTap.current = { letter, midi };
-    onKey(midi);
-    setAccidental(0);
+    onKey(midiInDisplayOctave(pc, octave));
   };
 
-  const letterForLocked = (midi) => {
-    const pc = ((midi % 12) + 12) % 12;
-    return spelled.current.get(pc) || letterForPitchClass(pc);
+  const renderKey = (label, pc, black) => {
+    const locked = lockedPc(pc);
+    const hinted = hintedPc(pc);
+    const isWrong = wrongPc === pc;
+    return (
+      <button
+        key={label}
+        type="button"
+        aria-label={label}
+        aria-pressed={locked || undefined}
+        aria-disabled={disabled || undefined}
+        onPointerDown={(event) => {
+          if (disabled || event.button !== 0) return;
+          event.preventDefault();
+          playPc(pc);
+        }}
+        className={`piano-key touch-none active:scale-[0.98] ${black ? 'note-name-black' : 'note-name-key'} ${isWrong ? 'wrong-shake' : ''}`}
+        style={keyFace({ locked, hinted, wrong: isWrong, black })}
+      >
+        {label}
+      </button>
+    );
   };
-
-  const lockedLetter = (letter) => [...pressed].some((midi) => (
-    lockedCorrect.has(((midi % 12) + 12) % 12) && letterForLocked(midi) === letter
-  ));
-
-  const hintedLetter = (letter) => {
-    if (!hintNotes || lockedLetter(letter)) return false;
-    return pcsOf(hintNotes).some((pc) => letterForPitchClass(pc) === letter && !lockedCorrect.has(pc));
-  };
-
-  const wrongLetter = wrongFlash == null
-    ? null
-    : (lastTap.current?.midi === wrongFlash
-      ? lastTap.current.letter
-      : letterForPitchClass(wrongFlash));
-
-  const accidentalStyle = (armed) => ({
-    background: armed
-      ? 'linear-gradient(180deg, #3D4F7C 0%, #243056 100%)'
-      : 'rgba(255,255,255,0.04)',
-    color: armed ? '#E8EEFF' : '#C5D0E6',
-    border: armed ? '1px solid rgba(122,162,247,0.75)' : '1px solid rgba(255,255,255,0.08)',
-  });
 
   return (
     <section aria-label={t('keyboard.noteNames')} className={`keyboard-section ${compact ? 'keyboard-compact' : ''}`}>
@@ -100,63 +134,11 @@ export function NoteNamePad({
       </div>
 
       <div className="note-name-pad">
-        <div className="note-name-modifiers" role="group" aria-label={t('keyboard.noteNames')}>
-          <button
-            type="button"
-            aria-label={t('noteNames.sharp')}
-            aria-pressed={accidental === 1}
-            aria-disabled={disabled || undefined}
-            onClick={() => { if (!disabled) toggleAccidental(1); }}
-            className="note-name-accidental touch-none active:scale-[0.98]"
-            style={accidentalStyle(accidental === 1)}
-          >
-            #
-          </button>
-          <button
-            type="button"
-            aria-label={t('noteNames.flat')}
-            aria-pressed={accidental === -1}
-            aria-disabled={disabled || undefined}
-            onClick={() => { if (!disabled) toggleAccidental(-1); }}
-            className="note-name-accidental touch-none active:scale-[0.98]"
-            style={accidentalStyle(accidental === -1)}
-          >
-            ♭
-          </button>
+        <div className="note-name-black-row">
+          {blackKeys.map((key) => renderKey(key.label, key.pc, true))}
         </div>
         <div className="note-name-row">
-          {NATURAL_LETTERS.map((letter) => {
-            const locked = lockedLetter(letter);
-            const hinted = hintedLetter(letter);
-            const isWrong = wrongLetter === letter;
-            return (
-              <button
-                key={letter}
-                type="button"
-                aria-label={letter}
-                aria-disabled={disabled || undefined}
-                onPointerDown={(e) => {
-                  if (disabled || e.button !== 0) return;
-                  e.preventDefault();
-                  playLetter(letter);
-                }}
-                className={`piano-key note-name-key touch-none active:scale-[0.98] ${isWrong ? 'wrong-shake' : ''}`}
-                style={{
-                  background: isWrong
-                    ? 'linear-gradient(180deg, #F7768E 0%, #c44e64 100%)'
-                    : locked
-                      ? 'linear-gradient(180deg, #B8F2D8 0%, #7ADCC8 100%)'
-                      : hinted
-                        ? 'linear-gradient(180deg, #FFE7A8 0%, #F0D080 100%)'
-                        : 'linear-gradient(180deg, #F0EEE8 0%, #D8D4CA 100%)',
-                  color: locked ? '#12382f' : hinted ? '#3a2c10' : isWrong ? '#F0F4FF' : '#1A1D2E',
-                  border: locked ? '1px solid rgba(122,220,200,0.7)' : '1px solid rgba(255,255,255,0.08)',
-                }}
-              >
-                {letter}
-              </button>
-            );
-          })}
+          {NATURAL_LETTERS.map((letter) => renderKey(letter, pitchClassForLetter(letter), false))}
         </div>
       </div>
     </section>

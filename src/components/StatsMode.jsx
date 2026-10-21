@@ -13,9 +13,6 @@ export function StatsMode({
   stats,
   setStats,
   hidden,
-  missCount = 0,
-  onRetryMisses,
-  onResetMissBook,
   fullStats = false,
   sessionStreak = 0,
   sessionAccuracy = 0,
@@ -29,29 +26,12 @@ export function StatsMode({
 
   const reset = () => {
     setStats({ ...DEFAULT_STATS });
-    onResetMissBook?.();
     setConfirmOpen(false);
   };
 
   return (
     <div className={`mode-panel ${hidden ? 'mode-hidden' : ''}`} aria-hidden={hidden}>
       <div className="flex-1 overflow-y-auto pb-4">
-        <div className="mb-4 p-4 rounded-2xl drill-card">
-          <div className="text-[10px] text-slate-400 uppercase tracking-[0.3em] font-semibold mb-3">
-            {t('stats.drillTitle')}
-          </div>
-          <div className="flex flex-col gap-2">
-            <button
-              type="button"
-              onClick={onRetryMisses}
-              disabled={missCount === 0}
-              className="pack-pill w-full py-2.5 text-sm touch-none active:scale-[0.98] disabled:opacity-40"
-            >
-              {missCount > 0 ? t('drill.retryCount', { n: missCount }) : t('drill.missEmpty')}
-            </button>
-          </div>
-        </div>
-
         {fullStats ? (
         <div className="grid grid-cols-2 gap-3 mb-4">
           <StatCard icon={<Check size={14} className="text-emerald-300" />} label={t('stats.totalCorrect')} value={stats.totalCorrect} accent="emerald" />

@@ -20,6 +20,7 @@ import {
 } from '../lib/stats.js';
 import { FULL_END, FULL_START } from '../lib/constants.js';
 import { scheduleAllHint } from '../lib/hintFlash.js';
+import { chordAccidentalSide } from '../lib/noteNames.js';
 import { useI18n } from '../hooks/useI18n.jsx';
 
 export function EarMode({
@@ -326,6 +327,7 @@ export function EarMode({
         onKey={handleKey}
         onShiftKeyboard={shiftKeyboard}
         disabled={feedback === 'correct'}
+        accidentalSpelling={chordAccidentalSide(question)}
       />
 
       <div className="flex justify-center gap-2 pb-2 safe-bottom">

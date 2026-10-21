@@ -23,6 +23,7 @@ import {
 } from '../lib/stats.js';
 import { FULL_END, FULL_START } from '../lib/constants.js';
 import { scheduleAllHint, scheduleSequentialHint } from '../lib/hintFlash.js';
+import { chordAccidentalSide, displayOctave, pressedAfterNote } from '../lib/noteNames.js';
 import { useI18n } from '../hooks/useI18n.jsx';
 
 export function TestMode({
@@ -186,9 +187,9 @@ export function TestMode({
 
   const handleKey = useCallback((midi) => {
     if (feedback === 'correct') return;
-    playNote(midi);
     const pc = ((midi % 12) + 12) % 12;
     if (!isCorrectNote(midi, question.pcs)) {
+      playNote(midi);
       setWrongFlash(midi);
       setLiveMessage(t('live.tryAgain'));
       schedule(() => setWrongFlash((prev) => (prev === midi ? null : prev)), 350);
@@ -201,6 +202,7 @@ export function TestMode({
     }
 
     if (!practiceInversions) {
+      playNote(midi);
       setLockedCorrect((prev) => {
         if (prev.has(pc)) return prev;
         const next = new Set(prev);
@@ -215,10 +217,15 @@ export function TestMode({
       return;
     }
 
+    const placed = pressedAfterNote(pressedRef.current, midi, {
+      voice: answerSurface === 'noteNames',
+      bassPc: question.bassPc,
+      octave: displayOctave(keyboardStart),
+    });
+    playNote(placed.sounding);
     const nextLocked = new Set(lockedRef.current);
-    nextLocked.add(pc);
-    const nextPressed = new Set([...pressedRef.current].filter((played) => ((played % 12) + 12) % 12 !== pc));
-    nextPressed.add(midi);
+    nextLocked.add(placed.pc);
+    const nextPressed = new Set(placed.midis);
     const complete = nextLocked.size === question.pcs.size
       && [...question.pcs].every((tone) => nextLocked.has(tone));
     if (complete && !romanPlayIsCorrect([...nextPressed], {
@@ -244,7 +251,7 @@ export function TestMode({
     setLockedCorrect(nextLocked);
     setPressed(nextPressed);
     setLiveMessage('');
-  }, [feedback, playNote, practiceInversions, question, schedule, setStats, t, tutorial]);
+  }, [answerSurface, feedback, keyboardStart, playNote, practiceInversions, question, schedule, setStats, t, tutorial]);
 
   const skip = () => {
     if (hideSkip) return;
@@ -408,6 +415,7 @@ export function TestMode({
         onShiftKeyboard={shiftKeyboard}
         disabled={feedback === 'correct'}
         wide={practiceInversions}
+        accidentalSpelling={chordAccidentalSide(question)}
       />
 
       <div className="flex justify-center gap-2 pb-2 safe-bottom">
