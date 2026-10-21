@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
+  PRODUCT_IDS,
   entitlementAfterPurchase,
   isDevProSimulation,
+  isProSubscriptionProduct,
   readProHint,
   resolveEntitlement,
   writeProHint,
@@ -40,13 +42,17 @@ export function useIap({
   }));
   const [ready, setReady] = useState(() => devPro || !native);
   const [prices, setPrices] = useState({});
+  const [products, setProducts] = useState({});
   const [priceStatus, setPriceStatus] = useState(native ? 'loading' : 'unavailable');
   const [busyId, setBusyId] = useState(null);
   const [notice, setNotice] = useState('');
   const [toast, setToast] = useState('');
   const isProRef = useRef(isPro);
+  const pricesRef = useRef(prices);
+  const loadSeq = useRef(0);
 
   useEffect(() => { isProRef.current = isPro; }, [isPro]);
+  useEffect(() => { pricesRef.current = prices; }, [prices]);
 
   const applyVerified = useCallback((result) => {
     const next = resolveEntitlement({
@@ -76,22 +82,36 @@ export function useIap({
     return () => { cancelled = true; };
   }, [applyVerified, devPro, verifyProEntitlement]);
 
-  useEffect(() => {
-    let cancelled = false;
+  const applyCatalog = useCallback((catalog) => {
+    const nextPrices = catalog?.prices || {};
+    setPrices(nextPrices);
+    setProducts(catalog?.products || {});
+    pricesRef.current = nextPrices;
+    if (!native || !catalog?.storeAvailable) setPriceStatus(native ? 'failed' : 'unavailable');
+    else if (nextPrices[PRODUCT_IDS.pro]) setPriceStatus('ready');
+    else setPriceStatus('failed');
+    return catalog;
+  }, [native]);
+
+  const reloadPrices = useCallback(async () => {
     if (!native) {
       setPriceStatus('unavailable');
       setPrices({});
-      return undefined;
+      setProducts({});
+      pricesRef.current = {};
+      return null;
     }
-    setPriceStatus('loading');
-    loadProductPrices().then((catalog) => {
-      if (cancelled) return;
-      setPrices(catalog?.prices || {});
-      if (!catalog?.storeAvailable || catalog?.loadFailed) setPriceStatus('failed');
-      else setPriceStatus('ready');
-    });
-    return () => { cancelled = true; };
-  }, [loadProductPrices, native]);
+    const seq = loadSeq.current + 1;
+    loadSeq.current = seq;
+    setPriceStatus((current) => (current === 'ready' ? 'ready' : 'loading'));
+    const catalog = await loadProductPrices();
+    if (loadSeq.current !== seq) return catalog;
+    return applyCatalog(catalog);
+  }, [applyCatalog, loadProductPrices, native]);
+
+  useEffect(() => {
+    reloadPrices();
+  }, [reloadPrices]);
 
   useEffect(() => {
     if (!toast) return undefined;
@@ -104,6 +124,13 @@ export function useIap({
     setNotice('');
     setBusyId(productId);
     try {
+      if (native && isProSubscriptionProduct(productId) && !pricesRef.current[productId]) {
+        const catalog = await reloadPrices();
+        if (!catalog?.prices?.[productId]) {
+          setNotice('productUnavailable');
+          return { ok: false, reason: 'product_unavailable', productId };
+        }
+      }
       const result = await purchase(productId);
       const nextPro = entitlementAfterPurchase(result, isProRef.current);
       if (nextPro !== isProRef.current) {
@@ -113,12 +140,21 @@ export function useIap({
       if (result?.ok) setToast('thanks');
       else if (result?.reason === 'pending') setNotice('pending');
       else if (result?.reason === 'unavailable') setNotice('unavailable');
-      else if (result?.reason && result.reason !== 'cancelled') setNotice('failed');
+      else if (result?.reason === 'product_unavailable') {
+        setNotice('productUnavailable');
+        setPriceStatus('failed');
+        reloadPrices().then((catalog) => {
+          if (catalog?.prices?.[productId]) setNotice('');
+        });
+      } else if (result?.reason && result.reason !== 'cancelled') {
+        setNotice('failed');
+        if (isProSubscriptionProduct(productId)) reloadPrices();
+      }
       return result;
     } finally {
       setBusyId(null);
     }
-  }, [busyId, devPro, native, purchase, storage]);
+  }, [busyId, devPro, native, purchase, reloadPrices, storage]);
 
   const restore = useCallback(async () => {
     if (busyId) return { ok: false, reason: 'busy' };
@@ -154,7 +190,9 @@ export function useIap({
     native,
     devPro,
     prices,
+    products,
     priceStatus,
+    reloadPrices,
     busyId,
     notice,
     setNotice,

@@ -44,10 +44,61 @@ export function storePriceString(product) {
   return trimmed || null;
 }
 
-function classifyPurchaseError(error) {
+function errorText(error) {
+  return [error?.code, error?.message, error?.errorMessage]
+    .filter((part) => part != null && part !== '')
+    .join(' ')
+    .toLowerCase();
+}
+
+/**
+ * Map a StoreKit / plugin rejection to a paywall outcome.
+ * Product-missing is separate from a generic failure so the UI can reload
+ * the catalog instead of looping the same dead-end message.
+ */
+export function classifyStoreError(error) {
   if (isUserCancelled(error)) return 'cancelled';
   if (isPurchasePending(error)) return 'pending';
+  const text = errorText(error);
+  if (
+    text.includes('cannot find product')
+    || text.includes('product not found')
+    || text.includes('product_not_found')
+    || text.includes('itemunavailable')
+    || text.includes('not available')
+  ) {
+    return 'product_unavailable';
+  }
   return 'failed';
+}
+
+/**
+ * Subscribe is only offered once StoreKit has returned a price.
+ * Missing products get a retry, not a purchase call that rejects.
+ */
+export function purchaseGate({ native, price, priceStatus }) {
+  if (!native) return 'unavailable';
+  if (price) return 'ready';
+  if (priceStatus === 'loading') return 'loading';
+  return 'needs_retry';
+}
+
+function defaultSleep(ms) {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
+
+function rememberProduct(prices, products, product) {
+  const id = product?.identifier;
+  if (!id) return;
+  const price = storePriceString(product);
+  const title = typeof product?.title === 'string' ? product.title.trim() : '';
+  if (price) prices[id] = price;
+  products[id] = {
+    title: title || null,
+    price: price || null,
+  };
 }
 
 function purchaseTypeFor(productId, PURCHASE_TYPE) {
@@ -65,6 +116,9 @@ export function createIapClient(deps = {}) {
   const {
     isNative = defaultIsNative,
     getNativePurchases = defaultGetNativePurchases,
+    sleep = defaultSleep,
+    retryDelayMs = 300,
+    maxAttempts = 3,
   } = deps;
 
   async function nativeModule() {
@@ -75,53 +129,104 @@ export function createIapClient(deps = {}) {
     };
   }
 
-  async function loadProductPrices() {
-    if (!isNative()) {
-      return { storeAvailable: false, loadFailed: false, prices: {} };
+  async function fetchProductList(NativePurchases, ids, productType, { retryEmpty = false } = {}) {
+    let lastError = null;
+    const attempts = Math.max(1, maxAttempts);
+    for (let attempt = 0; attempt < attempts; attempt += 1) {
+      try {
+        const { products } = await NativePurchases.getProducts({
+          productIdentifiers: [...ids],
+          productType,
+        });
+        const list = products || [];
+        const tryAgain = list.length === 0 && retryEmpty && attempt < attempts - 1;
+        if (!tryAgain) return { products: list, error: null };
+      } catch (error) {
+        lastError = error;
+        if (attempt === attempts - 1) return { products: [], error };
+      }
+      if (attempt < attempts - 1) await sleep(retryDelayMs * (attempt + 1));
     }
+    return { products: [], error: lastError };
+  }
+
+  async function loadProductPrices() {
+    const empty = {
+      storeAvailable: false,
+      loadFailed: false,
+      subscriptionReady: false,
+      prices: {},
+      products: {},
+      missingProductIds: [],
+    };
+    if (!isNative()) return empty;
 
     try {
       const { NativePurchases, PURCHASE_TYPE } = await nativeModule();
       const billing = await NativePurchases.isBillingSupported?.();
       if (billing && billing.isBillingSupported === false) {
-        return { storeAvailable: false, loadFailed: true, prices: {} };
+        return {
+          ...empty,
+          storeAvailable: false,
+          loadFailed: true,
+          missingProductIds: [...ALL_PRODUCT_IDS],
+        };
       }
 
       const prices = {};
+      const products = {};
       const inappIds = ALL_PRODUCT_IDS.filter((id) => !isProSubscriptionProduct(id));
       const subsIds = ALL_PRODUCT_IDS.filter((id) => isProSubscriptionProduct(id));
 
+      // Support and subscription queries are independent. A missing support SKU
+      // must not hide Pro Monthly or mark the subscription as failed.
       if (inappIds.length) {
-        const { products } = await NativePurchases.getProducts({
-          productIdentifiers: [...inappIds],
-          productType: PURCHASE_TYPE.INAPP || INAPP,
-        });
-        (products || []).forEach((product) => {
-          const price = storePriceString(product);
-          if (product?.identifier && price) prices[product.identifier] = price;
-        });
+        const fetched = await fetchProductList(
+          NativePurchases,
+          inappIds,
+          PURCHASE_TYPE.INAPP || INAPP,
+        );
+        fetched.products.forEach((product) => rememberProduct(prices, products, product));
       }
 
       if (subsIds.length) {
-        const { products } = await NativePurchases.getProducts({
-          productIdentifiers: [...subsIds],
-          productType: PURCHASE_TYPE.SUBS || SUBS,
-        });
-        (products || []).forEach((product) => {
-          const price = storePriceString(product);
-          // Capgo may return offer rows; prefer base monthly product id match.
+        const fetched = await fetchProductList(
+          NativePurchases,
+          subsIds,
+          PURCHASE_TYPE.SUBS || SUBS,
+          { retryEmpty: true },
+        );
+        fetched.products.forEach((product) => {
+          rememberProduct(prices, products, product);
           const id = product?.identifier;
+          const price = storePriceString(product);
+          // Capgo may return introductory-offer rows under a related id.
           if (id && price && (subsIds.includes(id) || id.startsWith(PRODUCT_IDS.pro))) {
             prices[PRODUCT_IDS.pro] = prices[PRODUCT_IDS.pro] || price;
-            if (subsIds.includes(id)) prices[id] = price;
+            if (!products[PRODUCT_IDS.pro]) products[PRODUCT_IDS.pro] = products[id];
           }
         });
       }
 
-      const loadFailed = ALL_PRODUCT_IDS.some((id) => !prices[id]);
-      return { storeAvailable: true, loadFailed, prices };
+      const missingProductIds = ALL_PRODUCT_IDS.filter((id) => !prices[id]);
+      const subscriptionReady = Boolean(prices[PRODUCT_IDS.pro]);
+      return {
+        storeAvailable: true,
+        loadFailed: !subscriptionReady,
+        subscriptionReady,
+        prices,
+        products,
+        missingProductIds,
+      };
     } catch {
-      return { storeAvailable: true, loadFailed: true, prices: {} };
+      return {
+        storeAvailable: true,
+        loadFailed: true,
+        subscriptionReady: false,
+        prices: {},
+        products: {},
+        missingProductIds: [...ALL_PRODUCT_IDS],
+      };
     }
   }
 
@@ -136,12 +241,17 @@ export function createIapClient(deps = {}) {
     try {
       const { NativePurchases, PURCHASE_TYPE } = await nativeModule();
       const productType = purchaseTypeFor(productId, PURCHASE_TYPE);
-      const transaction = await NativePurchases.purchaseProduct({
+      // Do not send quantity for auto-renewable Pro. Capgo 7.19.3 still
+      // defaults a missing quantity to 1 and inserts PurchaseOption.quantity,
+      // which StoreKit rejects. scripts/patch-native-purchases.mjs removes
+      // that option for subscriptions at install time.
+      const request = {
         productIdentifier: productId,
         productType,
-        quantity: 1,
         isConsumable: isSupportProduct(productId),
-      });
+      };
+      if (!isProSubscriptionProduct(productId)) request.quantity = 1;
+      const transaction = await NativePurchases.purchaseProduct(request);
       const purchasedId = transaction?.productIdentifier || productId;
       if (purchasedId !== productId) {
         return { ok: false, reason: 'failed', productId };
@@ -156,7 +266,7 @@ export function createIapClient(deps = {}) {
         revoked: false,
       };
     } catch (error) {
-      return { ok: false, reason: classifyPurchaseError(error), productId, error };
+      return { ok: false, reason: classifyStoreError(error), productId, error };
     }
   }
 
