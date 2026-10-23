@@ -7,8 +7,10 @@ import {
   EAR_QUALITY_TYPES,
   earQualityDomId,
   earQualityLabelKey,
+  earQualityPoolIsComplete,
   generateEarQualityQuestion,
   normalizeEarQualityPool,
+  selectAllEarQualities,
   toggleEarQuality,
 } from '../lib/earQuality.js';
 import {
@@ -158,9 +160,16 @@ export function EarQualityMode({
     playChord(question.voicing);
   };
 
+  const allSelected = earQualityPoolIsComplete(activePool);
+
   const togglePool = (type) => {
     if (feedback === 'correct') return;
     onPoolChange?.(toggleEarQuality(activePool, type));
+  };
+
+  const selectAll = () => {
+    if (feedback === 'correct' || allSelected) return;
+    onPoolChange?.(selectAllEarQualities());
   };
 
   return (
@@ -170,8 +179,19 @@ export function EarQualityMode({
         <div className="text-[10px] tracking-[0.5em] text-sky-300/80 uppercase mb-2 font-medium text-center">
           {t('listen.title')}
         </div>
-        <div className="text-[10px] text-slate-500 uppercase tracking-[0.25em] mb-1.5 font-semibold text-center">
-          {t('listen.pool')}
+        <div className="flex items-center justify-center gap-3 mb-1.5 px-1">
+          <div className="text-[10px] text-slate-500 uppercase tracking-[0.25em] font-semibold">
+            {t('listen.pool')}
+          </div>
+          <button
+            type="button"
+            data-testid="quality-pool-select-all"
+            onClick={selectAll}
+            disabled={allSelected}
+            className="text-[10px] uppercase tracking-[0.16em] font-semibold text-sky-300 disabled:text-slate-600 touch-none active:opacity-70"
+          >
+            {t('listen.selectAll')}
+          </button>
         </div>
         <div
           className="flex flex-wrap justify-center gap-1.5 mb-3 px-1"
