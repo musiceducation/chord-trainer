@@ -7,8 +7,6 @@ export function GuideOverlay({
   onCta,
   onSkip,
   skipLabel,
-  secondaryLabel,
-  onSecondary,
 }) {
   if (!open) return null;
 
@@ -42,11 +40,6 @@ export function GuideOverlay({
           <button type="button" className="guide-cta touch-none active:scale-[0.98]" onClick={onCta}>
             {ctaLabel}
           </button>
-          {onSecondary && (
-            <button type="button" className="guide-secondary touch-none active:scale-[0.98]" onClick={onSecondary}>
-              {secondaryLabel}
-            </button>
-          )}
         </div>
       </div>
     </div>

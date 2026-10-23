@@ -38,14 +38,12 @@ import { requestNativeReview } from './native/inAppReview.js';
 import { IapToast, PaywallSheet } from './components/PaywallSheet.jsx';
 import { readShotConfig } from './lib/shotMode.js';
 import {
-  BEGINNER_PACK,
   ONBOARDING_STEPS,
   earPracticeSpec,
   identifyPracticeSpec,
   initialGuideState,
   isGuideOverlayStep,
   isOnboardingPractice,
-  tabForPackIndex,
   tabsLocked,
 } from './lib/onboarding.js';
 
@@ -182,17 +180,6 @@ export default function App() {
     setShowSettings(false);
   }, [updateSettings]);
 
-  const startBeginnerPack = useCallback(() => {
-    setGuide({ kind: 'pack', index: 0 });
-    setTab(tabForPackIndex(0));
-    setShowSettings(false);
-  }, []);
-
-  const exitPack = useCallback(() => {
-    setGuide(null);
-    setTab('test');
-  }, []);
-
   const handlePracticeComplete = useCallback(() => {
     const current = guideRef.current;
     if (current?.kind === 'onboarding' && current.step === ONBOARDING_STEPS.IDENTIFY) {
@@ -202,16 +189,6 @@ export default function App() {
     }
     if (current?.kind === 'onboarding' && current.step === ONBOARDING_STEPS.TRAIN) {
       finishOnboarding();
-      return;
-    }
-    if (current?.kind === 'pack') {
-      const next = current.index + 1;
-      if (next >= BEGINNER_PACK.length) {
-        setGuide({ kind: 'packDone' });
-        return;
-      }
-      setGuide({ kind: 'pack', index: next });
-      setTab(tabForPackIndex(next));
     }
   }, [finishOnboarding]);
 
@@ -234,7 +211,7 @@ export default function App() {
 
   const handleRoundSettled = useCallback((payload) => {
     const guided = guideRef.current;
-    const blockingGuide = guided?.kind === 'onboarding' || guided?.kind === 'pack' || guided?.kind === 'packDone';
+    const blockingGuide = guided?.kind === 'onboarding';
     if (blockingGuide) return;
     if (payload?.skipped && !payload?.missed) return;
 
@@ -319,8 +296,6 @@ export default function App() {
   let overlayCta = '';
   let overlayOnCta = finishOnboarding;
   let overlaySkip = skipOnboarding;
-  let overlaySecondary;
-  let overlaySecondaryOn;
 
   if (guide?.kind === 'onboarding' && guide.step === ONBOARDING_STEPS.WELCOME) {
     overlayTitle = t('onboarding.welcomeTitle');
@@ -339,14 +314,6 @@ export default function App() {
     overlayCta = t('onboarding.perfectCta');
     overlayOnCta = finishOnboarding;
     overlaySkip = null;
-  } else if (guide?.kind === 'packDone') {
-    overlayTitle = t('pack.doneTitle');
-    overlayLead = t('pack.doneBody');
-    overlayCta = t('pack.done');
-    overlayOnCta = exitPack;
-    overlaySkip = null;
-    overlaySecondary = t('pack.replay');
-    overlaySecondaryOn = startBeginnerPack;
   }
 
   const guideTab = tab !== 'abrsm';
@@ -354,9 +321,7 @@ export default function App() {
     ? t('guide.oneLiner.abrsm')
     : isOnboardingPractice(guide)
     ? (guide.step === ONBOARDING_STEPS.IDENTIFY ? t('onboarding.identifyCoach') : t('onboarding.trainCoach'))
-    : guide?.kind === 'pack'
-      ? `${t('pack.name')} · ${t('pack.progress', { n: guide.index + 1 })}`
-      : t(`guide.oneLiner.${tab}`);
+    : t(`guide.oneLiner.${tab}`);
   if (!guide && tab === 'test' && settings.identifyInversions && !guidedIdentify) {
     coachLine = t('identify.findRoot');
   }
@@ -497,16 +462,6 @@ export default function App() {
                 {t('onboarding.skip')}
               </button>
             )}
-            {guideTab && guide?.kind === 'pack' && (
-              <button type="button" className="guide-skip-inline touch-none" onClick={exitPack}>
-                {t('pack.exit')}
-              </button>
-            )}
-            {guideTab && !guide && (
-              <button type="button" className="pack-pill touch-none active:scale-[0.98]" onClick={startBeginnerPack}>
-                {t('pack.name')}
-              </button>
-            )}
           </div>
         )}
 
@@ -625,14 +580,6 @@ export default function App() {
                 style={settingButtonStyle(false)}
               >
                 {t('onboarding.replay')}
-              </button>
-              <button
-                type="button"
-                onClick={startBeginnerPack}
-                className="py-2.5 rounded-xl text-sm transition-all touch-none active:scale-[0.98]"
-                style={settingButtonStyle(false)}
-              >
-                {t('pack.start')}
               </button>
             </div>
             <div className="text-[10px] text-slate-500 uppercase tracking-[0.3em] mt-3.5 mb-2.5 font-semibold">
@@ -820,8 +767,6 @@ export default function App() {
         onCta={overlayOnCta}
         onSkip={overlaySkip}
         skipLabel={t('onboarding.skip')}
-        secondaryLabel={overlaySecondary}
-        onSecondary={overlaySecondaryOn}
       />
     </div>
   );

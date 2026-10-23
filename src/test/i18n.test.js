@@ -26,7 +26,7 @@ describe('i18n', () => {
     expect(t('en', 'settings.language')).toBe('Language');
     expect(t('en', 'onboarding.replay')).toBe('Replay beginner guide');
     expect(t('zh-Hant', 'onboarding.replay')).toBe('重看新手引導');
-    expect(t('zh-Hant', 'pack.name')).toBe('新手 5 題');
+    expect(t('zh-Hant', 'listen.selectAll')).toBe('全選');
     expect(t('zh-Hant', 'guide.oneLiner.test')).toBe('看和弦名稱 → 在鋼琴上彈出');
     expect(t('zh-Hant', 'settings.language')).toBe('語言');
   });
@@ -49,6 +49,15 @@ describe('i18n', () => {
     const enKeys = Object.keys(STRINGS.en).sort();
     for (const lang of LANGUAGES) {
       expect(Object.keys(STRINGS[lang.id]).sort()).toEqual(enKeys);
+    }
+  });
+
+  it('has no Beginner 5 copy', () => {
+    for (const lang of LANGUAGES) {
+      for (const [key, value] of Object.entries(STRINGS[lang.id])) {
+        expect(key, key).not.toMatch(/^pack\./);
+        expect(String(value), `${lang.id}:${key}`).not.toMatch(/Beginner 5|新手 5/);
+      }
     }
   });
 
@@ -190,7 +199,7 @@ describe('i18n', () => {
     expect(t('zh-Hant', 'onboarding.celebrateTitle')).toBe('很好！');
     expect(t('zh-Hant', 'onboarding.perfectTitle')).toBe('已準備就緒');
     expect(t('zh-Hant', 'guide.oneLiner.ear')).toBe('聆聽後 → 再彈出');
-    expect(t('zh-Hant', 'pack.doneBody')).toBe('之後可在此處或設定中再次練習。');
+    expect(t('zh-Hant', 'listen.selectAll')).toBe('全選');
     expect(t('zh-Hant', 'iap.thanks')).toBe('感謝！');
     expect(t('en', 'guide.oneLiner.test')).toBe('Read the name → play it on the piano');
   });
