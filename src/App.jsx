@@ -278,6 +278,7 @@ export default function App() {
     pending: t('iap.pending'),
     unavailable: t('iap.unavailable'),
     failed: t('iap.failed'),
+    productUnavailable: t('iap.productUnavailable'),
     restoreFailed: t('iap.restoreFailed'),
     restoreNone: t('iap.restoreNone'),
   }[iap.notice] || '';
@@ -287,10 +288,18 @@ export default function App() {
     restored: t('iap.restoreDone'),
   }[iap.toast] || '';
 
+  const openPaywall = () => {
+    setPaywallOpen(true);
+    iap.reloadPrices();
+  };
+
   const buyPro = async () => {
     const result = await iap.buy(PRODUCT_IDS.pro);
     if (result?.ok) setPaywallOpen(false);
   };
+
+  const proStore = iap.products?.[PRODUCT_IDS.pro];
+  const subscriptionTitle = proStore?.title || t('pro.subscriptionTitle');
 
   const identifyFromGuide = identifyPracticeSpec(guide);
   const earFromGuide = earPracticeSpec(guide);
@@ -442,7 +451,7 @@ export default function App() {
                 disabled={lockTabs}
                 onClick={() => {
                   if (locked) {
-                    setPaywallOpen(true);
+                    openPaywall();
                     return;
                   }
                   setTab(item.key);
@@ -476,7 +485,7 @@ export default function App() {
               <button
                 type="button"
                 className="guide-skip-inline touch-none"
-                onClick={() => setPaywallOpen(true)}
+                onClick={() => openPaywall()}
               >
                 {t('ramp.proNudge')}
               </button>
@@ -656,6 +665,11 @@ export default function App() {
                   trialActive: t('pro.trialActive'),
                   trialEnded: t('pro.trialEnded'),
                   trialOffer: t('pro.trialOffer'),
+                  subscriptionTitle,
+                  subscriptionLength: t('pro.subscriptionLength'),
+                  pricePeriod: t('pro.pricePeriod'),
+                  privacy: t('pro.privacy'),
+                  terms: t('pro.terms'),
                   supportSection: t('support.section'),
                   supportDisclaimer: t('support.disclaimer'),
                   supportSmall: t('support.small'),
@@ -664,7 +678,7 @@ export default function App() {
                   smallId: PRODUCT_IDS.supportSmall,
                   largeId: PRODUCT_IDS.supportLarge,
                 }}
-                onBuyPro={() => setPaywallOpen(true)}
+                onBuyPro={() => openPaywall()}
                 onBuySupport={(productId) => iap.buy(productId)}
                 onRestore={iap.restore}
               />
@@ -744,7 +758,7 @@ export default function App() {
             fullStats={proAccess}
             sessionStreak={scoreInfo.streak}
             sessionAccuracy={sessionAccuracy}
-            onUnlockPro={() => setPaywallOpen(true)}
+            onUnlockPro={() => openPaywall()}
           />
         </main>
       </div>
@@ -752,6 +766,9 @@ export default function App() {
       <PaywallSheet
         open={paywallOpen}
         title={t('pro.paywallTitle')}
+        subscriptionTitle={subscriptionTitle}
+        subscriptionLength={t('pro.subscriptionLength')}
+        pricePeriod={t('pro.pricePeriod')}
         body={t('pro.paywallBody')}
         trialOffer={iap.isPro ? null : t('pro.trialOffer')}
         price={iap.prices[PRODUCT_IDS.pro]}
@@ -762,10 +779,14 @@ export default function App() {
         buyLabel={t('pro.buy')}
         restoreLabel={t('pro.restore')}
         closeLabel={t('dialog.close')}
+        retryLabel={t('iap.retry')}
+        privacyLabel={t('pro.privacy')}
+        termsLabel={t('pro.terms')}
         notice={noticeText}
         busy={iap.busyId === PRODUCT_IDS.pro || iap.busyId === 'restore'}
         onBuy={buyPro}
         onRestore={iap.restore}
+        onRetry={iap.reloadPrices}
         onClose={() => setPaywallOpen(false)}
       />
       <IapToast message={toastText} onDismiss={iap.clearToast} />

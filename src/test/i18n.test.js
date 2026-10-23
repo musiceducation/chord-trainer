@@ -58,8 +58,15 @@ describe('i18n', () => {
       'pro.unlocked',
       'pro.restore',
       'pro.paywallTitle',
+      'pro.subscriptionTitle',
+      'pro.subscriptionLength',
+      'pro.pricePeriod',
       'pro.paywallBody',
+      'pro.privacy',
+      'pro.terms',
       'pro.priceUnavailable',
+      'iap.productUnavailable',
+      'iap.retry',
       'pro.trialActive',
       'pro.trialEnded',
       'pro.trialOffer',
@@ -87,16 +94,29 @@ describe('i18n', () => {
     }
     expect(STRINGS.en['support.disclaimer']).toMatch(/unlock no features/i);
     expect(STRINGS['zh-Hant']['support.disclaimer']).toMatch(/不會解鎖/);
-    expect(STRINGS.en['pro.paywallBody']).toMatch(/7-day free trial/i);
-    expect(STRINGS.en['pro.paywallBody']).toMatch(/month/i);
+    expect(STRINGS.en['pro.trialOffer']).toMatch(/7-day free trial/i);
+    expect(STRINGS.en['pro.subscriptionLength']).toMatch(/1 month/i);
+    expect(STRINGS.en['pro.subscriptionLength']).toMatch(/auto-renew/i);
     expect(STRINGS.en['pro.paywallBody']).toMatch(/progressions/i);
-    expect(STRINGS['zh-Hant']['pro.paywallBody']).toMatch(/七日/);
-    expect(STRINGS['zh-Hant']['pro.paywallBody']).toMatch(/每月/);
+    expect(STRINGS.en['pro.subscriptionTitle']).toMatch(/monthly/i);
+    expect(STRINGS.en['pro.terms']).toMatch(/EULA/);
+    expect(STRINGS['zh-Hant']['pro.trialOffer']).toMatch(/七日/);
+    expect(STRINGS['zh-Hant']['pro.subscriptionLength']).toMatch(/1 個月/);
+    expect(STRINGS['zh-Hant']['pro.subscriptionLength']).toMatch(/自動續訂/);
     expect(STRINGS['zh-Hant']['pro.paywallBody']).toMatch(/和弦進行/);
+    expect(STRINGS['zh-Hant']['pro.pricePeriod']).toMatch(/每月/);
+    expect(STRINGS['zh-Hans']['pro.subscriptionLength']).toMatch(/1 个月/);
+    expect(STRINGS['zh-Hans']['pro.paywallBody']).toMatch(/和弦进行/);
     expect(STRINGS.en['sound.electricBright']).toBeTruthy();
     expect(STRINGS.en['sound.organ']).toBeTruthy();
-    expect(STRINGS['zh-Hans']['pro.paywallBody']).toBe(STRINGS['zh-Hant']['pro.paywallBody']);
     expect(STRINGS['zh-Hans']['support.disclaimer']).toBe(STRINGS['zh-Hant']['support.disclaimer']);
+    for (const lang of LANGUAGES) {
+      for (const [key, value] of Object.entries(STRINGS[lang.id])) {
+        if (key.startsWith('pro.') || key.startsWith('iap.')) {
+          expect(value, `${lang.id}:${key}`).not.toMatch(/6\.99|9\.99|0\.99|4\.99|\$/);
+        }
+      }
+    }
   });
 
   it('loads, saves, and rejects unsupported languages', () => {
