@@ -65,6 +65,7 @@ export const ACHIEVEMENTS = [
 export const TABS = [
   { key: 'test', accent: 'rgba(122,162,247,0.4)' },
   { key: 'ear', accent: 'rgba(122,220,200,0.4)' },
+  { key: 'listen', accent: 'rgba(125,196,247,0.4)' },
   { key: 'abrsm', accent: 'rgba(187,154,247,0.4)' },
   { key: 'progression', accent: 'rgba(122,162,247,0.4)' },
   { key: 'stats', accent: 'rgba(255,215,130,0.4)' },

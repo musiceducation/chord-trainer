@@ -24,6 +24,7 @@ describe('settings', () => {
       romanTier: 'easy',
       identifyInversions: false,
       romanInversions: false,
+      earQualityPool: ['', 'm', 'aug', 'dim'],
     });
     expect(normalizeSettings({ difficulty: 'nope', keyRoot: 'Z' })).toEqual(DEFAULT_SETTINGS);
     expect(normalizeSettings({ difficulty: 'seventh', keyRoot: 'Bb' })).toEqual({
@@ -36,6 +37,7 @@ describe('settings', () => {
       romanTier: 'easy',
       identifyInversions: false,
       romanInversions: false,
+      earQualityPool: ['', 'm', 'aug', 'dim'],
     });
     expect(normalizeSettings({
       answerSurface: 'noteNames',
@@ -71,6 +73,7 @@ describe('settings', () => {
       romanTier: 'easy',
       identifyInversions: false,
       romanInversions: false,
+      earQualityPool: ['', 'm', 'aug', 'dim'],
     });
   });
 });

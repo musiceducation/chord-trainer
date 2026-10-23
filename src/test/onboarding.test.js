@@ -93,6 +93,7 @@ describe('settings beginner flags', () => {
       romanTier: 'easy',
       identifyInversions: false,
       romanInversions: false,
+      earQualityPool: ['', 'm', 'aug', 'dim'],
     });
   });
 
@@ -113,6 +114,7 @@ describe('settings beginner flags', () => {
       romanTier: 'easy',
       identifyInversions: false,
       romanInversions: false,
+      earQualityPool: ['', 'm', 'aug', 'dim'],
     });
   });
 });

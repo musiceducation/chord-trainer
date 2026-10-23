@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Check, SkipForward, Sparkles, Lightbulb } from 'lucide-react';
 import { AnswerSurface } from './AnswerSurface.jsx';
+import { PracticeSetupRow } from './PracticeSetupRow.jsx';
 import { usePiano } from '../hooks/usePiano.js';
 import { useTimeoutCleanup } from '../hooks/useTimeoutCleanup.js';
 import {
@@ -46,6 +47,7 @@ export function TestMode({
   answerSurface = 'keyboard',
   inversions = false,
   onInversionsChange,
+  onDifficultyChange,
 }) {
   const fixedKey = fixedQuestion ? `${fixedQuestion.root}:${fixedQuestion.type}` : null;
   const practiceInversions = Boolean(inversions) && !tutorial && !fixedQuestion;
@@ -317,7 +319,8 @@ export function TestMode({
     }
   };
 
-  const showInversionToggle = !tutorial && !fixedQuestion && typeof onInversionsChange === 'function';
+  const showSetupRow = !tutorial && !fixedQuestion
+    && (typeof onInversionsChange === 'function' || typeof onDifficultyChange === 'function');
   const prompt = practiceInversions ? formatSlashChord(question) : formatChord(question.name);
   const promptSize = prompt.length > 6
     ? 'clamp(36px, 10vw, 72px)'
@@ -327,22 +330,13 @@ export function TestMode({
   return (
     <div className={`mode-panel ${hidden ? 'mode-hidden' : ''}`} aria-hidden={hidden} inert={hidden ? true : undefined}>
       <div aria-live="polite" className="sr-only">{liveMessage}</div>
-      {showInversionToggle && (
-        <div className="flex justify-center mb-1">
-          <button
-            type="button"
-            aria-pressed={inversions}
-            onClick={() => onInversionsChange(!inversions)}
-            className="px-3 py-1 rounded-full text-xs font-semibold touch-none active:scale-[0.98]"
-            style={{
-              background: inversions ? 'rgba(187,154,247,0.18)' : 'rgba(255,255,255,0.02)',
-              border: `1px solid ${inversions ? 'rgba(187,154,247,0.5)' : 'rgba(255,255,255,0.05)'}`,
-              color: inversions ? '#E0D4FF' : '#565F89',
-            }}
-          >
-            {t('identify.inversions')}
-          </button>
-        </div>
+      {showSetupRow && (
+        <PracticeSetupRow
+          difficulty={difficulty}
+          onDifficultyChange={onDifficultyChange}
+          inversions={inversions}
+          onInversionsChange={onInversionsChange}
+        />
       )}
       <div className="flex-1 flex flex-col items-center justify-center min-h-0 relative overflow-y-auto">
         <div key={question.id || question.name} className="chord-name text-center relative">

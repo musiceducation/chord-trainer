@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Check, SkipForward, Headphones, Play, Lightbulb } from 'lucide-react';
 import { AnswerSurface } from './AnswerSurface.jsx';
+import { PracticeSetupRow } from './PracticeSetupRow.jsx';
 import { usePiano } from '../hooks/usePiano.js';
 import { useTimeoutCleanup } from '../hooks/useTimeoutCleanup.js';
 import {
@@ -42,6 +43,7 @@ export function EarMode({
   questionEpoch = '',
   onRoundSettled,
   answerSurface = 'keyboard',
+  onDifficultyChange,
 }) {
   const fixedKey = fixedQuestion ? `${fixedQuestion.root}:${fixedQuestion.type}` : null;
   const [question, setQuestion] = useState(() => (
@@ -259,9 +261,17 @@ export function EarMode({
     }
   };
 
+  const showSetupRow = !tutorial && !fixedQuestion && typeof onDifficultyChange === 'function';
+
   return (
     <div className={`mode-panel ${hidden ? 'mode-hidden' : ''}`} aria-hidden={hidden} inert={hidden ? true : undefined}>
       <div aria-live="polite" className="sr-only">{liveMessage}</div>
+      {showSetupRow && (
+        <PracticeSetupRow
+          difficulty={difficulty}
+          onDifficultyChange={onDifficultyChange}
+        />
+      )}
       <div className="flex-1 flex flex-col items-center justify-center min-h-0 relative overflow-y-auto">
         <div className="text-[10px] tracking-[0.5em] text-emerald-400/70 uppercase mb-3 font-medium">
           {t('ear.listenPlay')}
