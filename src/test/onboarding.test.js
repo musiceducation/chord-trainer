@@ -1,6 +1,5 @@
 import { describe, it, expect } from 'vitest';
 import {
-  BEGINNER_PACK,
   ONBOARDING_STEPS,
   earPracticeSpec,
   identifyPracticeSpec,
@@ -8,9 +7,7 @@ import {
   isGuideOverlayStep,
   isOnboardingPractice,
   markFirstHintUsed,
-  packQuestionAt,
   tabForOnboardingStep,
-  tabForPackIndex,
   tabsLocked,
 } from '../lib/onboarding.js';
 import { sequentialHintStarts } from '../lib/hintFlash.js';
@@ -47,18 +44,15 @@ describe('onboarding state', () => {
     expect(isGuideOverlayStep({ kind: 'onboarding', step: 'perfect' })).toBe(true);
   });
 
-  it('uses fixed easy triads for tutorial and the beginner pack', () => {
+  it('uses fixed easy triads for the first-run tutorial', () => {
     expect(identifyPracticeSpec({ kind: 'onboarding', step: 'identify' })).toEqual({ root: 'C', type: '' });
     expect(identifyPracticeSpec({ kind: 'onboarding', step: 'celebrate' })).toEqual({ root: 'C', type: '' });
     expect(earPracticeSpec({ kind: 'onboarding', step: 'train' })).toEqual({ root: 'C', type: '' });
     expect(earPracticeSpec({ kind: 'onboarding', step: 'perfect' })).toEqual({ root: 'C', type: '' });
-    expect(BEGINNER_PACK).toHaveLength(5);
-    expect(BEGINNER_PACK.map((q) => q.root + q.type)).toEqual(['C', 'G', 'Am', 'C', 'G']);
-    expect(BEGINNER_PACK.filter((q) => q.mode === 'test')).toHaveLength(3);
-    expect(BEGINNER_PACK.filter((q) => q.mode === 'ear')).toHaveLength(2);
-    expect(packQuestionAt(2).name).toBe('Am');
-    expect(tabForPackIndex(3)).toBe('ear');
-    expect([...packQuestionAt(0).pcs].sort()).toEqual([0, 4, 7]);
+    expect(identifyPracticeSpec(null)).toBeNull();
+    expect(earPracticeSpec({ kind: 'onboarding', step: 'welcome' })).toBeNull();
+    expect(tabsLocked(null)).toBe(false);
+    expect(isGuideOverlayStep(null)).toBe(false);
   });
 
   it('orders C major tones root → third → fifth', () => {

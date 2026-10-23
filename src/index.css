@@ -328,7 +328,6 @@ body {
   letter-spacing: 0.01em;
 }
 
-.pack-pill,
 .guide-skip-inline {
   flex-shrink: 0;
   border-radius: 9999px;
@@ -336,12 +335,6 @@ body {
   font-size: 11px;
   font-weight: 650;
   letter-spacing: 0.04em;
-}
-
-.pack-pill {
-  background: rgba(122, 162, 247, 0.12);
-  border: 1px solid rgba(122, 162, 247, 0.35);
-  color: #C0CAF5;
 }
 
 .answer-reveal {
@@ -387,25 +380,15 @@ body {
   padding: 1.35rem 1.25rem 1.2rem;
 }
 
-.guide-cta,
-.guide-secondary {
+.guide-cta {
   width: 100%;
   border-radius: 0.9rem;
   padding: 0.75rem 1rem;
   font-size: 0.95rem;
   font-weight: 700;
-}
-
-.guide-cta {
   background: linear-gradient(135deg, rgba(122, 162, 247, 0.32), rgba(122, 162, 247, 0.12));
   border: 1px solid rgba(122, 162, 247, 0.5);
   color: #E8EEFF;
-}
-
-.guide-secondary {
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  color: #C0CAF5;
 }
 
 .prog-degree-hint {
