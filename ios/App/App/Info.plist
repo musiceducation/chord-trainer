@@ -3,7 +3,12 @@
 <plist version="1.0">
 <dict>
 	<key>CFBundleDevelopmentRegion</key>
-	<string>zh-Hant</string>
+	<string>en</string>
+	<!-- In-app 繁體中文 / 简体中文 are a Settings choice, not bundle localizations. -->
+	<key>CFBundleLocalizations</key>
+	<array>
+		<string>en</string>
+	</array>
 	<key>CFBundleDisplayName</key>
 	<string>Chord Trainer</string>
 	<key>CFBundleExecutable</key>

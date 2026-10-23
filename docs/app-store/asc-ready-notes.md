@@ -9,7 +9,7 @@ Use this when ASC is open. Archive a **new** 1.0 (build **2**) in Xcode. Do **no
 | App Name | Chord Trainer |
 | Bundle ID | com.musiceducation.chordtrainer |
 | SKU | chord-trainer-ios-001 |
-| Primary Language | Traditional Chinese (zh-Hant) |
+| Primary Language | English (en) |
 | Primary Category | Music |
 | Secondary Category | Education |
 | Age Rating | 4+ |
