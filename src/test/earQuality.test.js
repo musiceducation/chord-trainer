@@ -5,9 +5,11 @@ import {
   EAR_QUALITY_LABEL_KEYS,
   EAR_QUALITY_TYPES,
   earQualityCatalogMatchesFormulas,
+  earQualityPoolIsComplete,
   generateEarQualityQuestion,
   isRootPositionQuality,
   normalizeEarQualityPool,
+  selectAllEarQualities,
   toggleEarQuality,
 } from '../lib/earQuality.js';
 import { normalizeSettings } from '../lib/settings.js';
@@ -38,6 +40,30 @@ describe('ear quality pool', () => {
     expect(toggleEarQuality(['maj7'], 'maj7')).toEqual(['maj7']);
     expect(toggleEarQuality(['m'], 'not-a-quality')).toEqual(['m']);
     expect(toggleEarQuality(['aug', ''], 'aug')).toEqual(['']);
+  });
+
+  it('selects every catalog quality and still refuses to clear the last one', () => {
+    const all = selectAllEarQualities();
+    expect(all).toEqual([...EAR_QUALITY_TYPES]);
+    expect(earQualityPoolIsComplete(all)).toBe(true);
+    expect(earQualityPoolIsComplete(['', 'm'])).toBe(false);
+    expect(normalizeSettings({ earQualityPool: all }).earQualityPool).toEqual([...EAR_QUALITY_TYPES]);
+
+    const copy = selectAllEarQualities();
+    copy.pop();
+    expect(selectAllEarQualities()).toHaveLength(EAR_QUALITY_TYPES.length);
+
+    let pool = selectAllEarQualities();
+    for (const type of EAR_QUALITY_TYPES) {
+      pool = toggleEarQuality(pool, type);
+    }
+    expect(pool).toHaveLength(1);
+    expect(EAR_QUALITY_TYPES).toContain(pool[0]);
+    expect(toggleEarQuality(pool, pool[0])).toEqual(pool);
+    expect(selectAllEarQualities()).toEqual([...EAR_QUALITY_TYPES]);
+    expect(toggleEarQuality(selectAllEarQualities(), 'maj9')).toEqual(
+      EAR_QUALITY_TYPES.filter((type) => type !== 'maj9'),
+    );
   });
 
   it('draws only the selected qualities and always uses root position', () => {

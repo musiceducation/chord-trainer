@@ -68,6 +68,15 @@ export function toggleEarQuality(pool, type) {
   return EAR_QUALITY_TYPES.filter((item) => picked.has(item));
 }
 
+/** Every quality in the catalog, in chip order. Does not clear a selection. */
+export function selectAllEarQualities() {
+  return [...EAR_QUALITY_TYPES];
+}
+
+export function earQualityPoolIsComplete(pool) {
+  return normalizeEarQualityPool(pool).length === EAR_QUALITY_TYPES.length;
+}
+
 /**
  * Root position only. `inversion` is always 0 and the bass pitch class is the root.
  * There is no Easy / Medium / Hard tier — the pool is the whole drill definition.
