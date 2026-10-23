@@ -1,6 +1,7 @@
 import { normalizeRomanTier } from './abrsm.js';
 import { DIFFICULTY_LEVELS } from './constants.js';
 import { TRAINING_KEYS } from './diatonic.js';
+import { DEFAULT_EAR_QUALITY_POOL, normalizeEarQualityPool } from './earQuality.js';
 import { DEFAULT_PIANO_SOUND, normalizePianoSound } from './pianoSamples.js';
 
 export const ANSWER_SURFACES = Object.freeze(['keyboard', 'noteNames']);
@@ -23,6 +24,7 @@ export const DEFAULT_SETTINGS = {
   romanTier: 'easy',
   identifyInversions: false,
   romanInversions: false,
+  earQualityPool: [...DEFAULT_EAR_QUALITY_POOL],
 };
 
 function isValidDifficulty(value) {
@@ -51,6 +53,7 @@ export function normalizeSettings(raw) {
     return {
       ...DEFAULT_SETTINGS,
       firstHintUsed: { ...DEFAULT_FIRST_HINT_USED },
+      earQualityPool: [...DEFAULT_EAR_QUALITY_POOL],
     };
   }
   return {
@@ -63,6 +66,7 @@ export function normalizeSettings(raw) {
     romanTier: normalizeRomanTier(raw.romanTier),
     identifyInversions: raw.identifyInversions === true,
     romanInversions: raw.romanInversions === true,
+    earQualityPool: normalizeEarQualityPool(raw.earQualityPool),
   };
 }
 

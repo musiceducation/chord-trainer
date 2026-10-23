@@ -1,10 +1,11 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import {
-  Volume2, VolumeX, Flame, Settings, Sparkles, Headphones, BarChart3, ListMusic, Lock, GraduationCap,
+  Volume2, VolumeX, Flame, Settings, Sparkles, Headphones, Ear, BarChart3, ListMusic, Lock, GraduationCap,
 } from 'lucide-react';
 import { TestMode } from './components/TestMode.jsx';
 import { AbrsmMode } from './components/AbrsmMode.jsx';
 import { EarMode } from './components/EarMode.jsx';
+import { EarQualityMode } from './components/EarQualityMode.jsx';
 import { ProgressionEarMode } from './components/ProgressionEarMode.jsx';
 import { StatsMode } from './components/StatsMode.jsx';
 import { GuideOverlay } from './components/GuideOverlay.jsx';
@@ -51,6 +52,7 @@ import {
 const TAB_ICONS = {
   test: Sparkles,
   ear: Headphones,
+  listen: Ear,
   progression: ListMusic,
   abrsm: GraduationCap,
   stats: BarChart3,
@@ -264,10 +266,10 @@ export default function App() {
     ? Math.round((scoreInfo.correct / scoreInfo.total) * 100)
     : 0;
 
-  const changeDifficulty = (d) => {
+  const changeDifficulty = (d, { closeSettings = false } = {}) => {
     rampMissRef.current = 0;
     updateSettings({ difficulty: d });
-    setShowSettings(false);
+    if (closeSettings) setShowSettings(false);
   };
 
   const changePianoSound = (id) => {
@@ -381,7 +383,7 @@ export default function App() {
       <div
         className="absolute top-[-20%] left-[-10%] w-[500px] h-[500px] rounded-full ambient-glow float-orb pointer-events-none ambient-orb"
         style={{
-          background: tab === 'ear'
+          background: tab === 'ear' || tab === 'listen'
             ? 'radial-gradient(circle, rgba(122,220,200,0.18) 0%, transparent 70%)'
             : tab === 'stats'
             ? 'radial-gradient(circle, rgba(255,215,130,0.15) 0%, transparent 70%)'
@@ -457,7 +459,7 @@ export default function App() {
                   setTab(item.key);
                   setShowSettings(false);
                 }}
-                className="flex-1 min-w-0 flex flex-col items-center justify-center gap-0.5 py-1.5 rounded-xl text-[11px] font-semibold whitespace-nowrap transition-all touch-none active:scale-[0.98] disabled:opacity-40"
+                className="flex-1 min-w-0 flex flex-col items-center justify-center gap-0.5 py-1.5 rounded-xl text-[10px] sm:text-[11px] font-semibold whitespace-nowrap transition-all touch-none active:scale-[0.98] disabled:opacity-40"
                 style={{
                   background: active ? `linear-gradient(135deg, ${item.accent.replace('0.4', '0.18')}, ${item.accent.replace('0.4', '0.06')})` : 'transparent',
                   border: `1px solid ${active ? item.accent : 'transparent'}`,
@@ -513,7 +515,7 @@ export default function App() {
             aria-label={t('settings.aria')}
             className="mb-3 p-3 rounded-2xl chord-name panel-solid relative z-20 max-h-[min(62dvh,560px)] overflow-y-auto overscroll-contain"
           >
-            {tab !== 'stats' && tab !== 'abrsm' && (
+            {tab === 'progression' && (
               <>
                 <div className="text-[10px] text-slate-500 uppercase tracking-[0.3em] mb-2.5 font-semibold">{t('settings.difficulty')}</div>
                 <div className="grid grid-cols-2 gap-1.5">
@@ -523,7 +525,7 @@ export default function App() {
                       <button
                         key={key}
                         type="button"
-                        onClick={() => changeDifficulty(key)}
+                        onClick={() => changeDifficulty(key, { closeSettings: true })}
                         className="py-2.5 rounded-xl text-sm transition-all touch-none active:scale-[0.98] inline-flex items-center justify-center gap-1.5"
                         style={settingButtonStyle(active)}
                       >
@@ -532,30 +534,26 @@ export default function App() {
                     );
                   })}
                 </div>
-                {tab === 'progression' && (
-                  <>
-                    <div className="text-[10px] text-slate-500 uppercase tracking-[0.3em] mt-3.5 mb-2.5 font-semibold">{t('settings.key')}</div>
-                    <div className="grid grid-cols-4 gap-1.5">
-                      {TRAINING_KEYS.map((key) => {
-                        const active = keyRoot === key;
-                        return (
-                          <button
-                            key={key}
-                            type="button"
-                            onClick={() => { updateSettings({ keyRoot: key }); setShowSettings(false); }}
-                            className="py-2.5 rounded-xl text-sm transition-all touch-none active:scale-[0.98]"
-                            style={settingButtonStyle(active)}
-                          >
-                            {key}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </>
-                )}
+                <div className="text-[10px] text-slate-500 uppercase tracking-[0.3em] mt-3.5 mb-2.5 font-semibold">{t('settings.key')}</div>
+                <div className="grid grid-cols-4 gap-1.5">
+                  {TRAINING_KEYS.map((key) => {
+                    const active = keyRoot === key;
+                    return (
+                      <button
+                        key={key}
+                        type="button"
+                        onClick={() => { updateSettings({ keyRoot: key }); setShowSettings(false); }}
+                        className="py-2.5 rounded-xl text-sm transition-all touch-none active:scale-[0.98]"
+                        style={settingButtonStyle(active)}
+                      >
+                        {key}
+                      </button>
+                    );
+                  })}
+                </div>
               </>
             )}
-            <div className={`text-[10px] text-slate-500 uppercase tracking-[0.3em] mb-2.5 font-semibold ${tab !== 'stats' && tab !== 'abrsm' ? 'mt-3.5' : ''}`}>
+            <div className={`text-[10px] text-slate-500 uppercase tracking-[0.3em] mb-2.5 font-semibold ${tab === 'progression' ? 'mt-3.5' : ''}`}>
               {t('settings.language')}
             </div>
             <div className="grid grid-cols-3 gap-1.5">
@@ -706,6 +704,7 @@ export default function App() {
             answerSurface={settings.answerSurface}
             inversions={settings.identifyInversions}
             onInversionsChange={(identifyInversions) => updateSettings({ identifyInversions })}
+            onDifficultyChange={changeDifficulty}
           />
           <EarMode
             difficulty={practiceDifficulty}
@@ -725,6 +724,16 @@ export default function App() {
             autoHint={firstHintReady && !settings.firstHintUsed.ear}
             onAutoHintUsed={() => markHintUsed('ear')}
             answerSurface={settings.answerSurface}
+            onDifficultyChange={changeDifficulty}
+          />
+          <EarQualityMode
+            pool={settings.earQualityPool}
+            onPoolChange={(earQualityPool) => updateSettings({ earQualityPool })}
+            soundOn={soundOn}
+            pianoSound={pianoSound}
+            setStats={setStats}
+            onScoreChange={setScoreInfo}
+            hidden={tab !== 'listen'}
           />
           <ProgressionEarMode
             difficulty={practiceDifficulty}
