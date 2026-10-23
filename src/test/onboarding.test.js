@@ -89,6 +89,10 @@ describe('settings beginner flags', () => {
       pianoSound: 'acoustic',
       onboardingDone: false,
       firstHintUsed: { identify: false, ear: false, progress: false },
+      answerSurface: 'keyboard',
+      romanTier: 'easy',
+      identifyInversions: false,
+      romanInversions: false,
     });
   });
 
@@ -105,6 +109,10 @@ describe('settings beginner flags', () => {
       pianoSound: 'acoustic',
       onboardingDone: true,
       firstHintUsed: { identify: true, ear: false, progress: true },
+      answerSurface: 'keyboard',
+      romanTier: 'easy',
+      identifyInversions: false,
+      romanInversions: false,
     });
   });
 });

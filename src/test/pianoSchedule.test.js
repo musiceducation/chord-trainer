@@ -11,6 +11,7 @@ import {
   renderQuantumSeconds,
   resetPianoEngineForTests,
   schedulePianoNotes,
+  setActivePianoSound,
 } from '../lib/pianoEngine.js';
 import {
   getSharedPianoContext,
@@ -167,6 +168,33 @@ afterEach(() => {
   if (originalWindow === undefined) delete globalThis.window;
   else globalThis.window = originalWindow;
   vi.useRealTimers();
+});
+
+describe('piano output graph', () => {
+  it('disconnects the previous master when the instrument graph is rebuilt', () => {
+    const ctx = makeCtx();
+    const toDestination = [];
+    ctx.createGain = () => {
+      const node = {
+        gain: param(1),
+        disconnected: false,
+        connect(dest) {
+          if (dest === ctx.destination) toDestination.push(node);
+        },
+      };
+      node.disconnect = () => { node.disconnected = true; };
+      return node;
+    };
+    schedulePianoNotes(ctx, [{ midi: 60, offset: 0, sustain: 1, gain: 0.5 }]);
+    const firstMaster = toDestination[toDestination.length - 1];
+    expect(firstMaster).toBeTruthy();
+    setActivePianoSound('electric');
+    schedulePianoNotes(ctx, [{ midi: 60, offset: 0, sustain: 1, gain: 0.5 }]);
+    const nextMaster = toDestination[toDestination.length - 1];
+    expect(nextMaster).not.toBe(firstMaster);
+    expect(firstMaster.disconnected).toBe(true);
+    expect(nextMaster.disconnected).toBe(false);
+  });
 });
 
 describe('playbackStartTime', () => {

@@ -14,6 +14,7 @@ const rawCache = new Map();
 const rawPending = new Map();
 const graphs = new WeakMap();
 const resumePromises = new WeakMap();
+const stateListeners = new WeakMap();
 let unlockedContexts = new WeakSet();
 let decodeWhileSuspendedFailed = false;
 const recentSchedules = [];
@@ -285,12 +286,14 @@ function waitUntilRunning(ctx) {
       if (typeof ctx.removeEventListener === 'function') {
         ctx.removeEventListener('statechange', finish);
       }
+      untrackStateListener(ctx, finish);
       if (stateHandler && ctx.onstatechange === stateHandler) {
         ctx.onstatechange = previousStateHandler;
       }
     };
     if (typeof ctx.addEventListener === 'function') {
       ctx.addEventListener('statechange', finish);
+      trackStateListener(ctx, finish);
     } else if ('onstatechange' in ctx || ctx.onstatechange !== undefined) {
       stateHandler = (event) => {
         if (typeof previousStateHandler === 'function') previousStateHandler(event);
@@ -353,9 +356,56 @@ function loadSample(ctx, sample, options = {}) {
   return job;
 }
 
+function disconnectNode(node) {
+  try { node?.disconnect(); } catch { /* already disconnected */ }
+}
+
+function disconnectGraph(graph) {
+  if (!graph) return;
+  for (const voice of graph.voices) {
+    disconnectNode(voice.gain);
+    for (const node of voice.nodes) disconnectNode(node);
+  }
+  graph.voices = [];
+  disconnectNode(graph.input);
+  for (const filter of graph.filters || []) disconnectNode(filter);
+  disconnectNode(graph.comp);
+  disconnectNode(graph.master);
+}
+
+function trackStateListener(ctx, fn) {
+  let set = stateListeners.get(ctx);
+  if (!set) {
+    set = new Set();
+    stateListeners.set(ctx, set);
+  }
+  set.add(fn);
+}
+
+function untrackStateListener(ctx, fn) {
+  stateListeners.get(ctx)?.delete(fn);
+}
+
+/** Drop the output graph and resume listeners before the context closes. */
+export function disposePianoContext(ctx) {
+  if (!ctx) return;
+  disconnectGraph(graphs.get(ctx));
+  graphs.delete(ctx);
+  const waiters = stateListeners.get(ctx);
+  if (waiters) {
+    if (typeof ctx.removeEventListener === 'function') {
+      for (const fn of waiters) ctx.removeEventListener('statechange', fn);
+    }
+    waiters.clear();
+  }
+  stateListeners.delete(ctx);
+  resumePromises.delete(ctx);
+}
+
 function graphFor(ctx) {
   let graph = graphs.get(ctx);
   if (graph && graph.toneGeneration === toneGeneration) return graph;
+  disconnectGraph(graph);
 
   const tone = getActivePianoTone();
   const input = ctx.createGain();
@@ -380,7 +430,9 @@ function graphFor(ctx) {
   comp.connect(master);
   master.connect(ctx.destination);
 
-  graph = { input, voices: [], toneGeneration };
+  graph = {
+    input, filters, comp, master, voices: [], toneGeneration,
+  };
   graphs.set(ctx, graph);
   return graph;
 }

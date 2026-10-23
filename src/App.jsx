@@ -20,21 +20,12 @@ import {
   normalizePianoSound,
 } from './lib/pianoSamples.js';
 import { setActivePianoSound } from './lib/pianoEngine.js';
-import {
-  advanceDrill,
-  applyRoundToBook,
-  buildMissRetryQuestions,
-  drillCorrectCount,
-  loadMissBook,
-  saveMissBook,
-} from './lib/drill.js';
 import { LANGUAGES, htmlLangFor } from './lib/i18n.js';
 import { useI18n } from './hooks/useI18n.jsx';
 import { useIap } from './hooks/useIap.js';
 import { IapSettings } from './components/IapSettings.jsx';
 import { SoftReviewDialog } from './components/SoftReviewDialog.jsx';
 import {
-  isPositiveDrillResult,
   isStreakMilestone,
   loadReviewState,
   recordReviewRequested,
@@ -89,9 +80,6 @@ export default function App() {
   const [stats, setStatsState] = useState(() => loadStats());
   const [scoreInfo, setScoreInfo] = useState({ streak: 0, correct: 0, total: 0 });
   const [guide, setGuide] = useState(() => initialGuideState(loadSettings().onboardingDone, { shotActive }));
-  const [missBook, setMissBook] = useState(() => loadMissBook());
-  const [drill, setDrill] = useState(null);
-  const [drillPromptDismissed, setDrillPromptDismissed] = useState(false);
   const [reviewOpen, setReviewOpen] = useState(false);
   const reviewStateRef = useRef(loadReviewState());
   const reviewPromptedRef = useRef(false);
@@ -104,16 +92,19 @@ export default function App() {
   const pianoSound = normalizePianoSound(settings.pianoSound || DEFAULT_PIANO_SOUND);
   const isProRef = useRef(proAccess);
   const guideRef = useRef(guide);
-  const drillRef = useRef(null);
   const difficultyRef = useRef(difficulty);
-  const missBookRef = useRef(missBook);
   const rampMissRef = useRef(0);
 
   useEffect(() => { guideRef.current = guide; }, [guide]);
-  useEffect(() => { drillRef.current = drill; }, [drill]);
   useEffect(() => { difficultyRef.current = difficulty; }, [difficulty]);
-  useEffect(() => { missBookRef.current = missBook; }, [missBook]);
   useEffect(() => { isProRef.current = proAccess; }, [proAccess]);
+  useEffect(() => {
+    try {
+      localStorage.removeItem('chordTrainerMissBook_v1');
+    } catch {
+      /* storage may be unavailable */
+    }
+  }, []);
   useEffect(() => {
     if (!proAccess && tab === 'progression') setTab('test');
   }, [proAccess, tab]);
@@ -183,8 +174,6 @@ export default function App() {
   }, []);
 
   const replayOnboarding = useCallback(() => {
-    drillRef.current = null;
-    setDrill(null);
     updateSettings({ onboardingDone: false });
     setGuide({ kind: 'onboarding', step: ONBOARDING_STEPS.IDENTIFY });
     setTab('test');
@@ -192,8 +181,6 @@ export default function App() {
   }, [updateSettings]);
 
   const startBeginnerPack = useCallback(() => {
-    drillRef.current = null;
-    setDrill(null);
     setGuide({ kind: 'pack', index: 0 });
     setTab(tabForPackIndex(0));
     setShowSettings(false);
@@ -239,45 +226,14 @@ export default function App() {
     setReviewOpen(true);
   }, [reviewOpen]);
 
-  const handleQuestionComplete = useCallback((payload = {}) => {
-    const currentDrill = drillRef.current;
-    if (currentDrill && !currentDrill.done) {
-      const next = advanceDrill(currentDrill, payload);
-      drillRef.current = next;
-      setDrill(next);
-      if (!next.done) {
-        const upcoming = next.questions[next.index];
-        if (upcoming?.mode) setTab(upcoming.mode);
-      } else {
-        const correct = drillCorrectCount(next);
-        if (isPositiveDrillResult(correct, next.questions.length)) {
-          queueReviewPrompt('drillDone');
-        }
-      }
-      return;
-    }
+  const handleQuestionComplete = useCallback(() => {
     handlePracticeComplete();
-  }, [handlePracticeComplete, queueReviewPrompt]);
+  }, [handlePracticeComplete]);
 
   const handleRoundSettled = useCallback((payload) => {
     const guided = guideRef.current;
     const blockingGuide = guided?.kind === 'onboarding' || guided?.kind === 'pack' || guided?.kind === 'packDone';
     if (blockingGuide) return;
-
-    if (payload?.question?.root) {
-      setMissBook((prev) => {
-        const next = applyRoundToBook(prev, payload.question, {
-          missed: payload.missed,
-          skipped: payload.skipped,
-          at: new Date().toISOString(),
-        });
-        saveMissBook(next);
-        missBookRef.current = next;
-        return next;
-      });
-    }
-
-    if (drillRef.current) return;
     if (payload?.skipped && !payload?.missed) return;
 
     const missed = Boolean(payload?.missed);
@@ -304,43 +260,6 @@ export default function App() {
     }
   }, [updateSettings, queueReviewPrompt]);
 
-  const beginDrill = useCallback((session) => {
-    if (!session?.questions?.length) return;
-    drillRef.current = session;
-    setDrill(session);
-    setGuide(null);
-    setShowSettings(false);
-    setDrillPromptDismissed(true);
-    const first = session.questions[Math.min(session.index || 0, session.questions.length - 1)];
-    setTab(first.mode === 'test' ? 'test' : 'ear');
-  }, []);
-
-
-  const startRetry = useCallback(() => {
-    const questions = buildMissRetryQuestions(missBookRef.current.items);
-    if (!questions.length) return;
-    beginDrill({
-      kind: 'misses',
-      questions,
-      index: 0,
-      results: [],
-      done: false,
-    });
-  }, [beginDrill]);
-
-  const exitDrill = useCallback(() => {
-    drillRef.current = null;
-    setDrill(null);
-    setTab('test');
-  }, []);
-
-  const clearMissBook = useCallback(() => {
-    const empty = { items: [] };
-    missBookRef.current = empty;
-    setMissBook(empty);
-    saveMissBook(empty);
-  }, []);
-
   const sessionAccuracy = scoreInfo.total > 0
     ? Math.round((scoreInfo.correct / scoreInfo.total) * 100)
     : 0;
@@ -359,6 +278,7 @@ export default function App() {
     pending: t('iap.pending'),
     unavailable: t('iap.unavailable'),
     failed: t('iap.failed'),
+    productUnavailable: t('iap.productUnavailable'),
     restoreFailed: t('iap.restoreFailed'),
     restoreNone: t('iap.restoreNone'),
   }[iap.notice] || '';
@@ -368,29 +288,28 @@ export default function App() {
     restored: t('iap.restoreDone'),
   }[iap.toast] || '';
 
+  const openPaywall = () => {
+    setPaywallOpen(true);
+    iap.reloadPrices();
+  };
+
   const buyPro = async () => {
     const result = await iap.buy(PRODUCT_IDS.pro);
     if (result?.ok) setPaywallOpen(false);
   };
 
-  const drillQuestion = drill && !drill.done ? drill.questions[drill.index] : null;
-  const drillEpoch = drillQuestion
-    ? `${drill.kind}:${drill.index}:${drillQuestion.root}:${drillQuestion.type}`
-    : '';
+  const proStore = iap.products?.[PRODUCT_IDS.pro];
+  const subscriptionTitle = proStore?.title || t('pro.subscriptionTitle');
+
   const identifyFromGuide = identifyPracticeSpec(guide);
   const earFromGuide = earPracticeSpec(guide);
-  const identifySpec = drillQuestion?.mode === 'test' ? drillQuestion : identifyFromGuide;
-  const earSpec = drillQuestion?.mode === 'ear' ? drillQuestion : earFromGuide;
-  const guidedIdentify = Boolean(identifyFromGuide) && !drillQuestion;
-  const guidedEar = Boolean(earFromGuide) && !drillQuestion;
-  const lockTabs = tabsLocked(guide) || Boolean(drillQuestion);
-  const drillDone = Boolean(drill?.done);
-  const overlayOpen = isGuideOverlayStep(guide) || drillDone;
-  const firstHintReady = !guide && !drill && !shotActive;
-  const showMissPrompt = !guide && !drill && !drillPromptDismissed
-    && tab !== 'stats'
-    && tab !== 'abrsm'
-    && missBook.items.length > 0;
+  const identifySpec = identifyFromGuide;
+  const earSpec = earFromGuide;
+  const guidedIdentify = Boolean(identifyFromGuide);
+  const guidedEar = Boolean(earFromGuide);
+  const lockTabs = tabsLocked(guide);
+  const overlayOpen = isGuideOverlayStep(guide);
+  const firstHintReady = !guide && !shotActive;
 
   let overlayTitle = '';
   let overlayLead = '';
@@ -426,32 +345,19 @@ export default function App() {
     overlaySkip = null;
     overlaySecondary = t('pack.replay');
     overlaySecondaryOn = startBeginnerPack;
-  } else if (drillDone) {
-    const correct = drillCorrectCount(drill);
-    const total = drill.questions.length;
-    overlayTitle = t('drill.retryDoneTitle');
-    overlayLead = t('drill.doneBody', { correct, total });
-    overlayCta = t('drill.doneClose');
-    overlayOnCta = exitDrill;
-    overlaySkip = null;
-    if (missBook.items.length > 0) {
-      overlaySecondary = t('drill.retryCount', { n: missBook.items.length });
-      overlaySecondaryOn = startRetry;
-    }
   }
 
-  const drillCoach = drillQuestion
-    ? t('drill.retryProgress', { n: drill.index + 1, total: drill.questions.length })
-    : '';
-
   const guideTab = tab !== 'abrsm';
-  const coachLine = !guideTab
+  let coachLine = !guideTab
     ? t('guide.oneLiner.abrsm')
     : isOnboardingPractice(guide)
     ? (guide.step === ONBOARDING_STEPS.IDENTIFY ? t('onboarding.identifyCoach') : t('onboarding.trainCoach'))
     : guide?.kind === 'pack'
       ? `${t('pack.name')} · ${t('pack.progress', { n: guide.index + 1 })}`
       : t(`guide.oneLiner.${tab}`);
+  if (!guide && tab === 'test' && settings.identifyInversions && !guidedIdentify) {
+    coachLine = t('identify.findRoot');
+  }
 
   const closeReviewGate = useCallback((answer) => {
     const answered = recordSoftAnswer(reviewStateRef.current, answer);
@@ -545,7 +451,7 @@ export default function App() {
                 disabled={lockTabs}
                 onClick={() => {
                   if (locked) {
-                    setPaywallOpen(true);
+                    openPaywall();
                     return;
                   }
                   setTab(item.key);
@@ -571,20 +477,20 @@ export default function App() {
 
         {!overlayOpen && (
           <div className="flex items-center gap-2 mb-3">
-            <p className="mode-coach flex-1 min-w-0">{drillQuestion ? drillCoach : coachLine}</p>
-            {guideTab && rampLevel && !drillQuestion && (
+            <p className="mode-coach flex-1 min-w-0">{coachLine}</p>
+            {guideTab && rampLevel && (
               <span className="guide-skip-inline">{t('ramp.now', { level: t(`difficulty.${rampLevel}`) })}</span>
             )}
-            {guideTab && rampNudge && !drillQuestion && !proAccess && (
+            {guideTab && rampNudge && !proAccess && (
               <button
                 type="button"
                 className="guide-skip-inline touch-none"
-                onClick={() => setPaywallOpen(true)}
+                onClick={() => openPaywall()}
               >
                 {t('ramp.proNudge')}
               </button>
             )}
-            {guideTab && isOnboardingPractice(guide) && !drillQuestion && (
+            {guideTab && isOnboardingPractice(guide) && (
               <button type="button" className="guide-skip-inline touch-none" onClick={skipOnboarding}>
                 {t('onboarding.skip')}
               </button>
@@ -594,32 +500,11 @@ export default function App() {
                 {t('pack.exit')}
               </button>
             )}
-            {drillQuestion && (
-              <button type="button" className="guide-skip-inline touch-none" onClick={exitDrill}>
-                {t('drill.exit')}
-              </button>
-            )}
-            {guideTab && !guide && !drillQuestion && (
+            {guideTab && !guide && (
               <button type="button" className="pack-pill touch-none active:scale-[0.98]" onClick={startBeginnerPack}>
                 {t('pack.name')}
               </button>
             )}
-          </div>
-        )}
-
-        {showMissPrompt && (
-          <div className="flex flex-wrap items-center gap-2 mb-3">
-            <button type="button" className="pack-pill touch-none active:scale-[0.98]" onClick={startRetry}>
-              {t('drill.retryCount', { n: missBook.items.length })}
-            </button>
-            <button
-              type="button"
-              className="guide-skip-inline touch-none"
-              aria-label={t('drill.dismiss')}
-              onClick={() => setDrillPromptDismissed(true)}
-            >
-              {t('drill.dismiss')}
-            </button>
           </div>
         )}
 
@@ -687,6 +572,26 @@ export default function App() {
                     style={settingButtonStyle(active)}
                   >
                     {item.nativeLabel}
+                  </button>
+                );
+              })}
+            </div>
+            <div className="text-[10px] text-slate-500 uppercase tracking-[0.3em] mt-3.5 mb-2.5 font-semibold">
+              {t('settings.answerSurface')}
+            </div>
+            <div className="grid grid-cols-2 gap-1.5">
+              {['keyboard', 'noteNames'].map((id) => {
+                const active = settings.answerSurface === id;
+                return (
+                  <button
+                    key={id}
+                    type="button"
+                    aria-pressed={active}
+                    onClick={() => updateSettings({ answerSurface: id })}
+                    className="py-2.5 rounded-xl text-sm transition-all touch-none active:scale-[0.98]"
+                    style={settingButtonStyle(active)}
+                  >
+                    {t(`settings.answer.${id}`)}
                   </button>
                 );
               })}
@@ -760,6 +665,11 @@ export default function App() {
                   trialActive: t('pro.trialActive'),
                   trialEnded: t('pro.trialEnded'),
                   trialOffer: t('pro.trialOffer'),
+                  subscriptionTitle,
+                  subscriptionLength: t('pro.subscriptionLength'),
+                  pricePeriod: t('pro.pricePeriod'),
+                  privacy: t('pro.privacy'),
+                  terms: t('pro.terms'),
                   supportSection: t('support.section'),
                   supportDisclaimer: t('support.disclaimer'),
                   supportSmall: t('support.small'),
@@ -768,7 +678,7 @@ export default function App() {
                   smallId: PRODUCT_IDS.supportSmall,
                   largeId: PRODUCT_IDS.supportLarge,
                 }}
-                onBuyPro={() => setPaywallOpen(true)}
+                onBuyPro={() => openPaywall()}
                 onBuySupport={(productId) => iap.buy(productId)}
                 onRestore={iap.restore}
               />
@@ -787,13 +697,15 @@ export default function App() {
             hidden={tab !== 'test'}
             tutorial={guidedIdentify}
             fixedQuestion={identifySpec}
-            questionEpoch={drillQuestion?.mode === 'test' ? drillEpoch : ''}
             onQuestionComplete={identifySpec ? handleQuestionComplete : undefined}
             onRoundSettled={handleRoundSettled}
             hideSkip={guidedIdentify}
             forceSequentialHint={guide?.kind === 'onboarding' && guide.step === ONBOARDING_STEPS.IDENTIFY}
             autoHint={firstHintReady && !settings.firstHintUsed.identify}
             onAutoHintUsed={() => markHintUsed('identify')}
+            answerSurface={settings.answerSurface}
+            inversions={settings.identifyInversions}
+            onInversionsChange={(identifyInversions) => updateSettings({ identifyInversions })}
           />
           <EarMode
             difficulty={practiceDifficulty}
@@ -805,7 +717,6 @@ export default function App() {
             hidden={tab !== 'ear'}
             tutorial={guidedEar}
             fixedQuestion={earSpec}
-            questionEpoch={drillQuestion?.mode === 'ear' ? drillEpoch : ''}
             onQuestionComplete={earSpec ? handleQuestionComplete : undefined}
             onRoundSettled={handleRoundSettled}
             hideSkip={guidedEar}
@@ -813,6 +724,7 @@ export default function App() {
             hintAfterListen={guide?.kind === 'onboarding' && guide.step === ONBOARDING_STEPS.TRAIN}
             autoHint={firstHintReady && !settings.firstHintUsed.ear}
             onAutoHintUsed={() => markHintUsed('ear')}
+            answerSurface={settings.answerSurface}
           />
           <ProgressionEarMode
             difficulty={practiceDifficulty}
@@ -833,18 +745,20 @@ export default function App() {
             setStats={setStats}
             onScoreChange={setScoreInfo}
             hidden={tab !== 'abrsm'}
+            answerSurface={settings.answerSurface}
+            tier={settings.romanTier}
+            onTierChange={(romanTier) => updateSettings({ romanTier })}
+            inversions={settings.romanInversions}
+            onInversionsChange={(romanInversions) => updateSettings({ romanInversions })}
           />
           <StatsMode
             stats={stats}
             setStats={setStats}
             hidden={tab !== 'stats'}
-            missCount={missBook.items.length}
-            onRetryMisses={startRetry}
-            onResetMissBook={clearMissBook}
             fullStats={proAccess}
             sessionStreak={scoreInfo.streak}
             sessionAccuracy={sessionAccuracy}
-            onUnlockPro={() => setPaywallOpen(true)}
+            onUnlockPro={() => openPaywall()}
           />
         </main>
       </div>
@@ -852,6 +766,9 @@ export default function App() {
       <PaywallSheet
         open={paywallOpen}
         title={t('pro.paywallTitle')}
+        subscriptionTitle={subscriptionTitle}
+        subscriptionLength={t('pro.subscriptionLength')}
+        pricePeriod={t('pro.pricePeriod')}
         body={t('pro.paywallBody')}
         trialOffer={iap.isPro ? null : t('pro.trialOffer')}
         price={iap.prices[PRODUCT_IDS.pro]}
@@ -862,10 +779,14 @@ export default function App() {
         buyLabel={t('pro.buy')}
         restoreLabel={t('pro.restore')}
         closeLabel={t('dialog.close')}
+        retryLabel={t('iap.retry')}
+        privacyLabel={t('pro.privacy')}
+        termsLabel={t('pro.terms')}
         notice={noticeText}
         busy={iap.busyId === PRODUCT_IDS.pro || iap.busyId === 'restore'}
         onBuy={buyPro}
         onRestore={iap.restore}
+        onRetry={iap.reloadPrices}
         onClose={() => setPaywallOpen(false)}
       />
       <IapToast message={toastText} onDismiss={iap.clearToast} />

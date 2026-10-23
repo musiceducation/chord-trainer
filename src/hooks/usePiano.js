@@ -1,5 +1,11 @@
 import { useCallback, useEffect } from 'react';
-import { getActivePianoSound, primePiano, schedulePianoNotes, setActivePianoSound } from '../lib/pianoEngine.js';
+import {
+  disposePianoContext,
+  getActivePianoSound,
+  primePiano,
+  schedulePianoNotes,
+  setActivePianoSound,
+} from '../lib/pianoEngine.js';
 import { normalizePianoSound } from '../lib/pianoSamples.js';
 
 /** Single-key ring. Long enough to hear hammer, body and decay while drilling. */
@@ -63,6 +69,7 @@ export function releaseSharedPianoContext() {
     if (sharedUsers === 0 && sharedCtx === ctx) {
       sharedCtx = null;
       publishSharedContext();
+      disposePianoContext(ctx);
       ctx.close().catch(() => {});
     }
   }, 0);
@@ -71,8 +78,9 @@ export function releaseSharedPianoContext() {
 export function resetSharedPianoContextForTests() {
   cancelScheduledClose();
   sharedUsers = 0;
-  if (sharedCtx && sharedCtx.state !== 'closed' && typeof sharedCtx.close === 'function') {
-    sharedCtx.close().catch(() => {});
+  if (sharedCtx && sharedCtx.state !== 'closed') {
+    disposePianoContext(sharedCtx);
+    if (typeof sharedCtx.close === 'function') sharedCtx.close().catch(() => {});
   }
   sharedCtx = null;
 }

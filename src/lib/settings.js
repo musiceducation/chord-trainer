@@ -1,6 +1,9 @@
+import { normalizeRomanTier } from './abrsm.js';
 import { DIFFICULTY_LEVELS } from './constants.js';
 import { TRAINING_KEYS } from './diatonic.js';
 import { DEFAULT_PIANO_SOUND, normalizePianoSound } from './pianoSamples.js';
+
+export const ANSWER_SURFACES = Object.freeze(['keyboard', 'noteNames']);
 
 export const SETTINGS_KEY = 'chordTrainerSettings';
 
@@ -16,6 +19,10 @@ export const DEFAULT_SETTINGS = {
   pianoSound: DEFAULT_PIANO_SOUND,
   onboardingDone: false,
   firstHintUsed: { ...DEFAULT_FIRST_HINT_USED },
+  answerSurface: 'keyboard',
+  romanTier: 'easy',
+  identifyInversions: false,
+  romanInversions: false,
 };
 
 function isValidDifficulty(value) {
@@ -24,6 +31,10 @@ function isValidDifficulty(value) {
 
 function isValidKeyRoot(value) {
   return TRAINING_KEYS.includes(value);
+}
+
+function isValidAnswerSurface(value) {
+  return ANSWER_SURFACES.includes(value);
 }
 
 function normalizeFirstHintUsed(raw) {
@@ -48,6 +59,10 @@ export function normalizeSettings(raw) {
     pianoSound: normalizePianoSound(raw.pianoSound),
     onboardingDone: raw.onboardingDone === true,
     firstHintUsed: normalizeFirstHintUsed(raw.firstHintUsed),
+    answerSurface: isValidAnswerSurface(raw.answerSurface) ? raw.answerSurface : DEFAULT_SETTINGS.answerSurface,
+    romanTier: normalizeRomanTier(raw.romanTier),
+    identifyInversions: raw.identifyInversions === true,
+    romanInversions: raw.romanInversions === true,
   };
 }
 

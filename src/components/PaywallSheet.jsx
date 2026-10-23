@@ -1,12 +1,44 @@
+import { purchaseGate } from '../lib/iap.js';
+import { PRIVACY_POLICY_URL, TERMS_OF_USE_URL } from '../lib/legal.js';
+
 export function priceText({ price, status, unavailableLabel }) {
   if (price) return price;
   if (status === 'loading') return '…';
   return unavailableLabel;
 }
 
+export function LegalLinks({ privacyLabel, termsLabel, className = '' }) {
+  const linkClass = 'text-xs font-semibold text-amber-200 underline underline-offset-2 py-1';
+  return (
+    <div className={`flex flex-wrap items-center gap-x-4 gap-y-1 ${className}`}>
+      <a
+        href={PRIVACY_POLICY_URL}
+        target="_blank"
+        rel="noopener noreferrer"
+        className={linkClass}
+        data-testid="privacy-policy-link"
+      >
+        {privacyLabel}
+      </a>
+      <a
+        href={TERMS_OF_USE_URL}
+        target="_blank"
+        rel="noopener noreferrer"
+        className={linkClass}
+        data-testid="terms-of-use-link"
+      >
+        {termsLabel}
+      </a>
+    </div>
+  );
+}
+
 export function PaywallSheet({
   open,
   title,
+  subscriptionTitle,
+  subscriptionLength,
+  pricePeriod,
   body,
   trialOffer,
   price,
@@ -17,14 +49,22 @@ export function PaywallSheet({
   buyLabel,
   restoreLabel,
   closeLabel,
+  retryLabel,
+  privacyLabel,
+  termsLabel,
   notice,
   busy,
   onBuy,
   onRestore,
+  onRetry,
   onClose,
 }) {
   if (!open) return null;
-  const shownPrice = priceText({ price, status: priceStatus, unavailableLabel });
+  const gate = purchaseGate({ native, price, priceStatus });
+  const shownPrice = price
+    ? `${price}${pricePeriod ? ` · ${pricePeriod}` : ''}`
+    : priceText({ price, status: priceStatus, unavailableLabel });
+  const showRetry = gate === 'needs_retry';
 
   return (
     <div
@@ -39,31 +79,49 @@ export function PaywallSheet({
         aria-label={closeLabel}
         onClick={onClose}
       />
-      <div className="relative w-full max-w-sm rounded-2xl p-5 panel-solid">
-        <h2 id="paywall-title" className="text-base font-semibold text-slate-100 mb-1">{title}</h2>
-        <p className="text-sm text-slate-400 mb-2">{body}</p>
-        {trialOffer ? (
-          <p className="text-xs text-emerald-300/90 leading-relaxed mb-4">{trialOffer}</p>
-        ) : (
-          <div className="mb-2" />
+      <div className="relative w-full max-w-sm max-h-[min(92dvh,680px)] overflow-y-auto rounded-2xl p-5 panel-solid">
+        <h2 id="paywall-title" className="text-base font-semibold text-slate-100 mb-1">
+          {subscriptionTitle || title}
+        </h2>
+        {subscriptionLength && (
+          <p className="text-sm text-slate-200 mb-2" data-testid="paywall-length">
+            {subscriptionLength}
+          </p>
         )}
         {!native && (
-          <p className="text-sm text-slate-300 mb-4" role="status">{storeUnavailableLabel}</p>
+          <p className="text-sm text-slate-300 mb-3" role="status">{storeUnavailableLabel}</p>
         )}
         {native && (
-          <p className="mono-font text-lg font-bold text-amber-200 mb-4" data-testid="paywall-price">
+          <p className="mono-font text-lg font-bold text-amber-200 mb-3" data-testid="paywall-price">
             {shownPrice}
           </p>
         )}
+        {trialOffer && (
+          <p className="text-xs text-emerald-300/90 leading-relaxed mb-2">{trialOffer}</p>
+        )}
+        {body && (
+          <p className="text-sm text-slate-400 mb-3">{body}</p>
+        )}
         {notice && notice !== storeUnavailableLabel && (
-          <p className="text-xs text-slate-400 mb-3" role="status">{notice}</p>
+          <p className="text-xs text-slate-300 mb-3" role="status">{notice}</p>
         )}
         <div className="flex flex-col gap-2">
+          {showRetry && (
+            <button
+              type="button"
+              className="btn-secondary justify-center touch-none"
+              disabled={busy}
+              onClick={onRetry}
+              data-testid="paywall-retry"
+            >
+              {busy ? '…' : retryLabel}
+            </button>
+          )}
           <button
             type="button"
             className="py-2.5 rounded-xl text-sm font-semibold text-slate-900 touch-none active:scale-[0.98] disabled:opacity-60"
             style={{ background: 'linear-gradient(135deg, #E8C872, #C9A050)' }}
-            disabled={busy || !native}
+            disabled={busy || gate !== 'ready'}
             onClick={onBuy}
           >
             {busy ? '…' : buyLabel}
@@ -71,11 +129,12 @@ export function PaywallSheet({
           <button
             type="button"
             className="btn-secondary justify-center touch-none"
-            disabled={busy}
+            disabled={busy || !native}
             onClick={onRestore}
           >
             {restoreLabel}
           </button>
+          <LegalLinks privacyLabel={privacyLabel} termsLabel={termsLabel} className="justify-center py-1" />
           <button
             type="button"
             className="btn-secondary justify-center touch-none"

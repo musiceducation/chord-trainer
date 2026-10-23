@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Check, SkipForward, Headphones, Play, Lightbulb } from 'lucide-react';
-import { Keyboard } from './Keyboard.jsx';
+import { AnswerSurface } from './AnswerSurface.jsx';
 import { usePiano } from '../hooks/usePiano.js';
 import { useTimeoutCleanup } from '../hooks/useTimeoutCleanup.js';
 import {
@@ -20,6 +20,7 @@ import {
 } from '../lib/stats.js';
 import { FULL_END, FULL_START } from '../lib/constants.js';
 import { scheduleAllHint } from '../lib/hintFlash.js';
+import { chordAccidentalSide } from '../lib/noteNames.js';
 import { useI18n } from '../hooks/useI18n.jsx';
 
 export function EarMode({
@@ -40,6 +41,7 @@ export function EarMode({
   onAutoHintUsed,
   questionEpoch = '',
   onRoundSettled,
+  answerSurface = 'keyboard',
 }) {
   const fixedKey = fixedQuestion ? `${fixedQuestion.root}:${fixedQuestion.type}` : null;
   const [question, setQuestion] = useState(() => (
@@ -61,7 +63,9 @@ export function EarMode({
   const hasFailedRef = useRef(false);
   const autoHintUsedRef = useRef(false);
   const autoPlayedRef = useRef(false);
-  const { playNote, playChord } = usePiano(soundOn, pianoSound);
+  const advanceRoundRef = useRef(() => {});
+  const settledWhileHidden = useRef(false);
+  const { playNote, playChord } = usePiano(soundOn && !hidden, pianoSound);
   const { schedule, clearAll } = useTimeoutCleanup();
   const { t } = useI18n();
   const tRef = useRef(t);
@@ -150,7 +154,7 @@ export function EarMode({
         mode: 'ear',
       },
     };
-    schedule(() => {
+    const advance = () => {
       if (!tutorial) onRoundSettled?.(payload);
       if (onQuestionComplete) {
         onQuestionComplete(payload);
@@ -163,8 +167,21 @@ export function EarMode({
       setHintNotes(null);
       setHasFailed(false);
       setLiveMessage('');
-    }, 1400);
+    };
+    advanceRoundRef.current = advance;
+    schedule(advance, 1400);
   }, [lockedCorrect, question, feedback, difficulty, replayChord, setStats, schedule, hidden, tutorial, onQuestionComplete, onRoundSettled]);
+
+  useEffect(() => {
+    if (feedback !== 'correct') {
+      settledWhileHidden.current = false;
+      return;
+    }
+    if (!hidden || settledWhileHidden.current) return;
+    settledWhileHidden.current = true;
+    clearAll();
+    advanceRoundRef.current();
+  }, [hidden, feedback, clearAll]);
 
   const handleKey = useCallback((midi) => {
     if (feedback === 'correct') return;
@@ -243,7 +260,7 @@ export function EarMode({
   };
 
   return (
-    <div className={`mode-panel ${hidden ? 'mode-hidden' : ''}`} aria-hidden={hidden}>
+    <div className={`mode-panel ${hidden ? 'mode-hidden' : ''}`} aria-hidden={hidden} inert={hidden ? true : undefined}>
       <div aria-live="polite" className="sr-only">{liveMessage}</div>
       <div className="flex-1 flex flex-col items-center justify-center min-h-0 relative overflow-y-auto">
         <div className="text-[10px] tracking-[0.5em] text-emerald-400/70 uppercase mb-3 font-medium">
@@ -263,7 +280,9 @@ export function EarMode({
 
         <div className="mt-4 text-center px-4">
           <div className="text-sm text-slate-300 font-semibold tracking-wider mb-1">{t('ear.tapToHear')}</div>
-          <div className="text-xs text-slate-500 tracking-wider">{t('ear.playOnKeyboard')}</div>
+          <div className="text-xs text-slate-500 tracking-wider">
+            {t(answerSurface === 'noteNames' ? 'ear.playOnNoteNames' : 'ear.playOnKeyboard')}
+          </div>
           {!soundOn && <div className="text-xs text-amber-300/80 mt-2">{t('ear.soundOff')}</div>}
         </div>
 
@@ -297,7 +316,9 @@ export function EarMode({
         </div>
       </div>
 
-      <Keyboard
+      <AnswerSurface
+        key={answerSurface}
+        surface={answerSurface}
         pressed={pressed}
         lockedCorrect={lockedCorrect}
         wrongFlash={wrongFlash}
@@ -306,6 +327,7 @@ export function EarMode({
         onKey={handleKey}
         onShiftKeyboard={shiftKeyboard}
         disabled={feedback === 'correct'}
+        accidentalSpelling={chordAccidentalSide(question)}
       />
 
       <div className="flex justify-center gap-2 pb-2 safe-bottom">

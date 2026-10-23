@@ -1,4 +1,4 @@
-import { priceText } from './PaywallSheet.jsx';
+import { LegalLinks, priceText } from './PaywallSheet.jsx';
 
 function rowStyle() {
   return {
@@ -33,8 +33,9 @@ export function IapSettings({
     status: priceStatus,
     unavailableLabel: labels.priceUnavailable,
   });
+  const proStorePrice = prices?.[labels.proId] || '';
   const proPrice = priceText({
-    price: prices?.[labels.proId],
+    price: proStorePrice,
     status: priceStatus,
     unavailableLabel: labels.priceUnavailable,
   });
@@ -71,6 +72,11 @@ export function IapSettings({
           </button>
         )}
       </div>
+      <p className="text-xs text-slate-400 mb-1 px-0.5" data-testid="settings-subscription-length">
+        <span className="text-slate-200">{labels.subscriptionTitle}</span>
+        {labels.subscriptionLength ? ` · ${labels.subscriptionLength}` : ''}
+        {native && proStorePrice && labels.pricePeriod ? ` · ${proStorePrice} ${labels.pricePeriod}` : ''}
+      </p>
       {!isPro && !trialActive && labels.trialOffer && (
         <p className="text-xs text-slate-400 mb-2 px-0.5">{labels.trialOffer}</p>
       )}
@@ -86,6 +92,11 @@ export function IapSettings({
       >
         {busyId === 'restore' ? '…' : labels.restore}
       </button>
+      <LegalLinks
+        privacyLabel={labels.privacy}
+        termsLabel={labels.terms}
+        className="mb-3"
+      />
 
       <div className="text-[10px] text-slate-500 uppercase tracking-[0.3em] mb-2.5 font-semibold">
         {labels.supportSection}

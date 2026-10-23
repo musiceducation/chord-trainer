@@ -1,7 +1,46 @@
 import { useMemo } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { ALL_KEYS, FULL_END, FULL_START, VISIBLE_WHITE_KEYS } from '../lib/constants.js';
+import { ALL_KEYS } from '../lib/constants.js';
+import { canShiftKeyboard, visibleKeysForStart } from '../lib/keyboardRange.js';
 import { useI18n } from '../hooks/useI18n.jsx';
+
+export function OctaveShiftBar({
+  keyboardStart,
+  wide = false,
+  disabled = false,
+  onShiftKeyboard,
+  startOct,
+  endOct,
+}) {
+  const { t } = useI18n();
+  return (
+    <div className="keyboard-octave-bar">
+      <button
+        type="button"
+        aria-label={t('keyboard.lower')}
+        onClick={() => onShiftKeyboard(-1)}
+        disabled={disabled || !canShiftKeyboard(keyboardStart, -1, wide)}
+        className="btn-octave disabled:opacity-30 touch-none"
+      >
+        <ChevronLeft size={12} className="text-slate-400" aria-hidden="true" />
+        <span className="text-[10px] text-slate-500 tracking-wider uppercase">{t('keyboard.lowerLabel')}</span>
+      </button>
+      <div className="keyboard-octave-label">
+        {t(wide ? 'keyboard.rangeWide' : 'keyboard.range', { start: startOct, end: endOct })}
+      </div>
+      <button
+        type="button"
+        aria-label={t('keyboard.higher')}
+        onClick={() => onShiftKeyboard(1)}
+        disabled={disabled || !canShiftKeyboard(keyboardStart, 1, wide)}
+        className="btn-octave disabled:opacity-30 touch-none"
+      >
+        <span className="text-[10px] text-slate-500 tracking-wider uppercase">{t('keyboard.higherLabel')}</span>
+        <ChevronRight size={12} className="text-slate-400" aria-hidden="true" />
+      </button>
+    </div>
+  );
+}
 
 export function Keyboard({
   pressed,
@@ -12,55 +51,43 @@ export function Keyboard({
   onKey,
   onShiftKeyboard,
   disabled,
+  wide = false,
+  compact = false,
 }) {
-  const visibleKeys = useMemo(() => {
-    const whites = ALL_KEYS.filter((k) => !k.isBlack && k.midi >= keyboardStart);
-    const start = whites[0]?.midi ?? keyboardStart;
-    const endWhite = whites[VISIBLE_WHITE_KEYS - 1];
-    if (!endWhite) {
-      return ALL_KEYS.filter((k) => k.midi >= start && k.midi <= FULL_END);
-    }
-    // Include black key after last white if present (e.g. Bb after A)
-    const end = Math.min(endWhite.midi + 1, FULL_END);
-    return ALL_KEYS.filter((k) => k.midi >= start && k.midi <= end);
-  }, [keyboardStart]);
+  const visibleKeys = useMemo(
+    () => visibleKeysForStart(keyboardStart, wide),
+    [keyboardStart, wide],
+  );
 
   const visibleWhites = visibleKeys.filter((k) => !k.isBlack);
   const isKeyLocked = (midi) => lockedCorrect.has(midi % 12) && pressed.has(midi);
-  const isHinted = (midi) => hintNotes && hintNotes.has(midi % 12) && !lockedCorrect.has(midi % 12);
+  const isHinted = (midi) => {
+    if (!hintNotes || lockedCorrect.has(midi % 12)) return false;
+    if (hintNotes.has(midi)) return true;
+    return hintNotes.has(midi % 12);
+  };
 
   const { t } = useI18n();
   const keyLabel = (key) => `${key.name}${key.octave}`;
-  const startOct = Math.floor(keyboardStart / 12) - 1;
-  const endOct = startOct + 1;
+  const startOct = visibleKeys[0]?.octave ?? Math.floor(keyboardStart / 12) - 1;
+  const endOct = visibleKeys[visibleKeys.length - 1]?.octave ?? startOct;
+  const pressKey = (event, midi) => {
+    if (disabled) return;
+    if (event.button != null && event.button !== 0) return;
+    event.preventDefault();
+    onKey(midi);
+  };
 
   return (
-    <section aria-label={t('keyboard.piano')} className="keyboard-section">
-      <div className="keyboard-octave-bar">
-        <button
-          type="button"
-          aria-label={t('keyboard.lower')}
-          onClick={() => onShiftKeyboard(-1)}
-          disabled={disabled || keyboardStart <= FULL_START}
-          className="btn-octave disabled:opacity-30 touch-none"
-        >
-          <ChevronLeft size={12} className="text-slate-400" aria-hidden="true" />
-          <span className="text-[10px] text-slate-500 tracking-wider uppercase">{t('keyboard.lowerLabel')}</span>
-        </button>
-        <div className="keyboard-octave-label">
-          {t('keyboard.range', { start: startOct, end: endOct })}
-        </div>
-        <button
-          type="button"
-          aria-label={t('keyboard.higher')}
-          onClick={() => onShiftKeyboard(1)}
-          disabled={disabled || keyboardStart + 18 >= FULL_END}
-          className="btn-octave disabled:opacity-30 touch-none"
-        >
-          <span className="text-[10px] text-slate-500 tracking-wider uppercase">{t('keyboard.higherLabel')}</span>
-          <ChevronRight size={12} className="text-slate-400" aria-hidden="true" />
-        </button>
-      </div>
+    <section aria-label={t('keyboard.piano')} className={`keyboard-section ${compact ? 'keyboard-compact' : ''}`}>
+      <OctaveShiftBar
+        keyboardStart={keyboardStart}
+        wide={wide}
+        disabled={disabled}
+        onShiftKeyboard={onShiftKeyboard}
+        startOct={startOct}
+        endOct={endOct}
+      />
 
       <div className="relative w-full keyboard-shell">
         <div className="absolute inset-0 rounded-2xl p-1.5 sm:p-2 keyboard-frame">
@@ -74,10 +101,9 @@ export function Keyboard({
                   key={key.midi}
                   type="button"
                   aria-label={keyLabel(key)}
-                  disabled={disabled}
-                  onMouseDown={() => onKey(key.midi)}
-                  onTouchStart={(e) => { e.preventDefault(); onKey(key.midi); }}
-                  className={`flex-1 relative rounded-b-lg transition-all duration-100 touch-none active:scale-[0.98] ${locked ? 'key-locked-white' : ''} ${isWrong ? 'wrong-shake' : ''} ${hinted ? 'key-hint-white' : ''}`}
+                  aria-disabled={disabled || undefined}
+                  onPointerDown={(event) => pressKey(event, key.midi)}
+                  className={`piano-key flex-1 relative rounded-b-lg transition-all duration-100 touch-none active:scale-[0.98] ${locked ? 'key-locked-white' : ''} ${isWrong ? 'wrong-shake' : ''} ${hinted ? 'key-hint-white' : ''}`}
                   style={{
                     background: isWrong
                       ? 'linear-gradient(180deg, #F7768E 0%, #c44e64 100%)'
@@ -108,10 +134,9 @@ export function Keyboard({
                     <button
                       type="button"
                       aria-label={keyLabel(blackKey)}
-                      disabled={disabled}
-                      onMouseDown={() => onKey(blackKey.midi)}
-                      onTouchStart={(e) => { e.preventDefault(); onKey(blackKey.midi); }}
-                      className={`absolute pointer-events-auto rounded-b-md transition-all duration-100 touch-none active:scale-[0.98] ${locked ? 'key-locked-black' : ''} ${isWrong ? 'wrong-shake' : ''} ${hinted ? 'key-hint-black' : ''}`}
+                      aria-disabled={disabled || undefined}
+                      onPointerDown={(event) => pressKey(event, blackKey.midi)}
+                      className={`piano-key absolute pointer-events-auto rounded-b-md transition-all duration-100 touch-none active:scale-[0.98] ${locked ? 'key-locked-black' : ''} ${isWrong ? 'wrong-shake' : ''} ${hinted ? 'key-hint-black' : ''}`}
                       style={{
                         // Wider/taller black keys for easier Ab / C# / Eb taps
                         width: '72%', height: '58%', right: '-36%', top: 0, zIndex: 10,

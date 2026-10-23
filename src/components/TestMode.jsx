@@ -1,14 +1,17 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Check, SkipForward, Sparkles, Lightbulb } from 'lucide-react';
-import { Keyboard } from './Keyboard.jsx';
+import { AnswerSurface } from './AnswerSurface.jsx';
 import { usePiano } from '../hooks/usePiano.js';
 import { useTimeoutCleanup } from '../hooks/useTimeoutCleanup.js';
 import {
   chordTypeI18nKey,
   formatChord,
+  formatSlashChord,
+  generateInvertedQuestion,
   generateQuestion,
   isCorrectNote,
   questionFromSpec,
+  romanPlayIsCorrect,
   targetPcsInChordOrder,
 } from '../lib/chords.js';
 import {
@@ -20,6 +23,7 @@ import {
 } from '../lib/stats.js';
 import { FULL_END, FULL_START } from '../lib/constants.js';
 import { scheduleAllHint, scheduleSequentialHint } from '../lib/hintFlash.js';
+import { chordAccidentalSide, displayOctave, pressedAfterNote } from '../lib/noteNames.js';
 import { useI18n } from '../hooks/useI18n.jsx';
 
 export function TestMode({
@@ -39,12 +43,18 @@ export function TestMode({
   onAutoHintUsed,
   questionEpoch = '',
   onRoundSettled,
+  answerSurface = 'keyboard',
+  inversions = false,
+  onInversionsChange,
 }) {
   const fixedKey = fixedQuestion ? `${fixedQuestion.root}:${fixedQuestion.type}` : null;
+  const practiceInversions = Boolean(inversions) && !tutorial && !fixedQuestion;
   const [question, setQuestion] = useState(() => (
     fixedQuestion
       ? questionFromSpec(fixedQuestion.root, fixedQuestion.type)
-      : generateQuestion(difficulty, null)
+      : practiceInversions
+        ? generateInvertedQuestion(difficulty, null)
+        : generateQuestion(difficulty, null)
   ));
   const [pressed, setPressed] = useState(new Set());
   const [lockedCorrect, setLockedCorrect] = useState(new Set());
@@ -59,7 +69,13 @@ export function TestMode({
   const streakRef = useRef(0);
   const hasFailedRef = useRef(false);
   const autoHintUsedRef = useRef(false);
-  const { playNote, playChord } = usePiano(soundOn, pianoSound);
+  const advanceRoundRef = useRef(() => {});
+  const settledWhileHidden = useRef(false);
+  const lockedRef = useRef(lockedCorrect);
+  const pressedRef = useRef(pressed);
+  lockedRef.current = lockedCorrect;
+  pressedRef.current = pressed;
+  const { playNote, playChord } = usePiano(soundOn && !hidden, pianoSound);
   const { schedule, clearAll } = useTimeoutCleanup();
   const { t } = useI18n();
   const tRef = useRef(t);
@@ -72,7 +88,9 @@ export function TestMode({
     clearAll();
     setQuestion(fixedKey
       ? questionFromSpec(...fixedKey.split(':'))
-      : generateQuestion(difficulty, null));
+      : practiceInversions
+        ? generateInvertedQuestion(difficulty, null)
+        : generateQuestion(difficulty, null));
     setPressed(new Set());
     setLockedCorrect(new Set());
     setFeedback(null);
@@ -81,7 +99,8 @@ export function TestMode({
     setHasFailed(false);
     setScore({ correct: 0, total: 0 });
     setLiveMessage('');
-  }, [difficulty, fixedKey, questionEpoch, clearAll]);
+    if (practiceInversions) setKeyboardStart(48);
+  }, [difficulty, fixedKey, questionEpoch, practiceInversions, clearAll]);
 
   useEffect(() => {
     if (hidden) return;
@@ -135,27 +154,55 @@ export function TestMode({
         mode: 'test',
       },
     };
-    schedule(() => {
+    const advance = () => {
       if (!tutorial) onRoundSettled?.(payload);
       if (onQuestionComplete) {
         onQuestionComplete(payload);
         return;
       }
-      setQuestion((q) => generateQuestion(difficulty, q.name));
+      setQuestion((q) => (practiceInversions
+        ? generateInvertedQuestion(difficulty, q.id)
+        : generateQuestion(difficulty, q.name)));
       setPressed(new Set());
       setLockedCorrect(new Set());
       setFeedback(null);
       setHintNotes(null);
       setHasFailed(false);
       setLiveMessage('');
-    }, 1400);
-  }, [lockedCorrect, question, feedback, difficulty, pressed, playChord, setStats, schedule, hidden, tutorial, onQuestionComplete, onRoundSettled]);
+    };
+    advanceRoundRef.current = advance;
+    schedule(advance, 1400);
+  }, [practiceInversions, lockedCorrect, question, feedback, difficulty, pressed, playChord, setStats, schedule, hidden, tutorial, onQuestionComplete, onRoundSettled]);
+
+  useEffect(() => {
+    if (feedback !== 'correct') {
+      settledWhileHidden.current = false;
+      return;
+    }
+    if (!hidden || settledWhileHidden.current) return;
+    settledWhileHidden.current = true;
+    clearAll();
+    advanceRoundRef.current();
+  }, [hidden, feedback, clearAll]);
 
   const handleKey = useCallback((midi) => {
     if (feedback === 'correct') return;
-    playNote(midi);
-    const pc = midi % 12;
-    if (isCorrectNote(midi, question.pcs)) {
+    const pc = ((midi % 12) + 12) % 12;
+    if (!isCorrectNote(midi, question.pcs)) {
+      playNote(midi);
+      setWrongFlash(midi);
+      setLiveMessage(t('live.tryAgain'));
+      schedule(() => setWrongFlash((prev) => (prev === midi ? null : prev)), 350);
+      if (!tutorial) {
+        setStreak(computeStreakAfterWrong());
+        setHasFailed(true);
+        setStats((prev) => recordWrongAttempt(prev, question.name));
+      }
+      return;
+    }
+
+    if (!practiceInversions) {
+      playNote(midi);
       setLockedCorrect((prev) => {
         if (prev.has(pc)) return prev;
         const next = new Set(prev);
@@ -167,17 +214,44 @@ export function TestMode({
         next.add(midi);
         return next;
       });
-    } else {
-      setWrongFlash(midi);
-      setLiveMessage(t('live.tryAgain'));
-      schedule(() => setWrongFlash((prev) => (prev === midi ? null : prev)), 350);
+      return;
+    }
+
+    const placed = pressedAfterNote(pressedRef.current, midi, {
+      voice: answerSurface === 'noteNames',
+      bassPc: question.bassPc,
+      octave: displayOctave(keyboardStart),
+    });
+    playNote(placed.sounding);
+    const nextLocked = new Set(lockedRef.current);
+    nextLocked.add(placed.pc);
+    const nextPressed = new Set(placed.midis);
+    const complete = nextLocked.size === question.pcs.size
+      && [...question.pcs].every((tone) => nextLocked.has(tone));
+    if (complete && !romanPlayIsCorrect([...nextPressed], {
+      pcs: question.pcs,
+      bassPc: question.bassPc,
+      requireBass: true,
+    })) {
+      lockedRef.current = new Set();
+      pressedRef.current = new Set();
+      setLiveMessage(t('abrsm.wrongBass'));
+      setPressed(new Set());
+      setLockedCorrect(new Set());
       if (!tutorial) {
         setStreak(computeStreakAfterWrong());
         setHasFailed(true);
         setStats((prev) => recordWrongAttempt(prev, question.name));
       }
+      return;
     }
-  }, [feedback, playNote, question, schedule, setStats, t, tutorial]);
+
+    lockedRef.current = nextLocked;
+    pressedRef.current = nextPressed;
+    setLockedCorrect(nextLocked);
+    setPressed(nextPressed);
+    setLiveMessage('');
+  }, [answerSurface, feedback, keyboardStart, playNote, practiceInversions, question, schedule, setStats, t, tutorial]);
 
   const skip = () => {
     if (hideSkip) return;
@@ -203,7 +277,9 @@ export function TestMode({
       onQuestionComplete(payload);
       return;
     }
-    setQuestion((q) => generateQuestion(difficulty, q.name));
+    setQuestion((q) => (practiceInversions
+      ? generateInvertedQuestion(difficulty, q.id)
+      : generateQuestion(difficulty, q.name)));
     setPressed(new Set());
     setLockedCorrect(new Set());
     setFeedback(null);
@@ -213,6 +289,14 @@ export function TestMode({
   };
 
   const showHint = () => {
+    if (practiceInversions) {
+      const rootPc = question.tonePcs?.[0];
+      if (rootPc != null && !lockedCorrect.has(rootPc)) {
+        setHintNotes(new Set([rootPc]));
+        schedule(() => setHintNotes(null), 2000);
+        return;
+      }
+    }
     const remaining = forceSequentialHint
       ? targetPcsInChordOrder(question.root, question.type).filter((pc) => !lockedCorrect.has(pc))
       : [...question.pcs].filter((pc) => !lockedCorrect.has(pc));
@@ -233,19 +317,43 @@ export function TestMode({
     }
   };
 
+  const showInversionToggle = !tutorial && !fixedQuestion && typeof onInversionsChange === 'function';
+  const prompt = practiceInversions ? formatSlashChord(question) : formatChord(question.name);
+  const promptSize = prompt.length > 6
+    ? 'clamp(36px, 10vw, 72px)'
+    : 'clamp(64px, 18vw, 140px)';
+  const errorCopy = liveMessage === t('abrsm.wrongBass') || liveMessage === t('live.tryAgain');
+
   return (
-    <div className={`mode-panel ${hidden ? 'mode-hidden' : ''}`} aria-hidden={hidden}>
+    <div className={`mode-panel ${hidden ? 'mode-hidden' : ''}`} aria-hidden={hidden} inert={hidden ? true : undefined}>
       <div aria-live="polite" className="sr-only">{liveMessage}</div>
+      {showInversionToggle && (
+        <div className="flex justify-center mb-1">
+          <button
+            type="button"
+            aria-pressed={inversions}
+            onClick={() => onInversionsChange(!inversions)}
+            className="px-3 py-1 rounded-full text-xs font-semibold touch-none active:scale-[0.98]"
+            style={{
+              background: inversions ? 'rgba(187,154,247,0.18)' : 'rgba(255,255,255,0.02)',
+              border: `1px solid ${inversions ? 'rgba(187,154,247,0.5)' : 'rgba(255,255,255,0.05)'}`,
+              color: inversions ? '#E0D4FF' : '#565F89',
+            }}
+          >
+            {t('identify.inversions')}
+          </button>
+        </div>
+      )}
       <div className="flex-1 flex flex-col items-center justify-center min-h-0 relative overflow-y-auto">
-        <div key={question.name} className="chord-name text-center relative">
+        <div key={question.id || question.name} className="chord-name text-center relative">
           <div className="text-[10px] tracking-[0.5em] text-slate-500 uppercase mb-3 font-medium">
             {t(chordTypeI18nKey(question.type))}
           </div>
           <div
             className={`display-font font-black leading-[0.85] tracking-tighter relative ${feedback === 'correct' ? 'chord-success' : 'chord-idle'}`}
-            style={{ fontSize: 'clamp(64px, 18vw, 140px)', color: '#DCE7FF' }}
+            style={{ fontSize: promptSize, color: '#DCE7FF' }}
           >
-            {formatChord(question.name)}
+            {prompt}
           </div>
           {feedback === 'correct' && (
             <>
@@ -279,17 +387,25 @@ export function TestMode({
         <div className="mt-3 min-h-10 text-xs tracking-wider text-center px-3">
           {feedback === 'correct' ? (
             <div className="flex items-center justify-center gap-1.5 text-emerald-300 font-semibold uppercase">
-              <Check size={12} aria-hidden="true" /><span>{t('action.perfect')}</span>
+              <Check size={12} aria-hidden="true" />
+              <span>{t('action.perfect')}</span>
             </div>
           ) : (
-            <div className="text-slate-600 uppercase">
-              {t('common.notesCount', { n: lockedCorrect.size, total: question.pcs.size })}
+            <div className="flex flex-col items-center gap-1">
+              <div className="text-slate-600 uppercase">
+                {t('common.notesCount', { n: lockedCorrect.size, total: question.pcs.size })}
+              </div>
+              {errorCopy && (
+                <div className="text-rose-300 font-semibold normal-case tracking-normal">{liveMessage}</div>
+              )}
             </div>
           )}
         </div>
       </div>
 
-      <Keyboard
+      <AnswerSurface
+        key={answerSurface}
+        surface={answerSurface}
         pressed={pressed}
         lockedCorrect={lockedCorrect}
         wrongFlash={wrongFlash}
@@ -298,13 +414,15 @@ export function TestMode({
         onKey={handleKey}
         onShiftKeyboard={shiftKeyboard}
         disabled={feedback === 'correct'}
+        wide={practiceInversions}
+        accidentalSpelling={chordAccidentalSide(question)}
       />
 
       <div className="flex justify-center gap-2 pb-2 safe-bottom">
         <button
           type="button"
           onClick={showHint}
-          disabled={lockedCorrect.size === question.pcs.size}
+          disabled={feedback === 'correct' || lockedCorrect.size === question.pcs.size}
           className="btn-action btn-hint disabled:opacity-30 touch-none"
         >
           <Lightbulb size={13} className="text-amber-300" aria-hidden="true" />

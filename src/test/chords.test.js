@@ -4,9 +4,16 @@ import {
   generateQuestion,
   buildChordVoicing,
   formatChord,
+  formatSlashChord,
+  generateInvertedQuestion,
   isCorrectNote,
+  playedInversionMatches,
+  romanPlayIsCorrect,
   questionFromSpec,
+  soundedInversion,
   targetPcsInChordOrder,
+  voicePitchClasses,
+  withInversion,
 } from '../lib/chords.js';
 
 describe('chords', () => {
@@ -43,6 +50,55 @@ describe('chords', () => {
     const pcs = getChordPitchClasses('C', '');
     expect(isCorrectNote(60, pcs)).toBe(true);
     expect(isCorrectNote(61, pcs)).toBe(false);
+  });
+
+  it('voices inversions from the bass and scores that bass', () => {
+    const root = voicePitchClasses([0, 4, 7], 0, 48);
+    expect(root).toEqual([48, 52, 55]);
+    const first = voicePitchClasses([0, 4, 7], 1, 48);
+    expect(first[0] % 12).toBe(4);
+    expect(first).toEqual([52, 55, 60]);
+    expect(first[first.length - 1]).toBeLessThan(48 + 24);
+    const second = voicePitchClasses([0, 4, 7], 2, 48);
+    expect(second[0] % 12).toBe(7);
+    expect(soundedInversion([0, 4, 7], second)).toBe(2);
+
+    const played = withInversion(questionFromSpec('C', ''), 1);
+    expect(playedInversionMatches(played.voicing, played)).toBe(true);
+    expect(playedInversionMatches([48, 52, 55], played)).toBe(false);
+    const seventh = voicePitchClasses([7, 11, 2, 5], 2, 48);
+    expect(seventh[0] % 12).toBe(2);
+    expect(soundedInversion([7, 11, 2, 5], seventh)).toBe(2);
+    const third = voicePitchClasses([7, 11, 2, 5], 3, 48);
+    expect(third[0] % 12).toBe(5);
+    expect(soundedInversion([7, 11, 2, 5], third)).toBe(3);
+  });
+
+  it('names inverted chords with a slash bass and never asks for root position', () => {
+    const first = withInversion(questionFromSpec('C', ''), 1);
+    expect(formatSlashChord(first)).toBe('C/E');
+    expect(formatSlashChord(withInversion(questionFromSpec('A', 'm'), 1))).toBe('Am/C');
+    const third = withInversion(questionFromSpec('G', '7'), 3);
+    expect(third.bassName).toBe('F');
+    expect(third.inversion).toBe(3);
+    expect(formatSlashChord(third)).toBe('G7/F');
+    expect(third.voicing[0] % 12).toBe(5);
+    for (let i = 0; i < 16; i += 1) {
+      const question = generateInvertedQuestion('seventh', null, () => ((i * 7) % 90) / 90);
+      expect(question.inversion).toBeGreaterThan(0);
+      expect(question.inversion).toBeLessThanOrEqual(3);
+      expect(formatSlashChord(question)).toContain('/');
+    }
+  });
+
+  it('scores Roman play-out by pitch class, and by bass when asked', () => {
+    const pcs = new Set([0, 4, 7]);
+    expect(romanPlayIsCorrect([48, 52, 55], { pcs, bassPc: 0 })).toBe(true);
+    expect(romanPlayIsCorrect([48, 52, 55], { pcs, bassPc: 4, requireBass: true })).toBe(false);
+    expect(romanPlayIsCorrect([52, 55, 60], { pcs, bassPc: 4, requireBass: true })).toBe(true);
+    expect(romanPlayIsCorrect([52, 55], { pcs, bassPc: 4, requireBass: true })).toBe(false);
+    expect(romanPlayIsCorrect([48, 52, 55, 58], { pcs, bassPc: 0 })).toBe(false);
+    expect(romanPlayIsCorrect([60, 64, 67], { pcs, bassPc: 0, requireBass: true })).toBe(true);
   });
 
   it('builds a fixed question and chord-tone order', () => {
