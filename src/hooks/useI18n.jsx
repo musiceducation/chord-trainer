@@ -9,8 +9,16 @@ import {
 
 const LanguageContext = createContext(null);
 
+function devicePreferredLanguages() {
+  if (typeof navigator === 'undefined') return [];
+  if (Array.isArray(navigator.languages) && navigator.languages.length) {
+    return navigator.languages;
+  }
+  return navigator.language ? [navigator.language] : [];
+}
+
 export function LanguageProvider({ children }) {
-  const [lang, setLangState] = useState(() => loadLang());
+  const [lang, setLangState] = useState(() => loadLang(undefined, devicePreferredLanguages()));
 
   useEffect(() => {
     applyDocumentLang(lang);

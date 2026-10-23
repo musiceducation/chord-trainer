@@ -589,15 +589,29 @@ export function t(lang, key, vars = {}) {
   ));
 }
 
-export function loadLang(storage = typeof localStorage !== 'undefined' ? localStorage : null) {
-  if (!storage) return DEFAULT_LANG;
-  try {
-    const saved = storage.getItem(LANG_KEY);
-    if (isSupportedLang(saved)) return saved;
-  } catch {
-    // ignore
-  }
+/**
+ * Cold-start language when nothing is saved.
+ * Device lists (navigator.languages, iOS preferredLanguages, zh-TW / zh-CN)
+ * are accepted and ignored so a Chinese-region phone still opens in English.
+ */
+export function resolveInitialLang(devicePreferredLanguages = []) {
+  void devicePreferredLanguages;
   return DEFAULT_LANG;
+}
+
+export function loadLang(
+  storage = typeof localStorage !== 'undefined' ? localStorage : null,
+  devicePreferredLanguages = [],
+) {
+  if (storage) {
+    try {
+      const saved = storage.getItem(LANG_KEY);
+      if (isSupportedLang(saved)) return saved;
+    } catch {
+      // ignore
+    }
+  }
+  return resolveInitialLang(devicePreferredLanguages);
 }
 
 export function saveLang(lang, storage = typeof localStorage !== 'undefined' ? localStorage : null) {

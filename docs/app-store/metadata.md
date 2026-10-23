@@ -7,9 +7,11 @@
 | App Name | Chord Trainer |
 | Bundle ID | `com.musiceducation.chordtrainer` |
 | SKU | `chord-trainer-ios-001` |
-| Primary Language | Traditional Chinese (zh-Hant) |
+| Primary Language | English (en) |
 | Category | Music (primary), Education (secondary) |
 | Age Rating | 4+ |
+
+The bundle development region is English. A fresh install with no saved language opens in English. 繁體中文 and 简体中文 stay in Settings. Chinese store copy below is additional listing text, not the default UI language.
 
 ## Subtitle
 
