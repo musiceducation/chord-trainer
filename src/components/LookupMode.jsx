@@ -2,13 +2,12 @@ import { useMemo, useState } from 'react';
 import { Keyboard } from './Keyboard.jsx';
 import { usePiano } from '../hooks/usePiano.js';
 import { chordTypeI18nKey } from '../lib/chords.js';
-import { lookupFromPick, lookupFromSymbol } from '../lib/chordLookup.js';
-import { CHORD_FORMULAS, ROOTS } from '../lib/constants.js';
+import { LOOKUP_QUALITY_TYPES, lookupFromPick, lookupFromSymbol } from '../lib/chordLookup.js';
+import { ROOTS } from '../lib/constants.js';
 import { canShiftKeyboard } from '../lib/keyboardRange.js';
 import { useI18n } from '../hooks/useI18n.jsx';
 
 const EMPTY_NOTES = new Set();
-const QUALITY_TYPES = Object.keys(CHORD_FORMULAS);
 
 function chipStyle(active) {
   return {
@@ -107,26 +106,26 @@ export function LookupMode({ soundOn, pianoSound, hidden }) {
       inert={hidden ? true : undefined}
       data-testid="lookup-panel"
     >
-      <div className="flex-1 min-h-0 overflow-y-auto">
-        <div className="text-center mb-3 min-h-[4.5rem]">
-          {ready ? (
-            <>
-              <div className="text-[10px] tracking-[0.35em] text-slate-500 uppercase mb-1 font-medium">
-                {t(chordTypeI18nKey(type))}
-              </div>
-              <div
-                data-testid="lookup-chord-name"
-                className="display-font font-black leading-none tracking-tight text-[#DCE7FF]"
-                style={{ fontSize: 'clamp(40px, 12vw, 72px)' }}
-              >
-                {root + type}
-              </div>
-            </>
-          ) : (
-            <p className="text-sm text-slate-400 leading-relaxed px-2 pt-3">{t('lookup.prompt')}</p>
-          )}
-        </div>
+      <div className="shrink-0 text-center mb-2 min-h-[3.25rem]">
+        {ready ? (
+          <>
+            <div className="text-[10px] tracking-[0.35em] text-slate-500 uppercase mb-1 font-medium">
+              {t(chordTypeI18nKey(type))}
+            </div>
+            <div
+              data-testid="lookup-chord-name"
+              className="display-font font-black leading-none tracking-tight text-[#DCE7FF]"
+              style={{ fontSize: 'clamp(32px, 10vw, 56px)' }}
+            >
+              {root + type}
+            </div>
+          </>
+        ) : (
+          <p className="text-sm text-slate-400 leading-relaxed px-2 pt-2">{t('lookup.prompt')}</p>
+        )}
+      </div>
 
+      <div className="flex-1 min-h-0 overflow-y-auto">
         <div className="text-[10px] text-slate-500 uppercase tracking-[0.25em] mb-1.5 font-semibold">
           {t('lookup.root')}
         </div>
@@ -158,7 +157,7 @@ export function LookupMode({ soundOn, pianoSound, hidden }) {
           aria-label={t('lookup.quality')}
           data-testid="lookup-qualities"
         >
-          {QUALITY_TYPES.map((quality) => {
+          {LOOKUP_QUALITY_TYPES.map((quality) => {
             const active = type === quality;
             return (
               <button
@@ -175,52 +174,53 @@ export function LookupMode({ soundOn, pianoSound, hidden }) {
             );
           })}
         </div>
-
-        <form onSubmit={submitSymbol} className="flex gap-1.5 items-center">
-          <input
-            data-testid="lookup-symbol"
-            value={symbol}
-            onChange={(event) => {
-              setSymbol(event.target.value);
-              setError('');
-            }}
-            placeholder={t('lookup.symbolPlaceholder')}
-            aria-label={t('lookup.symbol')}
-            aria-invalid={error ? true : undefined}
-            aria-describedby={error ? 'lookup-error' : undefined}
-            autoCapitalize="off"
-            autoCorrect="off"
-            autoComplete="off"
-            spellCheck={false}
-            enterKeyHint="search"
-            className="flex-1 min-w-0 px-3 py-2.5 rounded-xl text-sm text-slate-100 placeholder:text-slate-600 outline-none"
-            style={{
-              background: 'rgba(255,255,255,0.03)',
-              border: `1px solid ${error ? 'rgba(247,118,142,0.65)' : 'rgba(255,255,255,0.08)'}`,
-            }}
-          />
-          <button
-            type="submit"
-            data-testid="lookup-submit"
-            className="shrink-0 px-3 py-2.5 rounded-xl text-sm font-semibold touch-none active:scale-[0.98]"
-            style={chipStyle(true)}
-          >
-            {t('lookup.submit')}
-          </button>
-        </form>
-        {error ? (
-          <p
-            id="lookup-error"
-            role="alert"
-            data-testid="lookup-error"
-            className="text-rose-300 text-xs leading-relaxed mt-2 font-medium"
-          >
-            {error}
-          </p>
-        ) : null}
       </div>
 
+      <form onSubmit={submitSymbol} className="shrink-0 flex gap-1.5 items-center mt-2">
+        <input
+          data-testid="lookup-symbol"
+          value={symbol}
+          onChange={(event) => {
+            setSymbol(event.target.value);
+            setError('');
+          }}
+          placeholder={t('lookup.symbolPlaceholder')}
+          aria-label={t('lookup.symbol')}
+          aria-invalid={error ? true : undefined}
+          aria-describedby={error ? 'lookup-error' : undefined}
+          autoCapitalize="off"
+          autoCorrect="off"
+          autoComplete="off"
+          spellCheck={false}
+          enterKeyHint="search"
+          className="flex-1 min-w-0 px-3 py-2.5 rounded-xl text-sm text-slate-100 placeholder:text-slate-600 outline-none"
+          style={{
+            background: 'rgba(255,255,255,0.03)',
+            border: `1px solid ${error ? 'rgba(247,118,142,0.65)' : 'rgba(255,255,255,0.08)'}`,
+          }}
+        />
+        <button
+          type="submit"
+          data-testid="lookup-submit"
+          className="shrink-0 px-3 py-2.5 rounded-xl text-sm font-semibold touch-none active:scale-[0.98]"
+          style={chipStyle(true)}
+        >
+          {t('lookup.submit')}
+        </button>
+      </form>
+      {error ? (
+        <p
+          id="lookup-error"
+          role="alert"
+          data-testid="lookup-error"
+          className="shrink-0 text-rose-300 text-xs leading-relaxed mt-2 font-medium"
+        >
+          {error}
+        </p>
+      ) : null}
+
       <Keyboard
+        compact
         pressed={EMPTY_NOTES}
         lockedCorrect={EMPTY_NOTES}
         wrongFlash={null}

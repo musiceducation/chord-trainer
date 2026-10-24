@@ -1,6 +1,23 @@
 import { buildChordVoicing } from './chords.js';
-import { CHORD_FORMULAS, FULL_END, FULL_START, NOTE_TO_PC } from './constants.js';
+import {
+  CHORD_FORMULAS,
+  DIFFICULTY_LEVELS,
+  FULL_END,
+  FULL_START,
+  NOTE_TO_PC,
+} from './constants.js';
 import { keyboardStartContaining } from './keyboardRange.js';
+
+/**
+ * Musical order from the shared formula list.
+ * `Object.keys(CHORD_FORMULAS)` is not safe: "7" and "9" are integer indexes
+ * and would sort ahead of every other quality.
+ */
+const FORMULA_KEYS = new Set(Object.keys(CHORD_FORMULAS));
+export const LOOKUP_QUALITY_TYPES = [
+  ...DIFFICULTY_LEVELS.all.types.filter((type) => FORMULA_KEYS.has(type)),
+  ...Object.keys(CHORD_FORMULAS).filter((type) => !DIFFICULTY_LEVELS.all.types.includes(type)),
+];
 
 const SYMBOL = /^([A-Ga-g])([#b♯♭])?(.*)$/;
 
@@ -25,7 +42,7 @@ export function parseChordSymbol(raw) {
 
 /** Comma-separated formula names for the inline parse error. Major is spelled out. */
 export function supportedChordFormatList() {
-  return Object.keys(CHORD_FORMULAS).map((type) => type || 'major').join(', ');
+  return LOOKUP_QUALITY_TYPES.map((type) => type || 'major').join(', ');
 }
 
 /**

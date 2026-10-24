@@ -10,7 +10,7 @@ import {
   parseChordSymbol,
   supportedChordFormatList,
 } from '../lib/chordLookup.js';
-import { ALL_KEYS, CHORD_FORMULAS, FULL_END, FULL_START } from '../lib/constants.js';
+import { ALL_KEYS, CHORD_FORMULAS, DIFFICULTY_LEVELS, FULL_END, FULL_START } from '../lib/constants.js';
 import { visibleKeysForStart } from '../lib/keyboardRange.js';
 
 function hintedLabels(html) {
@@ -62,9 +62,15 @@ describe('chord symbol lookup', () => {
     }
   });
 
-  it('lists every formula and does not advertise out-of-scope spellings', () => {
+  it('lists every formula in musical order and does not advertise out-of-scope spellings', () => {
+    expect(supportedChordFormatList()).toBe(
+      'major, m, dim, aug, sus2, sus4, maj7, m7, 7, m7b5, dim7, 7b9, 9, maj9',
+    );
     expect(supportedChordFormatList().split(', ')).toEqual(
-      Object.keys(CHORD_FORMULAS).map((type) => type || 'major'),
+      DIFFICULTY_LEVELS.all.types.map((type) => type || 'major'),
+    );
+    expect(new Set(supportedChordFormatList().split(', '))).toEqual(
+      new Set(Object.keys(CHORD_FORMULAS).map((type) => type || 'major')),
     );
     expect(supportedChordFormatList()).not.toMatch(/add9|slash|inversion|\//i);
   });
