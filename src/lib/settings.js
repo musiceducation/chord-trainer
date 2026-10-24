@@ -18,7 +18,6 @@ export const DEFAULT_SETTINGS = {
   difficulty: 'basic',
   keyRoot: 'C',
   pianoSound: DEFAULT_PIANO_SOUND,
-  onboardingDone: false,
   firstHintUsed: { ...DEFAULT_FIRST_HINT_USED },
   answerSurface: 'keyboard',
   romanTier: 'easy',
@@ -60,7 +59,6 @@ export function normalizeSettings(raw) {
     difficulty: isValidDifficulty(raw.difficulty) ? raw.difficulty : DEFAULT_SETTINGS.difficulty,
     keyRoot: isValidKeyRoot(raw.keyRoot) ? raw.keyRoot : DEFAULT_SETTINGS.keyRoot,
     pianoSound: normalizePianoSound(raw.pianoSound),
-    onboardingDone: raw.onboardingDone === true,
     firstHintUsed: normalizeFirstHintUsed(raw.firstHintUsed),
     answerSurface: isValidAnswerSurface(raw.answerSurface) ? raw.answerSurface : DEFAULT_SETTINGS.answerSurface,
     romanTier: normalizeRomanTier(raw.romanTier),
@@ -73,8 +71,15 @@ export function normalizeSettings(raw) {
 export function loadSettings(storage = typeof localStorage !== 'undefined' ? localStorage : null) {
   if (!storage) return { ...DEFAULT_SETTINGS };
   try {
-    const raw = storage.getItem(SETTINGS_KEY);
-    if (raw) return normalizeSettings(JSON.parse(raw));
+    const rawText = storage.getItem(SETTINGS_KEY);
+    if (rawText) {
+      const parsed = JSON.parse(rawText);
+      const settings = normalizeSettings(parsed);
+      if (parsed && typeof parsed === 'object' && Object.prototype.hasOwnProperty.call(parsed, 'onboardingDone')) {
+        saveSettings(settings, storage);
+      }
+      return settings;
+    }
   } catch {
     // ignore corrupt data
   }

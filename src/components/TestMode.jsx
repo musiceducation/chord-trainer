@@ -11,9 +11,7 @@ import {
   generateInvertedQuestion,
   generateQuestion,
   isCorrectNote,
-  questionFromSpec,
   romanPlayIsCorrect,
-  targetPcsInChordOrder,
 } from '../lib/chords.js';
 import {
   computeStreakAfterSuccess,
@@ -23,7 +21,7 @@ import {
   recordWrongAttempt,
 } from '../lib/stats.js';
 import { FULL_END, FULL_START } from '../lib/constants.js';
-import { scheduleAllHint, scheduleSequentialHint } from '../lib/hintFlash.js';
+import { scheduleAllHint } from '../lib/hintFlash.js';
 import { chordAccidentalSide, displayOctave, pressedAfterNote } from '../lib/noteNames.js';
 import { useI18n } from '../hooks/useI18n.jsx';
 
@@ -35,11 +33,6 @@ export function TestMode({
   setStats,
   onScoreChange,
   hidden,
-  tutorial = false,
-  fixedQuestion = null,
-  onQuestionComplete,
-  hideSkip = false,
-  forceSequentialHint = false,
   autoHint = false,
   onAutoHintUsed,
   questionEpoch = '',
@@ -49,14 +42,11 @@ export function TestMode({
   onInversionsChange,
   onDifficultyChange,
 }) {
-  const fixedKey = fixedQuestion ? `${fixedQuestion.root}:${fixedQuestion.type}` : null;
-  const practiceInversions = Boolean(inversions) && !tutorial && !fixedQuestion;
+  const practiceInversions = Boolean(inversions);
   const [question, setQuestion] = useState(() => (
-    fixedQuestion
-      ? questionFromSpec(fixedQuestion.root, fixedQuestion.type)
-      : practiceInversions
-        ? generateInvertedQuestion(difficulty, null)
-        : generateQuestion(difficulty, null)
+    practiceInversions
+      ? generateInvertedQuestion(difficulty, null)
+      : generateQuestion(difficulty, null)
   ));
   const [pressed, setPressed] = useState(new Set());
   const [lockedCorrect, setLockedCorrect] = useState(new Set());
@@ -88,11 +78,9 @@ export function TestMode({
 
   useEffect(() => {
     clearAll();
-    setQuestion(fixedKey
-      ? questionFromSpec(...fixedKey.split(':'))
-      : practiceInversions
-        ? generateInvertedQuestion(difficulty, null)
-        : generateQuestion(difficulty, null));
+    setQuestion(practiceInversions
+      ? generateInvertedQuestion(difficulty, null)
+      : generateQuestion(difficulty, null));
     setPressed(new Set());
     setLockedCorrect(new Set());
     setFeedback(null);
@@ -102,7 +90,7 @@ export function TestMode({
     setScore({ correct: 0, total: 0 });
     setLiveMessage('');
     if (practiceInversions) setKeyboardStart(48);
-  }, [difficulty, fixedKey, questionEpoch, practiceInversions, clearAll]);
+  }, [difficulty, questionEpoch, practiceInversions, clearAll]);
 
   useEffect(() => {
     if (hidden) return;
@@ -111,16 +99,12 @@ export function TestMode({
 
   useEffect(() => {
     if (hidden || feedback) return;
-    if (forceSequentialHint) {
-      scheduleSequentialHint(targetPcsInChordOrder(question.root, question.type), setHintNotes, schedule);
-      return;
-    }
     if (autoHint && !autoHintUsedRef.current) {
       autoHintUsedRef.current = true;
       scheduleAllHint([...question.pcs], setHintNotes, schedule);
       onAutoHintUsed?.();
     }
-  }, [hidden, feedback, forceSequentialHint, autoHint, question, schedule, onAutoHintUsed]);
+  }, [hidden, feedback, autoHint, question, schedule, onAutoHintUsed]);
 
   useEffect(() => {
     if (feedback || hidden) return;
@@ -135,15 +119,13 @@ export function TestMode({
 
     const missed = hasFailedRef.current;
     const newStreak = computeStreakAfterSuccess(streakRef.current, missed);
-    if (!tutorial) {
-      setStats((prev) => recordCorrectAttempt(prev, {
-        chordName: question.name,
-        newStreak,
-        isEarMode: false,
-      }));
-      setStreak(newStreak);
-      setScore((s) => ({ correct: s.correct + 1, total: s.total + 1 }));
-    }
+    setStats((prev) => recordCorrectAttempt(prev, {
+      chordName: question.name,
+      newStreak,
+      isEarMode: false,
+    }));
+    setStreak(newStreak);
+    setScore((s) => ({ correct: s.correct + 1, total: s.total + 1 }));
 
     const payload = {
       missed,
@@ -157,11 +139,7 @@ export function TestMode({
       },
     };
     const advance = () => {
-      if (!tutorial) onRoundSettled?.(payload);
-      if (onQuestionComplete) {
-        onQuestionComplete(payload);
-        return;
-      }
+      onRoundSettled?.(payload);
       setQuestion((q) => (practiceInversions
         ? generateInvertedQuestion(difficulty, q.id)
         : generateQuestion(difficulty, q.name)));
@@ -174,7 +152,7 @@ export function TestMode({
     };
     advanceRoundRef.current = advance;
     schedule(advance, 1400);
-  }, [practiceInversions, lockedCorrect, question, feedback, difficulty, pressed, playChord, setStats, schedule, hidden, tutorial, onQuestionComplete, onRoundSettled]);
+  }, [practiceInversions, lockedCorrect, question, feedback, difficulty, pressed, playChord, setStats, schedule, hidden, onRoundSettled]);
 
   useEffect(() => {
     if (feedback !== 'correct') {
@@ -195,11 +173,9 @@ export function TestMode({
       setWrongFlash(midi);
       setLiveMessage(t('live.tryAgain'));
       schedule(() => setWrongFlash((prev) => (prev === midi ? null : prev)), 350);
-      if (!tutorial) {
-        setStreak(computeStreakAfterWrong());
-        setHasFailed(true);
-        setStats((prev) => recordWrongAttempt(prev, question.name));
-      }
+      setStreak(computeStreakAfterWrong());
+      setHasFailed(true);
+      setStats((prev) => recordWrongAttempt(prev, question.name));
       return;
     }
 
@@ -240,11 +216,9 @@ export function TestMode({
       setLiveMessage(t('abrsm.wrongBass'));
       setPressed(new Set());
       setLockedCorrect(new Set());
-      if (!tutorial) {
-        setStreak(computeStreakAfterWrong());
-        setHasFailed(true);
-        setStats((prev) => recordWrongAttempt(prev, question.name));
-      }
+      setStreak(computeStreakAfterWrong());
+      setHasFailed(true);
+      setStats((prev) => recordWrongAttempt(prev, question.name));
       return;
     }
 
@@ -253,10 +227,9 @@ export function TestMode({
     setLockedCorrect(nextLocked);
     setPressed(nextPressed);
     setLiveMessage('');
-  }, [answerSurface, feedback, keyboardStart, playNote, practiceInversions, question, schedule, setStats, t, tutorial]);
+  }, [answerSurface, feedback, keyboardStart, playNote, practiceInversions, question, schedule, setStats, t]);
 
   const skip = () => {
-    if (hideSkip) return;
     clearAll();
     const payload = {
       missed: hasFailedRef.current,
@@ -269,16 +242,10 @@ export function TestMode({
         mode: 'test',
       },
     };
-    if (!tutorial) {
-      setStreak(computeStreakAfterWrong());
-      setScore((s) => ({ ...s, total: s.total + 1 }));
-      setStats((prev) => recordSkip(prev));
-      onRoundSettled?.(payload);
-    }
-    if (onQuestionComplete) {
-      onQuestionComplete(payload);
-      return;
-    }
+    setStreak(computeStreakAfterWrong());
+    setScore((s) => ({ ...s, total: s.total + 1 }));
+    setStats((prev) => recordSkip(prev));
+    onRoundSettled?.(payload);
     setQuestion((q) => (practiceInversions
       ? generateInvertedQuestion(difficulty, q.id)
       : generateQuestion(difficulty, q.name)));
@@ -299,14 +266,8 @@ export function TestMode({
         return;
       }
     }
-    const remaining = forceSequentialHint
-      ? targetPcsInChordOrder(question.root, question.type).filter((pc) => !lockedCorrect.has(pc))
-      : [...question.pcs].filter((pc) => !lockedCorrect.has(pc));
+    const remaining = [...question.pcs].filter((pc) => !lockedCorrect.has(pc));
     if (remaining.length === 0) return;
-    if (forceSequentialHint) {
-      scheduleSequentialHint(remaining, setHintNotes, schedule);
-      return;
-    }
     const hintPc = remaining[Math.floor(Math.random() * remaining.length)];
     setHintNotes(new Set([hintPc]));
     schedule(() => setHintNotes(null), 2000);
@@ -319,8 +280,7 @@ export function TestMode({
     }
   };
 
-  const showSetupRow = !tutorial && !fixedQuestion
-    && (typeof onInversionsChange === 'function' || typeof onDifficultyChange === 'function');
+  const showSetupRow = typeof onInversionsChange === 'function' || typeof onDifficultyChange === 'function';
   const prompt = practiceInversions ? formatSlashChord(question) : formatChord(question.name);
   const promptSize = prompt.length > 6
     ? 'clamp(36px, 10vw, 72px)'
@@ -422,12 +382,10 @@ export function TestMode({
           <Lightbulb size={13} className="text-amber-300" aria-hidden="true" />
           <span className="text-xs text-amber-200 tracking-wider uppercase font-medium">{t('action.hint')}</span>
         </button>
-        {!hideSkip && (
-          <button type="button" onClick={skip} className="btn-action btn-neutral touch-none">
-            <SkipForward size={13} className="text-slate-400" aria-hidden="true" />
-            <span className="text-xs text-slate-400 tracking-wider uppercase font-medium">{t('action.skip')}</span>
-          </button>
-        )}
+        <button type="button" onClick={skip} className="btn-action btn-neutral touch-none">
+          <SkipForward size={13} className="text-slate-400" aria-hidden="true" />
+          <span className="text-xs text-slate-400 tracking-wider uppercase font-medium">{t('action.skip')}</span>
+        </button>
       </div>
     </div>
   );
