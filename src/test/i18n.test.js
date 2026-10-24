@@ -196,7 +196,9 @@ describe('i18n', () => {
     }
     expect(t('zh-Hant', 'live.wrongExtra', { extra: 'F' })).toBe('多了：F');
     expect(t('zh-Hant', 'live.wrongMissing', { missing: 'G' })).toBe('尚缺：G');
-    expect(t('zh-Hant', 'guide.oneLiner.ear')).toBe('聆聽後 → 再彈出');
+    expect(STRINGS.en['guide.oneLiner.ear']).toBeUndefined();
+    expect(STRINGS['zh-Hant']['guide.oneLiner.ear']).toBeUndefined();
+    expect(STRINGS['zh-Hans']['guide.oneLiner.ear']).toBeUndefined();
     expect(t('zh-Hant', 'listen.selectAll')).toBe('全選');
     expect(t('zh-Hant', 'iap.thanks')).toBe('感謝！');
     expect(t('en', 'guide.oneLiner.test')).toBe('Read the name → play it on the piano');

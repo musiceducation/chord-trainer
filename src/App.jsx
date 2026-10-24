@@ -219,10 +219,14 @@ export default function App() {
   const subscriptionTitle = proStore?.title || t('pro.subscriptionTitle');
 
   const firstHintReady = !shotActive;
-  let coachLine = t(`guide.oneLiner.${tab}`);
+  // Train has no persistent "Listen → play it back" subtitle.
+  let coachLine = tab === 'ear' ? '' : t(`guide.oneLiner.${tab}`);
   if (tab === 'test' && settings.identifyInversions) {
     coachLine = t('identify.findRoot');
   }
+  const showRampChip = Boolean(tab !== 'abrsm' && rampLevel);
+  const showNudgeChip = Boolean(tab !== 'abrsm' && rampNudge && !proAccess);
+  const showCoachRow = Boolean(coachLine || showRampChip || showNudgeChip);
 
   const closeReviewGate = useCallback((answer) => {
     const answered = recordSoftAnswer(reviewStateRef.current, answer);
@@ -339,21 +343,23 @@ export default function App() {
           })}
         </nav>
 
-        <div className="flex items-center gap-2 mb-3">
-          <p className="mode-coach flex-1 min-w-0">{coachLine}</p>
-          {tab !== 'abrsm' && rampLevel && (
-            <span className="guide-skip-inline">{t('ramp.now', { level: t(`difficulty.${rampLevel}`) })}</span>
-          )}
-          {tab !== 'abrsm' && rampNudge && !proAccess && (
-            <button
-              type="button"
-              className="guide-skip-inline touch-none"
-              onClick={() => openPaywall()}
-            >
-              {t('ramp.proNudge')}
-            </button>
-          )}
-        </div>
+        {showCoachRow && (
+          <div className="flex items-center gap-2 mb-3">
+            {coachLine ? <p className="mode-coach flex-1 min-w-0">{coachLine}</p> : <span className="flex-1" />}
+            {showRampChip && (
+              <span className="guide-skip-inline">{t('ramp.now', { level: t(`difficulty.${rampLevel}`) })}</span>
+            )}
+            {showNudgeChip && (
+              <button
+                type="button"
+                className="guide-skip-inline touch-none"
+                onClick={() => openPaywall()}
+              >
+                {t('ramp.proNudge')}
+              </button>
+            )}
+          </div>
+        )}
 
         {showSettings && (
           <section
