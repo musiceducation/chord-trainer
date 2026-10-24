@@ -231,7 +231,7 @@ export function EarMode({
           onDifficultyChange={onDifficultyChange}
         />
       )}
-      <div className="flex-1 flex flex-col items-center justify-center min-h-0 relative overflow-y-auto">
+      <div className={`flex-1 flex flex-col items-center justify-center min-h-0 relative overflow-y-auto ${showSetupRow ? 'pt-3' : ''}`}>
         <div className="text-[10px] tracking-[0.5em] text-emerald-400/70 uppercase mb-3 font-medium">
           {t('ear.listenPlay')}
         </div>
