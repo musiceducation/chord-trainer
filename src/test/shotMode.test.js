@@ -24,6 +24,14 @@ describe('shotMode', () => {
     });
   });
 
+  it('accepts the lookup tab for screenshots', () => {
+    const win = {
+      __SHOT__: {},
+      location: { search: '?tab=lookup' },
+    };
+    expect(readShotConfig(win).tab).toBe('lookup');
+  });
+
   it('reads hideIap for price-free listing screenshots', () => {
     const win = {
       __SHOT__: { tab: 'test', lang: 'zh-Hant', settings: true, hideIap: true },

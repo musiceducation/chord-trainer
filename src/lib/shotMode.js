@@ -1,7 +1,7 @@
 import { LANG_KEY, isSupportedLang, saveLang } from './i18n.js';
 import { STATS_KEY, saveStats } from './stats.js';
 
-const SHOT_TABS = new Set(['test', 'ear', 'listen', 'progression', 'abrsm', 'stats']);
+const SHOT_TABS = new Set(['test', 'ear', 'listen', 'progression', 'abrsm', 'lookup', 'stats']);
 
 export const SCREENSHOT_STATS = {
   totalCorrect: 24,
