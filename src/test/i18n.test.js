@@ -23,6 +23,7 @@ describe('i18n', () => {
   it('defaults to English', () => {
     expect(DEFAULT_LANG).toBe('en');
     expect(t('en', 'tab.test')).toBe('Identify');
+    expect(t('en', 'tab.lookup')).toBe('Lookup');
     expect(t('en', 'settings.language')).toBe('Language');
     expect(t('en', 'identify.inversions')).toBe('Inversions');
     expect(t('zh-Hant', 'identify.inversions')).toBe('轉位');

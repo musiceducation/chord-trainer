@@ -68,5 +68,6 @@ export const TABS = [
   { key: 'listen', accent: 'rgba(125,196,247,0.4)' },
   { key: 'abrsm', accent: 'rgba(187,154,247,0.4)' },
   { key: 'progression', accent: 'rgba(122,162,247,0.4)' },
+  { key: 'lookup', accent: 'rgba(240,208,128,0.45)' },
   { key: 'stats', accent: 'rgba(255,215,130,0.4)' },
 ];

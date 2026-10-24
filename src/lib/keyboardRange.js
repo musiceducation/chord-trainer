@@ -23,6 +23,23 @@ export function visibleKeysForStart(keyboardStart, wide = false) {
   return ALL_KEYS.filter((key) => key.midi >= start && key.midi <= end);
 }
 
+/**
+ * Highest on-screen window that still contains every MIDI note.
+ * Used so a close voicing lights keys the player can actually see.
+ */
+export function keyboardStartContaining(midis, wide = false) {
+  const notes = [...midis].filter((midi) => Number.isFinite(midi));
+  if (!notes.length) return FULL_START;
+  const low = Math.min(...notes);
+  const whites = ALL_KEYS.filter((key) => !key.isBlack && key.midi <= low);
+  for (let i = whites.length - 1; i >= 0; i -= 1) {
+    const start = whites[i].midi;
+    const shown = new Set(visibleKeysForStart(start, wide).map((key) => key.midi));
+    if (notes.every((midi) => shown.has(midi))) return start;
+  }
+  return whites[0]?.midi ?? FULL_START;
+}
+
 export function canShiftKeyboard(keyboardStart, direction, wide = false) {
   if (direction < 0) return keyboardStart - 12 >= FULL_START;
   if (!wide) return keyboardStart + 18 < FULL_END;

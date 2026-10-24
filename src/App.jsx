@@ -1,11 +1,12 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import {
-  Volume2, VolumeX, Flame, Settings, Sparkles, Headphones, Ear, BarChart3, ListMusic, Lock, GraduationCap,
+  Volume2, VolumeX, Flame, Settings, Sparkles, Headphones, Ear, BarChart3, ListMusic, Lock, GraduationCap, Search,
 } from 'lucide-react';
 import { TestMode } from './components/TestMode.jsx';
 import { AbrsmMode } from './components/AbrsmMode.jsx';
 import { EarMode } from './components/EarMode.jsx';
 import { EarQualityMode } from './components/EarQualityMode.jsx';
+import { LookupMode } from './components/LookupMode.jsx';
 import { ProgressionEarMode } from './components/ProgressionEarMode.jsx';
 import { StatsMode } from './components/StatsMode.jsx';
 import { DIFFICULTY_LEVELS, TABS } from './lib/constants.js';
@@ -43,6 +44,7 @@ const TAB_ICONS = {
   listen: Ear,
   progression: ListMusic,
   abrsm: GraduationCap,
+  lookup: Search,
   stats: BarChart3,
 };
 
@@ -224,8 +226,8 @@ export default function App() {
   if (tab === 'test' && settings.identifyInversions) {
     coachLine = t('identify.findRoot');
   }
-  const showRampChip = Boolean(tab !== 'abrsm' && rampLevel);
-  const showNudgeChip = Boolean(tab !== 'abrsm' && rampNudge && !proAccess);
+  const showRampChip = Boolean(tab !== 'abrsm' && tab !== 'lookup' && rampLevel);
+  const showNudgeChip = Boolean(tab !== 'abrsm' && tab !== 'lookup' && rampNudge && !proAccess);
   const showCoachRow = Boolean(coachLine || showRampChip || showNudgeChip);
 
   const closeReviewGate = useCallback((answer) => {
@@ -252,6 +254,8 @@ export default function App() {
         style={{
           background: tab === 'ear' || tab === 'listen'
             ? 'radial-gradient(circle, rgba(122,220,200,0.18) 0%, transparent 70%)'
+            : tab === 'lookup'
+            ? 'radial-gradient(circle, rgba(240,208,128,0.16) 0%, transparent 70%)'
             : tab === 'stats'
             ? 'radial-gradient(circle, rgba(255,215,130,0.15) 0%, transparent 70%)'
             : 'radial-gradient(circle, rgba(122,162,247,0.18) 0%, transparent 70%)',
@@ -307,7 +311,7 @@ export default function App() {
           </div>
         </header>
 
-        <nav aria-label={t('nav.main')} className="flex gap-1.5 mb-3 p-1 rounded-2xl panel-soft">
+        <nav aria-label={t('nav.main')} className="flex gap-1.5 mb-3 p-1 rounded-2xl panel-soft overflow-x-auto">
           {TABS.map((item) => {
             const active = tab === item.key;
             const Icon = TAB_ICONS[item.key];
@@ -325,7 +329,7 @@ export default function App() {
                   setTab(item.key);
                   setShowSettings(false);
                 }}
-                className="flex-1 min-w-0 flex flex-col items-center justify-center gap-0.5 py-1.5 rounded-xl text-[10px] sm:text-[11px] font-semibold whitespace-nowrap transition-all touch-none active:scale-[0.98]"
+                className="flex-1 shrink-0 min-w-[3.35rem] flex flex-col items-center justify-center gap-0.5 py-1.5 px-1 rounded-xl text-[10px] sm:text-[11px] font-semibold whitespace-nowrap transition-all touch-none active:scale-[0.98]"
                 style={{
                   background: active ? `linear-gradient(135deg, ${item.accent.replace('0.4', '0.18')}, ${item.accent.replace('0.4', '0.06')})` : 'transparent',
                   border: `1px solid ${active ? item.accent : 'transparent'}`,
@@ -578,6 +582,11 @@ export default function App() {
             onTierChange={(romanTier) => updateSettings({ romanTier })}
             inversions={settings.romanInversions}
             onInversionsChange={(romanInversions) => updateSettings({ romanInversions })}
+          />
+          <LookupMode
+            soundOn={soundOn}
+            pianoSound={pianoSound}
+            hidden={tab !== 'lookup'}
           />
           <StatsMode
             stats={stats}
