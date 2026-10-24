@@ -1,16 +1,24 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { Keyboard } from '../components/Keyboard.jsx';
 import { LookupMode } from '../components/LookupMode.jsx';
 import { buildChordVoicing } from '../lib/chords.js';
 import {
+  LOOKUP_LOOP_GAP_MS,
+  LOOKUP_QUEUE_MAX,
+  appendLookupQueue,
+  chordForLookupQueue,
   lookupFromPick,
   lookupFromSymbol,
+  lookupLoopStep,
   parseChordSymbol,
+  removeLookupQueueAt,
+  runLookupLoop,
   supportedChordFormatList,
 } from '../lib/chordLookup.js';
 import { ALL_KEYS, CHORD_FORMULAS, DIFFICULTY_LEVELS, FULL_END, FULL_START } from '../lib/constants.js';
+import { STRINGS } from '../lib/i18n.js';
 import { visibleKeysForStart } from '../lib/keyboardRange.js';
 
 function hintedLabels(html) {
@@ -19,6 +27,11 @@ function hintedLabels(html) {
 
 function labelsFor(midis) {
   return ALL_KEYS.filter((key) => midis.includes(key.midi)).map((key) => `${key.name}${key.octave}`);
+}
+
+function openTag(html, testId) {
+  const match = html.match(new RegExp(`<[^>]*data-testid="${testId}"[^>]*>`));
+  return match?.[0] ?? '';
 }
 
 describe('chord symbol lookup', () => {
@@ -137,5 +150,173 @@ describe('chord symbol lookup', () => {
     expect(html).not.toContain('>Skip<');
     expect(html).not.toContain('>Perfect<');
     expect(html).not.toContain('data-testid="ear-quality-pool"');
+    expect(openTag(html, 'lookup-queue-add')).toContain('disabled');
+    expect(openTag(html, 'lookup-queue-play')).toContain('disabled');
+    expect(openTag(html, 'lookup-queue-stop')).toContain('disabled');
+    expect(openTag(html, 'lookup-queue-clear')).toContain('disabled');
+    expect(html).toContain('data-testid="lookup-queue-list"');
+    expect(html).not.toContain('data-testid="lookup-queue-item-0"');
+    expect(html).toContain('>Add<');
+    expect(html).toContain('>Play<');
+    expect(html).toContain('>Stop<');
+    expect(html).toContain('Add chords to loop them');
+    expect(STRINGS.en['lookup.queuePlay']).toBe('Play');
+    expect(STRINGS['zh-Hant']['lookup.queue']).toBe('循環');
+    expect(STRINGS['zh-Hant']['lookup.queueAdd']).toBe('加入');
+    expect(STRINGS['zh-Hant']['lookup.queueStop']).toBe('停止');
+    expect(STRINGS['zh-Hant']['lookup.queueClear']).toBe('清除');
+    expect(STRINGS['zh-Hant']['lookup.queueEmpty']).toBe('加入和弦後可循環播放');
+    expect(STRINGS['zh-Hans']['lookup.queue']).toBe('循环');
+    expect(STRINGS['zh-Hans']['lookup.queueRemove']).toBe('移除 {name}');
+  });
+});
+
+describe('lookup loop queue', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('queues resolved chords only, up to 8, and keeps a copy of the voicing', () => {
+    expect(LOOKUP_LOOP_GAP_MS).toBe(1200);
+    expect(LOOKUP_QUEUE_MAX).toBe(8);
+
+    const found = lookupFromSymbol('Am7');
+    const queued = chordForLookupQueue(found);
+    expect(queued).toMatchObject({
+      root: 'A',
+      type: 'm7',
+      name: 'Am7',
+      keyboardStart: found.keyboardStart,
+    });
+    expect(queued.voicing).toEqual(found.voicing);
+    expect(queued.voicing).not.toBe(found.voicing);
+
+    expect(chordForLookupQueue(lookupFromSymbol('C/E'))).toBeNull();
+    expect(chordForLookupQueue(lookupFromSymbol('Cadd9'))).toBeNull();
+    expect(chordForLookupQueue(lookupFromSymbol('C6'))).toBeNull();
+    expect(chordForLookupQueue({
+      ok: true,
+      root: 'C',
+      type: 'add9',
+      name: 'Cadd9',
+      voicing: [60, 64, 67, 74],
+      keyboardStart: 48,
+    })).toBeNull();
+    expect(appendLookupQueue([], lookupFromSymbol('C/E'))).toEqual([]);
+
+    const symbols = ['C', 'Am7', 'F#sus2', 'Bb7', 'Ebdim7', 'G7b9', 'Cm7b5', 'Cmaj9'];
+    let queue = [];
+    for (const symbol of symbols) {
+      queue = appendLookupQueue(queue, lookupFromSymbol(symbol));
+    }
+    expect(queue.map((item) => item.name)).toEqual(symbols);
+    const blocked = appendLookupQueue(queue, lookupFromSymbol('Dm'));
+    expect(blocked).toBe(queue);
+
+    const removed = removeLookupQueueAt(queue, 1);
+    expect(removed.map((item) => item.name)).toEqual(['C', 'F#sus2', 'Bb7', 'Ebdim7', 'G7b9', 'Cm7b5', 'Cmaj9']);
+    expect(removeLookupQueueAt(queue, -1)).toBe(queue);
+    expect(removeLookupQueueAt(queue, 99)).toBe(queue);
+  });
+
+  it('walks the queue from the start and wraps', () => {
+    const queue = ['C', 'Am7', 'F#sus2'].map((symbol) => chordForLookupQueue(lookupFromSymbol(symbol)));
+    expect(lookupLoopStep([], 0)).toBeNull();
+    const first = lookupLoopStep(queue, 0);
+    const second = lookupLoopStep(queue, first.nextCursor);
+    const third = lookupLoopStep(queue, second.nextCursor);
+    const fourth = lookupLoopStep(queue, third.nextCursor);
+    expect([first, second, third, fourth].map((step) => step.chord.name)).toEqual(['C', 'Am7', 'F#sus2', 'C']);
+    expect(fourth.index).toBe(0);
+  });
+
+  it('plays each queued chord every 1200ms until stop, and drops an emptied queue', () => {
+    vi.useFakeTimers();
+    const queue = ['C', 'Am7', 'F#sus2'].map((symbol) => chordForLookupQueue(lookupFromSymbol(symbol)));
+    const shown = [];
+    const played = [];
+    let current = queue;
+    const cleared = [];
+    const stop = runLookupLoop({
+      getQueue: () => current,
+      onChord: (step) => { shown.push(step ? step.chord.name : null); },
+      play: (chord) => { played.push(chord.name); },
+      setTimer: (fn, ms) => setTimeout(fn, ms),
+      clearTimer: (id) => {
+        cleared.push(id);
+        clearTimeout(id);
+      },
+    });
+
+    expect(shown).toEqual([]);
+    vi.advanceTimersToNextTimer();
+    expect(shown).toEqual(['C']);
+    expect(played).toEqual(['C']);
+
+    vi.advanceTimersByTime(LOOKUP_LOOP_GAP_MS - 1);
+    expect(played).toEqual(['C']);
+    vi.advanceTimersByTime(1);
+    expect(played).toEqual(['C', 'Am7']);
+    vi.advanceTimersByTime(LOOKUP_LOOP_GAP_MS);
+    expect(played).toEqual(['C', 'Am7', 'F#sus2']);
+    vi.advanceTimersByTime(LOOKUP_LOOP_GAP_MS);
+    expect(played).toEqual(['C', 'Am7', 'F#sus2', 'C']);
+
+    current = [...queue, chordForLookupQueue(lookupFromSymbol('Bb7'))];
+    const beforeAdded = played.length;
+    vi.advanceTimersByTime(LOOKUP_LOOP_GAP_MS * 4);
+    expect(played.slice(beforeAdded)).toContain('Bb7');
+
+    stop();
+    const playedCount = played.length;
+    vi.advanceTimersByTime(LOOKUP_LOOP_GAP_MS * 4);
+    expect(played).toHaveLength(playedCount);
+    expect(cleared.length).toBeGreaterThan(0);
+
+    const missed = [];
+    const cancelImmediately = runLookupLoop({
+      getQueue: () => queue,
+      onChord: () => { missed.push('shown'); },
+      play: () => { missed.push('played'); },
+    });
+    cancelImmediately();
+    vi.advanceTimersByTime(LOOKUP_LOOP_GAP_MS * 3);
+    expect(missed).toEqual([]);
+
+    const ended = [];
+    current = queue;
+    runLookupLoop({
+      getQueue: () => current,
+      onChord: (step) => { ended.push(step ? step.chord.name : 'end'); },
+      play: () => {},
+    });
+    vi.advanceTimersToNextTimer();
+    current = [];
+    vi.advanceTimersByTime(LOOKUP_LOOP_GAP_MS);
+    expect(ended).toEqual(['C', 'end']);
+    vi.advanceTimersByTime(LOOKUP_LOOP_GAP_MS * 3);
+    expect(ended).toEqual(['C', 'end']);
+  });
+
+  it('waits one gap when chord 0 was already attacked in the tap', () => {
+    vi.useFakeTimers();
+    const queue = ['C', 'Am7'].map((symbol) => chordForLookupQueue(lookupFromSymbol(symbol)));
+    const played = [];
+    const stop = runLookupLoop({
+      getQueue: () => queue,
+      startCursor: 1,
+      initialDelayMs: LOOKUP_LOOP_GAP_MS,
+      onChord: () => {},
+      play: (chord) => { played.push(chord.name); },
+    });
+    vi.advanceTimersByTime(LOOKUP_LOOP_GAP_MS - 1);
+    expect(played).toEqual([]);
+    vi.advanceTimersByTime(1);
+    expect(played).toEqual(['Am7']);
+    vi.advanceTimersByTime(LOOKUP_LOOP_GAP_MS);
+    expect(played).toEqual(['Am7', 'C']);
+    stop();
+    vi.advanceTimersByTime(LOOKUP_LOOP_GAP_MS * 3);
+    expect(played).toEqual(['Am7', 'C']);
   });
 });
