@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   DEFAULT_SETTINGS,
+  SETTINGS_KEY,
   loadSettings,
   normalizeSettings,
   saveSettings,
@@ -18,7 +19,6 @@ describe('settings', () => {
       difficulty: 'basic',
       keyRoot: 'C',
       pianoSound: 'acoustic',
-      onboardingDone: false,
       firstHintUsed: { identify: false, ear: false, progress: false },
       answerSurface: 'keyboard',
       romanTier: 'easy',
@@ -31,7 +31,6 @@ describe('settings', () => {
       difficulty: 'seventh',
       keyRoot: 'Bb',
       pianoSound: 'acoustic',
-      onboardingDone: false,
       firstHintUsed: { identify: false, ear: false, progress: false },
       answerSurface: 'keyboard',
       romanTier: 'easy',
@@ -57,6 +56,23 @@ describe('settings', () => {
     expect(normalizeSettings({ romanTier: 'vOfV' }).romanTier).toBe('hard');
     expect(normalizeSettings({ pianoSound: 'electric' }).pianoSound).toBe('electric');
     expect(normalizeSettings({ pianoSound: 'nope' }).pianoSound).toBe('acoustic');
+    expect(normalizeSettings({ onboardingDone: true }).onboardingDone).toBeUndefined();
+  });
+
+  it('drops a stored beginner onboarding flag and keeps the first-hint flag', () => {
+    const storage = new MemoryStorage();
+    storage.setItem(SETTINGS_KEY, JSON.stringify({
+      difficulty: 'seventh',
+      onboardingDone: false,
+      firstHintUsed: { identify: true, ear: false, progress: true },
+    }));
+    const loaded = loadSettings(storage);
+    expect(loaded.onboardingDone).toBeUndefined();
+    expect(loaded.difficulty).toBe('seventh');
+    expect(loaded.firstHintUsed).toEqual({ identify: true, ear: false, progress: true });
+    expect(JSON.parse(storage.getItem(SETTINGS_KEY)).onboardingDone).toBeUndefined();
+    expect(saveSettings({ ...loaded, onboardingDone: true }, storage)).toBe(true);
+    expect(JSON.parse(storage.getItem(SETTINGS_KEY)).onboardingDone).toBeUndefined();
   });
 
   it('loads and saves settings', () => {
@@ -67,7 +83,6 @@ describe('settings', () => {
       difficulty: 'all',
       keyRoot: 'Eb',
       pianoSound: 'acoustic',
-      onboardingDone: false,
       firstHintUsed: { identify: false, ear: false, progress: false },
       answerSurface: 'keyboard',
       romanTier: 'easy',

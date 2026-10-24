@@ -8,7 +8,6 @@ import { EarMode } from './components/EarMode.jsx';
 import { EarQualityMode } from './components/EarQualityMode.jsx';
 import { ProgressionEarMode } from './components/ProgressionEarMode.jsx';
 import { StatsMode } from './components/StatsMode.jsx';
-import { GuideOverlay } from './components/GuideOverlay.jsx';
 import { DIFFICULTY_LEVELS, TABS } from './lib/constants.js';
 import { TRAINING_KEYS } from './lib/diatonic.js';
 import { loadStats, saveStats } from './lib/stats.js';
@@ -37,15 +36,6 @@ import {
 import { requestNativeReview } from './native/inAppReview.js';
 import { IapToast, PaywallSheet } from './components/PaywallSheet.jsx';
 import { readShotConfig } from './lib/shotMode.js';
-import {
-  ONBOARDING_STEPS,
-  earPracticeSpec,
-  identifyPracticeSpec,
-  initialGuideState,
-  isGuideOverlayStep,
-  isOnboardingPractice,
-  tabsLocked,
-} from './lib/onboarding.js';
 
 const TAB_ICONS = {
   test: Sparkles,
@@ -79,7 +69,6 @@ export default function App() {
   const [showSettings, setShowSettings] = useState(Boolean(shot?.settings));
   const [stats, setStatsState] = useState(() => loadStats());
   const [scoreInfo, setScoreInfo] = useState({ streak: 0, correct: 0, total: 0 });
-  const [guide, setGuide] = useState(() => initialGuideState(loadSettings().onboardingDone, { shotActive }));
   const [reviewOpen, setReviewOpen] = useState(false);
   const reviewStateRef = useRef(loadReviewState());
   const reviewPromptedRef = useRef(false);
@@ -91,11 +80,9 @@ export default function App() {
   const practiceDifficulty = difficulty;
   const pianoSound = normalizePianoSound(settings.pianoSound || DEFAULT_PIANO_SOUND);
   const isProRef = useRef(proAccess);
-  const guideRef = useRef(guide);
   const difficultyRef = useRef(difficulty);
   const rampMissRef = useRef(0);
 
-  useEffect(() => { guideRef.current = guide; }, [guide]);
   useEffect(() => { difficultyRef.current = difficulty; }, [difficulty]);
   useEffect(() => { isProRef.current = proAccess; }, [proAccess]);
   useEffect(() => {
@@ -150,48 +137,6 @@ export default function App() {
     });
   }, []);
 
-  const finishOnboarding = useCallback(() => {
-    updateSettings({ onboardingDone: true });
-    setGuide(null);
-    setTab('test');
-    setShowSettings(false);
-  }, [updateSettings]);
-
-  const skipOnboarding = useCallback(() => {
-    finishOnboarding();
-  }, [finishOnboarding]);
-
-  const startOnboardingIdentify = useCallback(() => {
-    setGuide({ kind: 'onboarding', step: ONBOARDING_STEPS.IDENTIFY });
-    setTab('test');
-    setShowSettings(false);
-  }, []);
-
-  const startOnboardingTrain = useCallback(() => {
-    setGuide({ kind: 'onboarding', step: ONBOARDING_STEPS.TRAIN });
-    setTab('ear');
-    setShowSettings(false);
-  }, []);
-
-  const replayOnboarding = useCallback(() => {
-    updateSettings({ onboardingDone: false });
-    setGuide({ kind: 'onboarding', step: ONBOARDING_STEPS.IDENTIFY });
-    setTab('test');
-    setShowSettings(false);
-  }, [updateSettings]);
-
-  const handlePracticeComplete = useCallback(() => {
-    const current = guideRef.current;
-    if (current?.kind === 'onboarding' && current.step === ONBOARDING_STEPS.IDENTIFY) {
-      setGuide({ kind: 'onboarding', step: ONBOARDING_STEPS.TRAIN });
-      setTab('ear');
-      return;
-    }
-    if (current?.kind === 'onboarding' && current.step === ONBOARDING_STEPS.TRAIN) {
-      finishOnboarding();
-    }
-  }, [finishOnboarding]);
-
   const queueReviewPrompt = useCallback((reason) => {
     if (reviewPromptedRef.current || reviewOpen) return;
     if (!shouldOfferSoftGate({ state: reviewStateRef.current, reason })) return;
@@ -205,14 +150,7 @@ export default function App() {
     setReviewOpen(true);
   }, [reviewOpen]);
 
-  const handleQuestionComplete = useCallback(() => {
-    handlePracticeComplete();
-  }, [handlePracticeComplete]);
-
   const handleRoundSettled = useCallback((payload) => {
-    const guided = guideRef.current;
-    const blockingGuide = guided?.kind === 'onboarding';
-    if (blockingGuide) return;
     if (payload?.skipped && !payload?.missed) return;
 
     const missed = Boolean(payload?.missed);
@@ -280,49 +218,9 @@ export default function App() {
   const proStore = iap.products?.[PRODUCT_IDS.pro];
   const subscriptionTitle = proStore?.title || t('pro.subscriptionTitle');
 
-  const identifyFromGuide = identifyPracticeSpec(guide);
-  const earFromGuide = earPracticeSpec(guide);
-  const identifySpec = identifyFromGuide;
-  const earSpec = earFromGuide;
-  const guidedIdentify = Boolean(identifyFromGuide);
-  const guidedEar = Boolean(earFromGuide);
-  const lockTabs = tabsLocked(guide);
-  const overlayOpen = isGuideOverlayStep(guide);
-  const firstHintReady = !guide && !shotActive;
-
-  let overlayTitle = '';
-  let overlayLead = '';
-  let overlayItems;
-  let overlayCta = '';
-  let overlayOnCta = finishOnboarding;
-  let overlaySkip = skipOnboarding;
-
-  if (guide?.kind === 'onboarding' && guide.step === ONBOARDING_STEPS.WELCOME) {
-    overlayTitle = t('onboarding.welcomeTitle');
-    overlayLead = t('onboarding.welcomeLead');
-    overlayItems = [t('onboarding.styleIdentify'), t('onboarding.styleTrain')];
-    overlayCta = t('onboarding.start');
-    overlayOnCta = startOnboardingIdentify;
-  } else if (guide?.kind === 'onboarding' && guide.step === ONBOARDING_STEPS.CELEBRATE) {
-    overlayTitle = t('onboarding.celebrateTitle');
-    overlayLead = t('onboarding.celebrateBody');
-    overlayCta = t('onboarding.nextTrain');
-    overlayOnCta = startOnboardingTrain;
-  } else if (guide?.kind === 'onboarding' && guide.step === ONBOARDING_STEPS.PERFECT) {
-    overlayTitle = t('onboarding.perfectTitle');
-    overlayLead = t('onboarding.perfectBody');
-    overlayCta = t('onboarding.perfectCta');
-    overlayOnCta = finishOnboarding;
-    overlaySkip = null;
-  }
-
-  const guideTab = tab !== 'abrsm';
-  let coachLine = !guideTab
-    ? t('guide.oneLiner.abrsm')
-    : isOnboardingPractice(guide)
-    ? (guide.step === ONBOARDING_STEPS.IDENTIFY ? t('onboarding.identifyCoach') : t('onboarding.trainCoach'))
-    : t(`guide.oneLiner.${tab}`);
-  if (!guide && tab === 'test' && settings.identifyInversions && !guidedIdentify) {
+  const firstHintReady = !shotActive;
+  let coachLine = t(`guide.oneLiner.${tab}`);
+  if (tab === 'test' && settings.identifyInversions) {
     coachLine = t('identify.findRoot');
   }
 
@@ -415,7 +313,6 @@ export default function App() {
                 key={item.key}
                 type="button"
                 aria-current={active ? 'page' : undefined}
-                disabled={lockTabs}
                 onClick={() => {
                   if (locked) {
                     openPaywall();
@@ -424,7 +321,7 @@ export default function App() {
                   setTab(item.key);
                   setShowSettings(false);
                 }}
-                className="flex-1 min-w-0 flex flex-col items-center justify-center gap-0.5 py-1.5 rounded-xl text-[10px] sm:text-[11px] font-semibold whitespace-nowrap transition-all touch-none active:scale-[0.98] disabled:opacity-40"
+                className="flex-1 min-w-0 flex flex-col items-center justify-center gap-0.5 py-1.5 rounded-xl text-[10px] sm:text-[11px] font-semibold whitespace-nowrap transition-all touch-none active:scale-[0.98]"
                 style={{
                   background: active ? `linear-gradient(135deg, ${item.accent.replace('0.4', '0.18')}, ${item.accent.replace('0.4', '0.06')})` : 'transparent',
                   border: `1px solid ${active ? item.accent : 'transparent'}`,
@@ -442,28 +339,21 @@ export default function App() {
           })}
         </nav>
 
-        {!overlayOpen && (
-          <div className="flex items-center gap-2 mb-3">
-            <p className="mode-coach flex-1 min-w-0">{coachLine}</p>
-            {guideTab && rampLevel && (
-              <span className="guide-skip-inline">{t('ramp.now', { level: t(`difficulty.${rampLevel}`) })}</span>
-            )}
-            {guideTab && rampNudge && !proAccess && (
-              <button
-                type="button"
-                className="guide-skip-inline touch-none"
-                onClick={() => openPaywall()}
-              >
-                {t('ramp.proNudge')}
-              </button>
-            )}
-            {guideTab && isOnboardingPractice(guide) && (
-              <button type="button" className="guide-skip-inline touch-none" onClick={skipOnboarding}>
-                {t('onboarding.skip')}
-              </button>
-            )}
-          </div>
-        )}
+        <div className="flex items-center gap-2 mb-3">
+          <p className="mode-coach flex-1 min-w-0">{coachLine}</p>
+          {tab !== 'abrsm' && rampLevel && (
+            <span className="guide-skip-inline">{t('ramp.now', { level: t(`difficulty.${rampLevel}`) })}</span>
+          )}
+          {tab !== 'abrsm' && rampNudge && !proAccess && (
+            <button
+              type="button"
+              className="guide-skip-inline touch-none"
+              onClick={() => openPaywall()}
+            >
+              {t('ramp.proNudge')}
+            </button>
+          )}
+        </div>
 
         {showSettings && (
           <section
@@ -570,19 +460,6 @@ export default function App() {
               })}
             </div>
             <div className="text-[10px] text-slate-500 uppercase tracking-[0.3em] mt-3.5 mb-2.5 font-semibold">
-              {t('settings.beginner')}
-            </div>
-            <div className="grid grid-cols-1 gap-1.5">
-              <button
-                type="button"
-                onClick={replayOnboarding}
-                className="py-2.5 rounded-xl text-sm transition-all touch-none active:scale-[0.98]"
-                style={settingButtonStyle(false)}
-              >
-                {t('onboarding.replay')}
-              </button>
-            </div>
-            <div className="text-[10px] text-slate-500 uppercase tracking-[0.3em] mt-3.5 mb-2.5 font-semibold">
               {t('about.section')}
             </div>
             <p className="text-xs text-slate-400 leading-relaxed mb-1 px-0.5">{t('about.pianoCreditAcoustic')}</p>
@@ -631,7 +508,7 @@ export default function App() {
           </section>
         )}
 
-        <main className={`flex flex-col flex-1 min-h-0 ${overlayOpen ? 'invisible' : ''}`}>
+        <main className="flex flex-col flex-1 min-h-0">
           <TestMode
             difficulty={practiceDifficulty}
             soundOn={soundOn}
@@ -640,12 +517,7 @@ export default function App() {
             setStats={setStats}
             onScoreChange={setScoreInfo}
             hidden={tab !== 'test'}
-            tutorial={guidedIdentify}
-            fixedQuestion={identifySpec}
-            onQuestionComplete={identifySpec ? handleQuestionComplete : undefined}
             onRoundSettled={handleRoundSettled}
-            hideSkip={guidedIdentify}
-            forceSequentialHint={guide?.kind === 'onboarding' && guide.step === ONBOARDING_STEPS.IDENTIFY}
             autoHint={firstHintReady && !settings.firstHintUsed.identify}
             onAutoHintUsed={() => markHintUsed('identify')}
             answerSurface={settings.answerSurface}
@@ -661,13 +533,7 @@ export default function App() {
             setStats={setStats}
             onScoreChange={setScoreInfo}
             hidden={tab !== 'ear'}
-            tutorial={guidedEar}
-            fixedQuestion={earSpec}
-            onQuestionComplete={earSpec ? handleQuestionComplete : undefined}
             onRoundSettled={handleRoundSettled}
-            hideSkip={guidedEar}
-            autoPlayOnce={Boolean(earSpec)}
-            hintAfterListen={guide?.kind === 'onboarding' && guide.step === ONBOARDING_STEPS.TRAIN}
             autoHint={firstHintReady && !settings.firstHintUsed.ear}
             onAutoHintUsed={() => markHintUsed('ear')}
             answerSurface={settings.answerSurface}
@@ -756,17 +622,6 @@ export default function App() {
         closeLabel={t('dialog.close')}
         onYes={acceptReviewGate}
         onNo={() => closeReviewGate('no')}
-      />
-
-      <GuideOverlay
-        open={overlayOpen}
-        title={overlayTitle}
-        lead={overlayLead}
-        items={overlayItems}
-        ctaLabel={overlayCta}
-        onCta={overlayOnCta}
-        onSkip={overlaySkip}
-        skipLabel={t('onboarding.skip')}
       />
     </div>
   );

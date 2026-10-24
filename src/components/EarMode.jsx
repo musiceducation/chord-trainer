@@ -9,8 +9,6 @@ import {
   formatChord,
   generateQuestion,
   isCorrectNote,
-  questionFromSpec,
-  targetPcsInChordOrder,
 } from '../lib/chords.js';
 import {
   computeStreakAfterSuccess,
@@ -32,12 +30,6 @@ export function EarMode({
   setStats,
   onScoreChange,
   hidden,
-  tutorial = false,
-  fixedQuestion = null,
-  onQuestionComplete,
-  hideSkip = false,
-  autoPlayOnce = false,
-  hintAfterListen = false,
   autoHint = false,
   onAutoHintUsed,
   questionEpoch = '',
@@ -45,12 +37,7 @@ export function EarMode({
   answerSurface = 'keyboard',
   onDifficultyChange,
 }) {
-  const fixedKey = fixedQuestion ? `${fixedQuestion.root}:${fixedQuestion.type}` : null;
-  const [question, setQuestion] = useState(() => (
-    fixedQuestion
-      ? questionFromSpec(fixedQuestion.root, fixedQuestion.type)
-      : generateQuestion(difficulty, null)
-  ));
+  const [question, setQuestion] = useState(() => generateQuestion(difficulty, null));
   const [pressed, setPressed] = useState(new Set());
   const [lockedCorrect, setLockedCorrect] = useState(new Set());
   const [wrongFlash, setWrongFlash] = useState(null);
@@ -64,7 +51,6 @@ export function EarMode({
   const streakRef = useRef(0);
   const hasFailedRef = useRef(false);
   const autoHintUsedRef = useRef(false);
-  const autoPlayedRef = useRef(false);
   const advanceRoundRef = useRef(() => {});
   const settledWhileHidden = useRef(false);
   const { playNote, playChord } = usePiano(soundOn && !hidden, pianoSound);
@@ -76,21 +62,15 @@ export function EarMode({
   useEffect(() => { streakRef.current = streak; }, [streak]);
   useEffect(() => { hasFailedRef.current = hasFailed; }, [hasFailed]);
 
-  const replayChord = useCallback(async ({ withHint = true } = {}) => {
+  const replayChord = useCallback(async () => {
     if (!soundOn) return false;
     const midis = buildChordVoicing(question.root, question.type);
-    const played = await playChord(midis);
-    if (hintAfterListen && withHint) {
-      scheduleAllHint(targetPcsInChordOrder(question.root, question.type), setHintNotes, schedule, 1600);
-    }
-    return played;
-  }, [soundOn, question.root, question.type, playChord, hintAfterListen, schedule]);
+    return playChord(midis);
+  }, [soundOn, question.root, question.type, playChord]);
 
   useEffect(() => {
     clearAll();
-    setQuestion(fixedKey
-      ? questionFromSpec(...fixedKey.split(':'))
-      : generateQuestion(difficulty, null));
+    setQuestion(generateQuestion(difficulty, null));
     setPressed(new Set());
     setLockedCorrect(new Set());
     setFeedback(null);
@@ -99,8 +79,7 @@ export function EarMode({
     setHasFailed(false);
     setScore({ correct: 0, total: 0 });
     setLiveMessage('');
-    autoPlayedRef.current = false;
-  }, [difficulty, fixedKey, questionEpoch, clearAll]);
+  }, [difficulty, questionEpoch, clearAll]);
 
   useEffect(() => {
     if (hidden) return;
@@ -108,19 +87,14 @@ export function EarMode({
   }, [hidden, streak, score, onScoreChange]);
 
   useEffect(() => {
-    if (hidden || feedback) return;
-    if (autoPlayOnce && !autoPlayedRef.current) {
-      autoPlayedRef.current = true;
-      const timer = window.setTimeout(() => { replayChord(); }, 400);
-      return () => window.clearTimeout(timer);
-    }
+    if (hidden || feedback) return undefined;
     if (autoHint && !autoHintUsedRef.current) {
       autoHintUsedRef.current = true;
       scheduleAllHint([...question.pcs], setHintNotes, schedule);
       onAutoHintUsed?.();
     }
     return undefined;
-  }, [hidden, feedback, autoPlayOnce, autoHint, question, replayChord, schedule, onAutoHintUsed]);
+  }, [hidden, feedback, autoHint, question, schedule, onAutoHintUsed]);
 
   useEffect(() => {
     if (feedback || hidden) return;
@@ -131,19 +105,17 @@ export function EarMode({
 
     setFeedback('correct');
     setLiveMessage(tRef.current('live.correctNamed', { name: formatChord(question.name) }));
-    replayChord({ withHint: false });
+    replayChord();
 
     const missed = hasFailedRef.current;
     const newStreak = computeStreakAfterSuccess(streakRef.current, missed);
-    if (!tutorial) {
-      setStats((prev) => recordCorrectAttempt(prev, {
-        chordName: question.name,
-        newStreak,
-        isEarMode: true,
-      }));
-      setStreak(newStreak);
-      setScore((s) => ({ correct: s.correct + 1, total: s.total + 1 }));
-    }
+    setStats((prev) => recordCorrectAttempt(prev, {
+      chordName: question.name,
+      newStreak,
+      isEarMode: true,
+    }));
+    setStreak(newStreak);
+    setScore((s) => ({ correct: s.correct + 1, total: s.total + 1 }));
 
     const payload = {
       missed,
@@ -157,11 +129,7 @@ export function EarMode({
       },
     };
     const advance = () => {
-      if (!tutorial) onRoundSettled?.(payload);
-      if (onQuestionComplete) {
-        onQuestionComplete(payload);
-        return;
-      }
+      onRoundSettled?.(payload);
       setQuestion((q) => generateQuestion(difficulty, q.name));
       setPressed(new Set());
       setLockedCorrect(new Set());
@@ -172,7 +140,7 @@ export function EarMode({
     };
     advanceRoundRef.current = advance;
     schedule(advance, 1400);
-  }, [lockedCorrect, question, feedback, difficulty, replayChord, setStats, schedule, hidden, tutorial, onQuestionComplete, onRoundSettled]);
+  }, [lockedCorrect, question, feedback, difficulty, replayChord, setStats, schedule, hidden, onRoundSettled]);
 
   useEffect(() => {
     if (feedback !== 'correct') {
@@ -205,16 +173,13 @@ export function EarMode({
       setWrongFlash(midi);
       setLiveMessage(t('live.tryAgain'));
       schedule(() => setWrongFlash((prev) => (prev === midi ? null : prev)), 350);
-      if (!tutorial) {
-        setStreak(computeStreakAfterWrong());
-        setHasFailed(true);
-        setStats((prev) => recordWrongAttempt(prev, question.name));
-      }
+      setStreak(computeStreakAfterWrong());
+      setHasFailed(true);
+      setStats((prev) => recordWrongAttempt(prev, question.name));
     }
-  }, [feedback, playNote, question, schedule, setStats, t, tutorial]);
+  }, [feedback, playNote, question, schedule, setStats, t]);
 
   const skip = () => {
-    if (hideSkip) return;
     clearAll();
     const payload = {
       missed: hasFailedRef.current,
@@ -227,16 +192,10 @@ export function EarMode({
         mode: 'ear',
       },
     };
-    if (!tutorial) {
-      setStreak(computeStreakAfterWrong());
-      setScore((s) => ({ ...s, total: s.total + 1 }));
-      setStats((prev) => recordSkip(prev));
-      onRoundSettled?.(payload);
-    }
-    if (onQuestionComplete) {
-      onQuestionComplete(payload);
-      return;
-    }
+    setStreak(computeStreakAfterWrong());
+    setScore((s) => ({ ...s, total: s.total + 1 }));
+    setStats((prev) => recordSkip(prev));
+    onRoundSettled?.(payload);
     setQuestion((q) => generateQuestion(difficulty, q.name));
     setPressed(new Set());
     setLockedCorrect(new Set());
@@ -261,7 +220,7 @@ export function EarMode({
     }
   };
 
-  const showSetupRow = !tutorial && !fixedQuestion && typeof onDifficultyChange === 'function';
+  const showSetupRow = typeof onDifficultyChange === 'function';
 
   return (
     <div className={`mode-panel ${hidden ? 'mode-hidden' : ''}`} aria-hidden={hidden} inert={hidden ? true : undefined}>
@@ -359,12 +318,10 @@ export function EarMode({
           <Play size={13} className="text-emerald-300" aria-hidden="true" />
           <span className="text-xs text-emerald-200 tracking-wider uppercase font-medium">{t('action.replay')}</span>
         </button>
-        {!hideSkip && (
-          <button type="button" onClick={skip} className="btn-action btn-neutral touch-none">
-            <SkipForward size={13} className="text-slate-400" aria-hidden="true" />
-            <span className="text-xs text-slate-400 tracking-wider uppercase font-medium">{t('action.skip')}</span>
-          </button>
-        )}
+        <button type="button" onClick={skip} className="btn-action btn-neutral touch-none">
+          <SkipForward size={13} className="text-slate-400" aria-hidden="true" />
+          <span className="text-xs text-slate-400 tracking-wider uppercase font-medium">{t('action.skip')}</span>
+        </button>
       </div>
     </div>
   );
