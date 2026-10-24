@@ -133,6 +133,16 @@ export function chordTypeI18nKey(chordType) {
     '7b9': 'chordType.dom7b9',
     '9': 'chordType.dom9',
     maj9: 'chordType.maj9',
+    '6': 'chordType.sixth',
+    m6: 'chordType.m6',
+    add9: 'chordType.add9',
+    madd9: 'chordType.madd9',
+    b5: 'chordType.flat5',
+    '#5': 'chordType.sharp5',
+    '7b5': 'chordType.dom7flat5',
+    '7#5': 'chordType.dom7sharp5',
+    '7sus4': 'chordType.dom7sus4',
+    m9: 'chordType.m9',
   };
   return map[chordType] || 'chordType.major';
 }
@@ -153,6 +163,30 @@ export function voicePitchClasses(tonePcs, inversion = 0, baseMidi = 48) {
   for (let i = 1; i < ordered.length; i += 1) {
     const pc = ((ordered[i] % 12) + 12) % 12;
     let note = midis[i - 1] + 1;
+    while (note % 12 !== pc) note += 1;
+    midis.push(note);
+  }
+  return midis;
+}
+
+/**
+ * Close voicing whose lowest MIDI is `bassPc`.
+ * When the bass is already a chord tone, that inversion is used
+ * (`voicePitchClasses`) and the bass is not doubled.
+ * When it is not a chord tone, the bass stays underneath and the chord tones
+ * stack above it in formula order — root position, shifted until every tone
+ * is strictly above the bass. Common for C/D or Am/G.
+ */
+export function voiceWithBass(tonePcs, bassPc, baseMidi = 48) {
+  const pcs = (tonePcs || []).map((pc) => ((pc % 12) + 12) % 12);
+  if (!pcs.length || !Number.isFinite(bassPc)) return [];
+  const bassNorm = ((bassPc % 12) + 12) % 12;
+  const inversion = pcs.indexOf(bassNorm);
+  if (inversion >= 0) return voicePitchClasses(pcs, inversion, baseMidi);
+  const lowest = baseMidi + ((bassNorm - (baseMidi % 12) + 12) % 12);
+  const midis = [lowest];
+  for (const pc of pcs) {
+    let note = midis[midis.length - 1] + 1;
     while (note % 12 !== pc) note += 1;
     midis.push(note);
   }

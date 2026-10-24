@@ -110,8 +110,12 @@ export function isRootPositionQuality(question) {
   return question.bassPc === rootPc && question.voicing[0] % 12 === rootPc;
 }
 
+/**
+ * Every Listen quality is a real formula. Lookup-only formulas (6, add9, …)
+ * are intentionally absent so this drill does not grow with the symbol list.
+ */
 export function earQualityCatalogMatchesFormulas() {
-  const formulaKeys = Object.keys(CHORD_FORMULAS);
-  return formulaKeys.length === EAR_QUALITY_TYPES.length
-    && formulaKeys.every((key) => QUALITY_SET.has(key));
+  const formulaKeys = new Set(Object.keys(CHORD_FORMULAS));
+  return EAR_QUALITY_TYPES.length > 0
+    && EAR_QUALITY_TYPES.every((key) => formulaKeys.has(key));
 }

@@ -40,6 +40,7 @@ export function LookupMode({ soundOn, pianoSound, hidden }) {
   const [type, setType] = useState(null);
   const [symbol, setSymbol] = useState('');
   const [error, setError] = useState('');
+  const [bass, setBass] = useState(null);
   const [voicing, setVoicing] = useState(null);
   const [keyboardStart, setKeyboardStart] = useState(48);
   const [queue, setQueue] = useState([]);
@@ -61,17 +62,19 @@ export function LookupMode({ soundOn, pianoSound, hidden }) {
     stopLoop();
     setRoot(next.root);
     setType(next.type);
+    setBass(next.bass || null);
     setSymbol(next.name);
     setError('');
     setVoicing(next.voicing);
     setKeyboardStart(next.keyboardStart);
-    if (soundOn && !hidden) playChord(next.voicing);
+    if (soundOn && !hidden && next.voicing?.length) playChord(next.voicing);
   };
 
   const fail = (formats) => {
     stopLoop();
     setRoot(null);
     setType(null);
+    setBass(null);
     setVoicing(null);
     setError(t('lookup.error', { formats }));
   };
@@ -123,7 +126,16 @@ export function LookupMode({ soundOn, pianoSound, hidden }) {
 
   const addCurrent = () => {
     if (root == null || type == null || queue.length >= LOOKUP_QUEUE_MAX) return;
-    const draft = chordForLookupQueue(lookupFromPick(root, type));
+    const name = bass ? `${root}${type}/${bass}` : `${root}${type}`;
+    const draft = chordForLookupQueue({
+      ok: true,
+      root,
+      type,
+      bass,
+      name,
+      voicing,
+      keyboardStart,
+    });
     if (!draft) return;
     const id = nextQueueId.current;
     nextQueueId.current += 1;
@@ -149,6 +161,7 @@ export function LookupMode({ soundOn, pianoSound, hidden }) {
   const showChord = (chord) => {
     setRoot(chord.root);
     setType(chord.type);
+    setBass(chord.bass || null);
     setError('');
     setVoicing(chord.voicing);
     setKeyboardStart(chord.keyboardStart);
@@ -205,6 +218,7 @@ export function LookupMode({ soundOn, pianoSound, hidden }) {
   }, [playing, hidden, soundOn, loopRun, playChord, queueEmpty]);
 
   const ready = root != null && type != null;
+  const chordName = ready ? (bass ? `${root}${type}/${bass}` : `${root}${type}`) : '';
   const canAdd = ready && Array.isArray(voicing) && voicing.length > 0 && queue.length < LOOKUP_QUEUE_MAX;
   const canPlay = !queueEmpty && soundOn && !hidden;
 
@@ -226,7 +240,7 @@ export function LookupMode({ soundOn, pianoSound, hidden }) {
               className="display-font font-black leading-none tracking-tight text-[#DCE7FF]"
               style={{ fontSize: 'clamp(32px, 10vw, 56px)' }}
             >
-              {root + type}
+              {chordName}
             </div>
           </>
         ) : (
