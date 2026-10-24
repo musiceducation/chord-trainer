@@ -15,10 +15,13 @@ import {
 import { normalizeSettings } from '../lib/settings.js';
 
 describe('ear quality pool', () => {
-  it('covers every chord formula and no Easy/Medium/Hard tier', () => {
+  it('uses chord formulas and does not drill lookup-only qualities', () => {
     expect(earQualityCatalogMatchesFormulas()).toBe(true);
     expect(EAR_QUALITY_TYPES).not.toContain('easy');
     expect(EAR_QUALITY_TYPES).not.toContain('basic');
+    for (const type of ['6', 'm6', 'add9', 'madd9', 'b5', '#5', '7b5', '7#5', '7sus4', 'm9']) {
+      expect(EAR_QUALITY_TYPES, type).not.toContain(type);
+    }
     for (const type of EAR_QUALITY_TYPES) {
       expect(EAR_QUALITY_LABEL_KEYS[type]).toBeTruthy();
     }

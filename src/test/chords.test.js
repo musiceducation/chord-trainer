@@ -13,6 +13,7 @@ import {
   soundedInversion,
   targetPcsInChordOrder,
   voicePitchClasses,
+  voiceWithBass,
   withInversion,
 } from '../lib/chords.js';
 
@@ -72,6 +73,15 @@ describe('chords', () => {
     const third = voicePitchClasses([7, 11, 2, 5], 3, 48);
     expect(third[0] % 12).toBe(5);
     expect(soundedInversion([7, 11, 2, 5], third)).toBe(3);
+  });
+
+  it('voices a slash bass as the lowest note', () => {
+    expect(voiceWithBass([0, 4, 7], 4, 60)).toEqual([64, 67, 72]);
+    const outside = voiceWithBass([0, 4, 7], 2, 60);
+    expect(outside[0] % 12).toBe(2);
+    expect(outside.slice(1).map((midi) => midi % 12)).toEqual([0, 4, 7]);
+    expect(outside[1]).toBeGreaterThan(outside[0]);
+    expect(new Set(outside.map((midi) => midi % 12)).size).toBe(outside.length);
   });
 
   it('names inverted chords with a slash bass and never asks for root position', () => {

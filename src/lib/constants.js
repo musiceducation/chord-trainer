@@ -20,6 +20,19 @@ export const CHORD_FORMULAS = {
   '7b9': { intervals: [0, 4, 7, 10, 13], label: 'Dom 7♭9' },
   '9': { intervals: [0, 4, 7, 10, 14], label: 'Dominant 9th' },
   maj9: { intervals: [0, 4, 7, 11, 14], label: 'Major 9th' },
+  // Lookup only. Keep these out of DIFFICULTY_LEVELS so Identify and Listen
+  // still drill the original catalog. `6` is an integer key; chip order is
+  // set in LOOKUP_QUALITY_TYPES, not by Object.keys.
+  '6': { intervals: [0, 4, 7, 9], label: 'Major 6th' },
+  m6: { intervals: [0, 3, 7, 9], label: 'Minor 6th' },
+  add9: { intervals: [0, 4, 7, 14], label: 'Add9' },
+  madd9: { intervals: [0, 3, 7, 14], label: 'Minor add9' },
+  b5: { intervals: [0, 4, 6], label: 'Flat 5' },
+  '#5': { intervals: [0, 4, 8], label: 'Sharp 5' },
+  '7b5': { intervals: [0, 4, 6, 10], label: 'Dom 7♭5' },
+  '7#5': { intervals: [0, 4, 8, 10], label: 'Dom 7♯5' },
+  '7sus4': { intervals: [0, 5, 7, 10], label: '7sus4' },
+  m9: { intervals: [0, 3, 7, 10, 14], label: 'Minor 9th' },
 };
 
 export const ROOTS = ['C', 'D', 'E', 'F', 'G', 'A', 'B', 'C#', 'Eb', 'F#', 'Ab', 'Bb'];
