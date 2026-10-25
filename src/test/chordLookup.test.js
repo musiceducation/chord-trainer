@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { Keyboard } from '../components/Keyboard.jsx';
-import { LookupMode } from '../components/LookupMode.jsx';
+import { LookupMode, lookupPianoHighlight } from '../components/LookupMode.jsx';
 import { buildChordVoicing, chordTypeI18nKey } from '../lib/chords.js';
 import {
   LOOKUP_LOOP_GAP_MS,
@@ -22,8 +22,12 @@ import { ALL_KEYS, CHORD_FORMULAS, DIFFICULTY_LEVELS, FULL_END, FULL_START, NOTE
 import { STRINGS } from '../lib/i18n.js';
 import { visibleKeysForStart } from '../lib/keyboardRange.js';
 
-function hintedLabels(html) {
-  return [...html.matchAll(/aria-label="([^"]+)"(?=[^>]*key-hint-(?:white|black))/g)].map((match) => match[1]);
+function markedLabels(html, kind) {
+  return [...html.matchAll(new RegExp(`aria-label="([^"]+)"(?=[^>]*key-${kind}-(?:white|black))`, 'g'))].map((match) => match[1]);
+}
+
+function keyTag(html, label) {
+  return html.match(new RegExp(`<button[^>]*aria-label="${label}"[^>]*>`))?.[0] ?? '';
 }
 
 function labelsFor(midis) {
@@ -213,22 +217,66 @@ describe('chord symbol lookup', () => {
     }
   });
 
-  it('highlights only the voicing MIDI notes on the shared keyboard', () => {
+  it('lights only the voicing MIDI notes with Identify locked mint, not hint gold', () => {
     for (const symbol of ['C', 'F#sus2', 'Am7', 'C/E', 'Fadd9', 'Am7/G']) {
       const found = lookupFromSymbol(symbol);
+      const highlight = lookupPianoHighlight(found.voicing);
+      expect(highlight.hintNotes, symbol).toBeNull();
+      expect([...highlight.pressed], symbol).toEqual(found.voicing);
       const html = renderToStaticMarkup(createElement(Keyboard, {
-        pressed: new Set(),
-        lockedCorrect: new Set(),
+        pressed: highlight.pressed,
+        lockedCorrect: highlight.lockedCorrect,
         wrongFlash: null,
-        hintNotes: new Set(found.voicing),
+        hintNotes: highlight.hintNotes,
         keyboardStart: found.keyboardStart,
         onKey: () => {},
         onShiftKeyboard: () => {},
       }));
-      expect(hintedLabels(html).sort(), symbol).toEqual(labelsFor(found.voicing).sort());
-      expect(html).not.toContain('key-locked-white');
-      expect(html).not.toContain('key-locked-black');
+      expect(markedLabels(html, 'locked').sort(), symbol).toEqual(labelsFor(found.voicing).sort());
+      expect(html, symbol).not.toContain('key-hint-white');
+      expect(html, symbol).not.toContain('key-hint-black');
+      expect(html, symbol).not.toContain('#FFE7A8');
+      expect(html, symbol).not.toContain('#C9A050');
+      for (const key of ALL_KEYS.filter((item) => found.voicing.includes(item.midi))) {
+        const tag = keyTag(html, `${key.name}${key.octave}`);
+        if (key.isBlack) {
+          expect(tag, symbol).toContain('key-locked-black');
+          expect(tag, symbol).toContain('#7ADCC8');
+          expect(tag, symbol).not.toContain('key-hint-black');
+        } else {
+          expect(tag, symbol).toContain('key-locked-white');
+          expect(tag, symbol).toContain('#B8F2D8');
+          expect(tag, symbol).toContain('#4FB8A0');
+          expect(tag, symbol).not.toContain('key-hint-white');
+        }
+      }
     }
+  });
+
+  it('keeps quiz hint notes on gold when they are not a lookup lock', () => {
+    const html = renderToStaticMarkup(createElement(Keyboard, {
+      pressed: new Set([60]),
+      lockedCorrect: new Set([0]),
+      wrongFlash: null,
+      hintNotes: new Set([1, 2]),
+      keyboardStart: 48,
+      onKey: () => {},
+      onShiftKeyboard: () => {},
+    }));
+    const locked = keyTag(html, 'C4');
+    expect(locked).toContain('key-locked-white');
+    expect(locked).toContain('#B8F2D8');
+    expect(locked).toContain('#4FB8A0');
+    expect(locked).not.toContain('key-hint-white');
+    const hintedBlack = keyTag(html, 'C#4');
+    expect(hintedBlack).toContain('key-hint-black');
+    expect(hintedBlack).toContain('#C9A050');
+    expect(hintedBlack).not.toContain('key-locked-black');
+    const hintedWhite = keyTag(html, 'D4');
+    expect(hintedWhite).toContain('key-hint-white');
+    expect(hintedWhite).toContain('#FFE7A8');
+    expect(hintedWhite).not.toContain('key-locked-white');
+    expect(hintedWhite).not.toContain('#B8F2D8');
   });
 
   it('renders root chips, quality chips, and one symbol field with no chord lit yet', () => {
@@ -264,6 +312,8 @@ describe('chord symbol lookup', () => {
     expect(html).not.toContain('lookup-error');
     expect(html).not.toContain('key-hint-white');
     expect(html).not.toContain('key-hint-black');
+    expect(html).not.toContain('key-locked-white');
+    expect(html).not.toContain('key-locked-black');
     expect(html).not.toContain('>Skip<');
     expect(html).not.toContain('>Perfect<');
     expect(html).not.toContain('data-testid="ear-quality-pool"');
