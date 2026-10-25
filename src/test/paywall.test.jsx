@@ -45,6 +45,11 @@ describe('subscription paywall disclosure', () => {
       expect(html).toContain(STRINGS[lang]['pro.pricePeriod']);
       expect(html).toContain(`href="${PRIVACY_POLICY_URL}"`);
       expect(html).toContain(`href="${TERMS_OF_USE_URL}"`);
+      expect(html).not.toContain('target="_blank"');
+      expect(html).not.toContain('rel="noopener');
+      expect(html.indexOf('data-testid="privacy-policy-link"')).toBeLessThan(
+        html.indexOf(STRINGS[lang]['pro.restore']),
+      );
       expect(html).toContain(STRINGS[lang]['pro.privacy']);
       expect(html).toContain(STRINGS[lang]['pro.terms']);
       expect(html).not.toContain('6.99');
@@ -75,6 +80,7 @@ describe('subscription paywall disclosure', () => {
     expect(html).toContain(STRINGS['zh-Hant']['pro.subscriptionLength']);
     expect(html).toContain(`href="${PRIVACY_POLICY_URL}"`);
     expect(html).toContain(`href="${TERMS_OF_USE_URL}"`);
+    expect(html).not.toContain('target="_blank"');
     expect(html).not.toContain('6.99');
   });
 });
