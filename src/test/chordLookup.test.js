@@ -6,6 +6,7 @@ import { LookupMode, lookupPianoHighlight } from '../components/LookupMode.jsx';
 import { buildChordVoicing, chordTypeI18nKey } from '../lib/chords.js';
 import {
   LOOKUP_LOOP_GAP_MS,
+  LOOKUP_QUALITY_ALIASES,
   LOOKUP_QUALITY_TYPES,
   LOOKUP_QUEUE_MAX,
   appendLookupQueue,
@@ -19,6 +20,7 @@ import {
   supportedChordFormatList,
 } from '../lib/chordLookup.js';
 import { ALL_KEYS, CHORD_FORMULAS, DIFFICULTY_LEVELS, FULL_END, FULL_START, NOTE_TO_PC } from '../lib/constants.js';
+import { EAR_QUALITY_TYPES } from '../lib/earQuality.js';
 import { STRINGS } from '../lib/i18n.js';
 import { visibleKeysForStart } from '../lib/keyboardRange.js';
 
@@ -92,16 +94,18 @@ describe('chord symbol lookup', () => {
       'C/H',
       'C/Fb',
       'C/E#',
-      'Cmin',
       'C+',
       'H7',
       'C sus2',
       'CMaj7',
-      'CM7',
-      'Cmaj7#11',
+      'Cmin7',
       'Cmaj7#11b13',
-      'C6/9',
+      'Cmaj7add2#11',
       'Cadd11',
+      'C7altb9',
+      'Cm6/9',
+      'C/9',
+      'C6/9/E',
     ];
     for (const symbol of unsupported) {
       const parsed = parseChordSymbol(symbol);
@@ -117,29 +121,144 @@ describe('chord symbol lookup', () => {
   it('lists every formula in musical order, then slash bass, without changing practice', () => {
     const listed = supportedChordFormatList().split(', ');
     expect(listed.at(-1)).toBe('/bass');
-    expect(listed.slice(0, -1)).toEqual([
-      ...DIFFICULTY_LEVELS.all.types.map((type) => type || 'major'),
-      ...LOOKUP_ONLY,
-    ]);
-    expect(new Set(listed.slice(0, -1))).toEqual(
-      new Set(Object.keys(CHORD_FORMULAS).map((type) => type || 'major')),
-    );
+    const tokens = new Set(listed.slice(0, -1).flatMap((group) => (
+      group === '69/6/9' ? ['69', '6/9'] : group.split('/')
+    )));
+    for (const type of Object.keys(CHORD_FORMULAS)) {
+      expect(tokens.has(type || 'major'), type || 'major').toBe(true);
+    }
+    for (const alias of Object.keys(LOOKUP_QUALITY_ALIASES)) {
+      expect(tokens.has(alias), alias).toBe(true);
+      expect(CHORD_FORMULAS, alias).toHaveProperty(LOOKUP_QUALITY_ALIASES[alias]);
+    }
+    expect(tokens.has('6/9')).toBe(true);
+    expect(supportedChordFormatList()).not.toContain('maj7#11b13');
+    expect(supportedChordFormatList()).not.toContain('add11');
     expect(LOOKUP_QUALITY_TYPES).toEqual([...DIFFICULTY_LEVELS.all.types, ...LOOKUP_ONLY]);
     expect(DIFFICULTY_LEVELS.all.types).toEqual([
       '', 'm', 'dim', 'aug', 'sus2', 'sus4', 'maj7', 'm7', '7', 'm7b5', 'dim7', '7b9', '9', 'maj9',
     ]);
-    for (const type of LOOKUP_ONLY) {
+    const jazzTypes = ['add4', '11', '13', 'maj11', 'maj13', 'm11', 'm13', '7#9', '7b13', '7#11', 'maj7#11', '7alt', 'm(maj7)', '69'];
+    expect(new Set(Object.keys(CHORD_FORMULAS).filter((type) => !LOOKUP_QUALITY_TYPES.includes(type)))).toEqual(new Set(jazzTypes));
+    for (const type of [...LOOKUP_ONLY, ...jazzTypes]) {
       expect(DIFFICULTY_LEVELS.basic.types).not.toContain(type);
       expect(DIFFICULTY_LEVELS.seventh.types).not.toContain(type);
       expect(DIFFICULTY_LEVELS.extended.types).not.toContain(type);
+      expect(DIFFICULTY_LEVELS.all.types).not.toContain(type);
+      expect(EAR_QUALITY_TYPES, type).not.toContain(type);
       expect(STRINGS.en[chordTypeI18nKey(type)], type).toBe(CHORD_FORMULAS[type].label);
       expect(STRINGS['zh-Hant'][chordTypeI18nKey(type)], type).toBeTruthy();
       expect(STRINGS['zh-Hans'][chordTypeI18nKey(type)], type).toBeTruthy();
+    }
+    for (const type of jazzTypes) {
+      expect(LOOKUP_QUALITY_TYPES, type).not.toContain(type);
     }
     expect(STRINGS['zh-Hant']['chordType.add9']).toBe('加九和弦');
     expect(STRINGS['zh-Hant']['chordType.dom7sus4']).toBe('屬七掛四');
     expect(STRINGS['zh-Hans']['chordType.m9']).toBe('小九和弦');
     expect(STRINGS['zh-Hans']['chordType.dom7sus4']).toBe('属七挂四');
+    expect(STRINGS['zh-Hant']['chordType.dom11']).toBe('屬十一和弦');
+    expect(STRINGS['zh-Hans']['chordType.alt']).toBe('变化属七');
+    expect(STRINGS.en['lookup.error']).toContain('F#maj7add2');
+  });
+
+  it('parses the jazz whitelist onto one close voicing and leaves stacks closed', () => {
+    const recipes = {
+      add4: [0, 4, 5, 7],
+      '11': [0, 7, 10, 14, 17],
+      '13': [0, 4, 10, 14, 21],
+      maj11: [0, 7, 11, 14, 17],
+      maj13: [0, 4, 11, 14, 21],
+      m11: [0, 3, 10, 14, 17],
+      m13: [0, 3, 10, 14, 21],
+      '7#9': [0, 4, 7, 10, 15],
+      '7b13': [0, 4, 10, 20],
+      '7#11': [0, 4, 7, 10, 18],
+      'maj7#11': [0, 4, 7, 11, 18],
+      '7alt': [0, 4, 10, 15, 20],
+      'm(maj7)': [0, 3, 7, 11],
+      '69': [0, 4, 7, 9, 14],
+    };
+    for (const [type, intervals] of Object.entries(recipes)) {
+      expect(CHORD_FORMULAS[type].intervals, type).toEqual(intervals);
+      const pcs = new Set(intervals.map((interval) => interval % 12));
+      expect(pcs.size, type).toBe(intervals.length);
+    }
+
+    const accepted = [
+      ['F#maj7add2', 'F#', 'maj9', 'F#maj9'],
+      ['F#maj7add9', 'F#', 'maj9', 'F#maj9'],
+      ['Cadd2', 'C', 'add9', 'Cadd9'],
+      ['Cmadd2', 'C', 'madd9', 'Cmadd9'],
+      ['Dm7add2', 'D', 'm9', 'Dm9'],
+      ['G7add2', 'G', '9', 'G9'],
+      ['Bb7add9', 'Bb', '9', 'Bb9'],
+      ['G11', 'G', '11', 'G11'],
+      ['A13', 'A', '13', 'A13'],
+      ['Dm11', 'D', 'm11', 'Dm11'],
+      ['Em13', 'E', 'm13', 'Em13'],
+      ['Cmaj13', 'C', 'maj13', 'Cmaj13'],
+      ['Fmaj11', 'F', 'maj11', 'Fmaj11'],
+      ['E7alt', 'E', '7alt', 'E7alt'],
+      ['Ealt', 'E', '7alt', 'E7alt'],
+      ['B7#9', 'B', '7#9', 'B7#9'],
+      ['Ab7b13', 'Ab', '7b13', 'Ab7b13'],
+      ['C7#11', 'C', '7#11', 'C7#11'],
+      ['Fmaj7#11', 'F', 'maj7#11', 'Fmaj7#11'],
+      ['Am(maj7)', 'A', 'm(maj7)', 'Am(maj7)'],
+      ['AmM7', 'A', 'm(maj7)', 'Am(maj7)'],
+      ['Ammaj7', 'A', 'm(maj7)', 'Am(maj7)'],
+      ['AminMaj7', 'A', 'm(maj7)', 'Am(maj7)'],
+      ['C69', 'C', '69', 'C69'],
+      ['C6/9', 'C', '69', 'C69'],
+      ['F#6/9', 'F#', '69', 'F#69'],
+      ['CM7', 'C', 'maj7', 'Cmaj7'],
+      ['Cmin', 'C', 'm', 'Cm'],
+      ['Cø', 'C', 'm7b5', 'Cm7b5'],
+      ['Bbø7', 'Bb', 'm7b5', 'Bbm7b5'],
+      ['DØ7', 'D', 'm7b5', 'Dm7b5'],
+      ['C°', 'C', 'dim', 'Cdim'],
+      ['F°7', 'F', 'dim7', 'Fdim7'],
+      ['Fadd4', 'F', 'add4', 'Fadd4'],
+      ['C#11', 'C#', '11', 'C#11'],
+    ];
+    for (const [symbol, root, type, name] of accepted) {
+      expect(parseChordSymbol(symbol), symbol).toEqual({ ok: true, root, type, bass: null, name });
+      const found = lookupFromSymbol(symbol);
+      expect(found.ok, symbol).toBe(true);
+      expect(found.voicing, symbol).toEqual(buildChordVoicing(root, type, found.voicing[0] < 60 ? 48 : 60));
+      expect(found.voicing, symbol).toHaveLength(CHORD_FORMULAS[type].intervals.length);
+      expect(found.voicing.every((midi) => midi >= FULL_START && midi <= FULL_END), symbol).toBe(true);
+      const rootPc = NOTE_TO_PC[root];
+      expect(found.voicing.map((midi) => (midi - found.voicing[0] + rootPc + 120) % 12), symbol).toEqual(
+        CHORD_FORMULAS[type].intervals.map((interval) => (rootPc + interval) % 12),
+      );
+      for (let i = 1; i < found.voicing.length; i += 1) {
+        expect(found.voicing[i], symbol).toBeGreaterThan(found.voicing[i - 1]);
+      }
+    }
+
+    expect(parseChordSymbol('C#5')).toMatchObject({ root: 'C', type: '#5', name: 'C#5' });
+    expect(parseChordSymbol('C6/E')).toEqual({ ok: true, root: 'C', type: '6', bass: 'E', name: 'C6/E' });
+    expect(parseChordSymbol('C69/E')).toEqual({ ok: true, root: 'C', type: '69', bass: 'E', name: 'C69/E' });
+    expect(lookupFromSymbol('C6/9').voicing).toEqual(lookupFromSymbol('C69').voicing);
+    expect(lookupFromSymbol('Cadd2').voicing).toEqual(lookupFromSymbol('Cadd9').voicing);
+    expect(lookupFromSymbol('F#maj7add2').voicing).toEqual(buildChordVoicing('F#', 'maj9'));
+    expect(lookupFromSymbol('F#maj7add2').voicing.map((midi) => midi % 12)).toEqual([6, 10, 1, 5, 8]);
+
+    const slash = lookupFromSymbol('G11/B');
+    expect(slash).toMatchObject({ ok: true, root: 'G', type: '11', bass: 'B', name: 'G11/B' });
+    expect(slash.voicing[0] % 12).toBe(NOTE_TO_PC.B);
+    expect(slash.voicing.every((midi) => midi >= FULL_START && midi <= FULL_END)).toBe(true);
+
+    for (const symbol of ['C', 'Am7', 'Cmaj7', 'F#sus2', 'Bb7', 'Fadd9', 'C/E', 'Cm7b5']) {
+      expect(lookupFromSymbol(symbol).ok, symbol).toBe(true);
+    }
+
+    const formats = supportedChordFormatList();
+    for (const token of ['add2', 'maj7add2', 'maj7add9', 'm7add2', '7add2', '11', '13', 'maj11', 'maj13', 'm11', 'm13', '7#9', '7b13', '7#11', 'maj7#11', '7alt', 'alt', 'm(maj7)', 'mM7', 'mmaj7', 'minMaj7', '69', '6/9', 'add4', 'M7', 'min', 'ø', 'ø7', '°', '°7', '/bass']) {
+      expect(formats, token).toContain(token);
+    }
   });
 
   it('returns one close voicing on the keyboard, not every octave of the pitch class', () => {
@@ -164,7 +283,9 @@ describe('chord symbol lookup', () => {
     const added = lookupFromPick('C', 'add9');
     expect(added.ok).toBe(true);
     expect(added.voicing).toEqual(buildChordVoicing('C', 'add9'));
-    expect(lookupFromPick('C', 'maj7#11').ok).toBe(false);
+    expect(lookupFromPick('C', 'maj7#11').ok).toBe(true);
+    expect(lookupFromPick('C', 'maj7#11').voicing).toEqual(buildChordVoicing('C', 'maj7#11'));
+    expect(lookupFromPick('C', 'maj7#11b13').ok).toBe(false);
 
     for (const symbol of ['C6', 'Cm6', 'Fadd9', 'Cmadd9', 'Cb5', 'C#5', 'C7b5', 'C7#5', 'C7sus4', 'Cm9']) {
       const found = lookupFromSymbol(symbol);
@@ -218,7 +339,7 @@ describe('chord symbol lookup', () => {
   });
 
   it('lights only the voicing MIDI notes with Identify locked mint, not hint gold', () => {
-    for (const symbol of ['C', 'F#sus2', 'Am7', 'C/E', 'Fadd9', 'Am7/G']) {
+    for (const symbol of ['C', 'F#sus2', 'Am7', 'C/E', 'Fadd9', 'Am7/G', 'F#maj7add2']) {
       const found = lookupFromSymbol(symbol);
       const highlight = lookupPianoHighlight(found.voicing);
       expect(highlight.hintNotes, symbol).toBeNull();
@@ -304,6 +425,10 @@ describe('chord symbol lookup', () => {
     expect(html).toContain('data-testid="lookup-quality-7#5"');
     expect(html).toContain('data-testid="lookup-quality-7sus4"');
     expect(html).toContain('data-testid="lookup-quality-m9"');
+    expect(html).not.toContain('data-testid="lookup-quality-11"');
+    expect(html).not.toContain('data-testid="lookup-quality-7alt"');
+    expect(html).not.toContain('data-testid="lookup-quality-69"');
+    expect(html).not.toContain('>Dominant 11th<');
     expect(html).toContain('>Major<');
     expect(html).toContain('>Major 6th<');
     expect(html).toContain('>Add9<');
@@ -372,6 +497,7 @@ describe('lookup loop queue', () => {
     expect(lookupLoopStep(mixed, 1).chord.voicing).toEqual(buildChordVoicing('F', 'add9'));
 
     expect(chordForLookupQueue(lookupFromSymbol('Cmaj7#11b13'))).toBeNull();
+    expect(chordForLookupQueue(lookupFromSymbol('Cmaj7add2#11'))).toBeNull();
     expect(chordForLookupQueue(lookupFromSymbol('C/E/G'))).toBeNull();
     expect(chordForLookupQueue({
       ok: true,
@@ -382,7 +508,8 @@ describe('lookup loop queue', () => {
       voicing: [60, 64, 67],
       keyboardStart: 48,
     })).toBeNull();
-    expect(appendLookupQueue([], lookupFromSymbol('Cmaj7#11'))).toEqual([]);
+    expect(appendLookupQueue([], lookupFromSymbol('Cmaj7#11')).map((item) => item.type)).toEqual(['maj7#11']);
+    expect(appendLookupQueue([], lookupFromSymbol('Cmaj7#11b13'))).toEqual([]);
 
     const symbols = ['C', 'Am7', 'F#sus2', 'Bb7', 'Ebdim7', 'G7b9', 'Cm7b5', 'Cmaj9'];
     let queue = [];

@@ -33,6 +33,27 @@ export const CHORD_FORMULAS = {
   '7#5': { intervals: [0, 4, 8, 10], label: 'Dom 7♯5' },
   '7sus4': { intervals: [0, 5, 7, 10], label: '7sus4' },
   m9: { intervals: [0, 3, 7, 10, 14], label: 'Minor 9th' },
+  // Jazz whitelist for Lookup typing only. Not chips (see LOOKUP_QUALITY_TYPES)
+  // and not in DIFFICULTY_LEVELS, so Identify / Train / Listen / Roman stay put.
+  // Intervals are the close stack `buildChordVoicing` plays: extensions are
+  // compound, so the color tone sits on top. Fixed omissions, not a free stack:
+  // 11 and maj11 drop the 3rd (minor 9th against the 11); 13, maj13, and m13
+  // drop 5 and 11; m11 drops 5; 7b13 drops 5 because the b13 replaces it.
+  // 7alt is one grip: 1, 3, b7, #9, b13. add4 is the close 4th, not add11.
+  add4: { intervals: [0, 4, 5, 7], label: 'Add4' },
+  '11': { intervals: [0, 7, 10, 14, 17], label: 'Dominant 11th' },
+  '13': { intervals: [0, 4, 10, 14, 21], label: 'Dominant 13th' },
+  maj11: { intervals: [0, 7, 11, 14, 17], label: 'Major 11th' },
+  maj13: { intervals: [0, 4, 11, 14, 21], label: 'Major 13th' },
+  m11: { intervals: [0, 3, 10, 14, 17], label: 'Minor 11th' },
+  m13: { intervals: [0, 3, 10, 14, 21], label: 'Minor 13th' },
+  '7#9': { intervals: [0, 4, 7, 10, 15], label: 'Dom 7♯9' },
+  '7b13': { intervals: [0, 4, 10, 20], label: 'Dom 7♭13' },
+  '7#11': { intervals: [0, 4, 7, 10, 18], label: 'Dom 7♯11' },
+  'maj7#11': { intervals: [0, 4, 7, 11, 18], label: 'Maj7♯11' },
+  '7alt': { intervals: [0, 4, 10, 15, 20], label: 'Altered' },
+  'm(maj7)': { intervals: [0, 3, 7, 11], label: 'Minor-major 7th' },
+  '69': { intervals: [0, 4, 7, 9, 14], label: '6/9' },
 };
 
 export const ROOTS = ['C', 'D', 'E', 'F', 'G', 'A', 'B', 'C#', 'Eb', 'F#', 'Ab', 'Bb'];
