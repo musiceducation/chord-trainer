@@ -111,7 +111,7 @@ export function isRootPositionQuality(question) {
 }
 
 /**
- * Every Listen quality is a real formula. Lookup-only formulas (6, add9, …)
+ * Every Listen quality is a real formula. Lookup-only formulas (6, add9, 11, 7alt, …)
  * are intentionally absent so this drill does not grow with the symbol list.
  */
 export function earQualityCatalogMatchesFormulas() {

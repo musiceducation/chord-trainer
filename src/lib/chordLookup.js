@@ -12,17 +12,86 @@ import { keyboardStartContaining } from './keyboardRange.js';
  * Lookup-only qualities, in chip order. Not part of Identify or Listen.
  * Listed explicitly because `6` is an integer key and `Object.keys` would
  * float it (and `7` / `9`) ahead of the other formulas.
+ * The jazz whitelist lives in `CHORD_FORMULAS` too, but it is typed-only:
+ * those keys are intentionally absent here so the chip row stays put.
  */
 export const LOOKUP_EXTRA_TYPES = [
   '6', 'm6', 'add9', 'madd9', 'b5', '#5', '7b5', '7#5', '7sus4', 'm9',
 ];
 
 const FORMULA_KEYS = new Set(Object.keys(CHORD_FORMULAS));
-const LISTED_TYPES = new Set([...DIFFICULTY_LEVELS.all.types, ...LOOKUP_EXTRA_TYPES]);
 export const LOOKUP_QUALITY_TYPES = [
   ...DIFFICULTY_LEVELS.all.types.filter((type) => FORMULA_KEYS.has(type)),
   ...LOOKUP_EXTRA_TYPES.filter((type) => FORMULA_KEYS.has(type)),
-  ...Object.keys(CHORD_FORMULAS).filter((type) => !LISTED_TYPES.has(type)),
+];
+
+/**
+ * Exact spellings that share an existing formula. Not a stack language:
+ * `maj7add2` is listed, `maj7add2#11` is not.
+ * `add2` is add9. Seventh-plus-add2/add9 is that seventh's 9th chord.
+ * `6/9` is handled in the parser (the slash is not a bass).
+ */
+export const LOOKUP_QUALITY_ALIASES = {
+  add2: 'add9',
+  madd2: 'madd9',
+  maj7add2: 'maj9',
+  maj7add9: 'maj9',
+  m7add2: 'm9',
+  m7add9: 'm9',
+  '7add2': '9',
+  '7add9': '9',
+  alt: '7alt',
+  mM7: 'm(maj7)',
+  mmaj7: 'm(maj7)',
+  minMaj7: 'm(maj7)',
+  M7: 'maj7',
+  min: 'm',
+  'ø': 'm7b5',
+  'ø7': 'm7b5',
+  '°': 'dim',
+  '°7': 'dim7',
+};
+
+/** Groups in the parse error. A slash inside a group is an alias, except `6/9`. */
+const SUPPORTED_QUALITY_GROUPS = [
+  ['major'],
+  ['m', 'min'],
+  ['dim', '°'],
+  ['aug'],
+  ['sus2'],
+  ['sus4'],
+  ['maj7', 'M7'],
+  ['m7'],
+  ['7'],
+  ['m7b5', 'ø', 'ø7'],
+  ['dim7', '°7'],
+  ['7b9'],
+  ['9', '7add9', '7add2'],
+  ['maj9', 'maj7add9', 'maj7add2'],
+  ['6'],
+  ['m6'],
+  ['add9', 'add2'],
+  ['madd9', 'madd2'],
+  ['b5'],
+  ['#5'],
+  ['7b5'],
+  ['7#5'],
+  ['7sus4'],
+  ['m9', 'm7add9', 'm7add2'],
+  ['add4'],
+  ['11'],
+  ['13'],
+  ['maj11'],
+  ['maj13'],
+  ['m11'],
+  ['m13'],
+  ['7#9'],
+  ['7b13'],
+  ['7#11'],
+  ['maj7#11'],
+  ['7alt', 'alt'],
+  ['m(maj7)', 'mM7', 'mmaj7', 'minMaj7'],
+  ['69', '6/9'],
 ];
 
 const NOTE_HEAD = /^([A-Ga-g])([#b])?(.*)$/;
@@ -33,16 +102,48 @@ export function formatLookupName(root, type, bass) {
   return bass ? `${chord}/${bass}` : chord;
 }
 
+function canonicalQuality(suffix) {
+  if (Object.prototype.hasOwnProperty.call(CHORD_FORMULAS, suffix)) return suffix;
+  if (Object.prototype.hasOwnProperty.call(LOOKUP_QUALITY_ALIASES, suffix)) {
+    return LOOKUP_QUALITY_ALIASES[suffix];
+  }
+  return null;
+}
+
+function parseHead(head) {
+  const match = head.match(NOTE_HEAD);
+  if (!match) return null;
+  const letter = match[1].toUpperCase();
+  const accidental = match[2] || '';
+  const rest = match[3];
+  const rooted = letter + accidental;
+  if (accidental && Object.prototype.hasOwnProperty.call(NOTE_TO_PC, rooted)) {
+    const type = canonicalQuality(rest);
+    if (type != null) return { root: rooted, type };
+  }
+  if (Object.prototype.hasOwnProperty.call(NOTE_TO_PC, letter)) {
+    const type = canonicalQuality(accidental + rest);
+    if (type != null) return { root: letter, type };
+  }
+  return null;
+}
+
 /**
- * Curated symbol: root + a `CHORD_FORMULAS` quality, then an optional `/Bass`.
+ * Curated symbol: root + a whitelist quality, then an optional `/Bass`.
  * Major is the empty suffix (`C`). An accidental stays on the root when the
- * rest is a real quality (`Bb7`, `Bb9`, `F#m7`). It starts a `b5` / `#5`
- * quality only when that root reading is not a formula (`Cb5` → C flat-five,
- * `C#5` → C sharp-five). Bass must be one `NOTE_TO_PC` note.
- * No polychords, no altered mega-stacks (`maj7#11b13`).
+ * rest is a real quality (`Bb7`, `Bb9`, `F#m7`, `F#11`). It starts a `b5` /
+ * `#5` quality only when that root reading is not a formula (`Cb5` → C
+ * flat-five, `C#5` → C sharp-five). Aliases rewrite to the formula key
+ * (`F#maj7add2` → F#maj9). `C6/9` is the 6/9 quality, not a bass of `9`;
+ * `C6/E` stays a slash chord. Bass must be one `NOTE_TO_PC` note.
+ * No polychords, no altered mega-stacks (`maj7#11b13`, `maj7add2#11`).
  */
 export function parseChordSymbol(raw) {
-  const text = String(raw ?? '').trim().replace(/♯/g, '#').replace(/♭/g, 'b');
+  const text = String(raw ?? '')
+    .trim()
+    .replace(/♯/g, '#')
+    .replace(/♭/g, 'b')
+    .replace(/Ø/g, 'ø');
   if (!text || /\s/.test(text)) return { ok: false };
   const slashAt = text.indexOf('/');
   if (slashAt !== -1 && text.includes('/', slashAt + 1)) return { ok: false };
@@ -50,30 +151,18 @@ export function parseChordSymbol(raw) {
   const bassText = slashAt === -1 ? null : text.slice(slashAt + 1);
   if (!head) return { ok: false };
 
-  const match = head.match(NOTE_HEAD);
-  if (!match) return { ok: false };
-  const letter = match[1].toUpperCase();
-  const accidental = match[2] || '';
-  const rest = match[3];
+  const parsed = parseHead(head);
+  if (!parsed) return { ok: false };
 
-  let root = null;
-  let type = null;
-  const rooted = letter + accidental;
-  if (
-    accidental
-    && Object.prototype.hasOwnProperty.call(NOTE_TO_PC, rooted)
-    && Object.prototype.hasOwnProperty.call(CHORD_FORMULAS, rest)
-  ) {
-    root = rooted;
-    type = rest;
-  } else if (
-    Object.prototype.hasOwnProperty.call(NOTE_TO_PC, letter)
-    && Object.prototype.hasOwnProperty.call(CHORD_FORMULAS, accidental + rest)
-  ) {
-    root = letter;
-    type = accidental + rest;
+  if (bassText === '9' && parsed.type === '6') {
+    return {
+      ok: true,
+      root: parsed.root,
+      type: '69',
+      bass: null,
+      name: formatLookupName(parsed.root, '69', null),
+    };
   }
-  if (root == null) return { ok: false };
 
   let bass = null;
   if (bassText != null) {
@@ -83,12 +172,18 @@ export function parseChordSymbol(raw) {
     if (!Object.prototype.hasOwnProperty.call(NOTE_TO_PC, bass)) return { ok: false };
   }
 
-  return { ok: true, root, type, bass, name: formatLookupName(root, type, bass) };
+  return {
+    ok: true,
+    root: parsed.root,
+    type: parsed.type,
+    bass,
+    name: formatLookupName(parsed.root, parsed.type, bass),
+  };
 }
 
-/** Comma-separated formula names for the inline parse error. Major is spelled out. */
+/** Grouped whitelist for the inline parse error. Major is spelled out. */
 export function supportedChordFormatList() {
-  const qualities = LOOKUP_QUALITY_TYPES.map((type) => type || 'major').join(', ');
+  const qualities = SUPPORTED_QUALITY_GROUPS.map((group) => group.join('/')).join(', ');
   return `${qualities}, /bass`;
 }
 

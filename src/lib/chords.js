@@ -143,6 +143,20 @@ export function chordTypeI18nKey(chordType) {
     '7#5': 'chordType.dom7sharp5',
     '7sus4': 'chordType.dom7sus4',
     m9: 'chordType.m9',
+    add4: 'chordType.add4',
+    '11': 'chordType.dom11',
+    '13': 'chordType.dom13',
+    maj11: 'chordType.maj11',
+    maj13: 'chordType.maj13',
+    m11: 'chordType.m11',
+    m13: 'chordType.m13',
+    '7#9': 'chordType.dom7sharp9',
+    '7b13': 'chordType.dom7flat13',
+    '7#11': 'chordType.dom7sharp11',
+    'maj7#11': 'chordType.maj7sharp11',
+    '7alt': 'chordType.alt',
+    'm(maj7)': 'chordType.minMaj7',
+    '69': 'chordType.sixNine',
   };
   return map[chordType] || 'chordType.major';
 }
