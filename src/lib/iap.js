@@ -243,8 +243,10 @@ export function createIapClient(deps = {}) {
       const productType = purchaseTypeFor(productId, PURCHASE_TYPE);
       // Do not send quantity for auto-renewable Pro. Capgo 7.19.3 still
       // defaults a missing quantity to 1 and inserts PurchaseOption.quantity,
-      // which StoreKit rejects. scripts/patch-native-purchases.mjs removes
-      // that option for subscriptions at install time.
+      // which StoreKit rejects with PurchaseError.invalidQuantity before the
+      // payment sheet (and its 1-week intro offer) can appear.
+      // scripts/patch-native-purchases.mjs removes that option for
+      // subscriptions and presents the sheet in the foreground UIWindowScene.
       const request = {
         productIdentifier: productId,
         productType,

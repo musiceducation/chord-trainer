@@ -1,5 +1,6 @@
 import { purchaseGate } from '../lib/iap.js';
 import { PRIVACY_POLICY_URL, TERMS_OF_USE_URL } from '../lib/legal.js';
+import { openExternalUrl } from '../lib/openExternalUrl.js';
 
 export function priceText({ price, status, unavailableLabel }) {
   if (price) return price;
@@ -7,25 +8,32 @@ export function priceText({ price, status, unavailableLabel }) {
   return unavailableLabel;
 }
 
-export function LegalLinks({ privacyLabel, termsLabel, className = '' }) {
-  const linkClass = 'text-xs font-semibold text-amber-200 underline underline-offset-2 py-1';
+export function LegalLinks({
+  privacyLabel,
+  termsLabel,
+  className = '',
+  openUrl = openExternalUrl,
+}) {
+  const linkClass = 'inline-flex items-center justify-center min-h-11 px-2 text-xs font-semibold text-amber-200 underline underline-offset-2';
+  const open = (event, url) => {
+    event.preventDefault();
+    openUrl(url);
+  };
   return (
-    <div className={`flex flex-wrap items-center gap-x-4 gap-y-1 ${className}`}>
+    <div className={`relative z-10 flex flex-wrap items-center gap-x-4 gap-y-1 ${className}`}>
       <a
         href={PRIVACY_POLICY_URL}
-        target="_blank"
-        rel="noopener noreferrer"
         className={linkClass}
         data-testid="privacy-policy-link"
+        onClick={(event) => open(event, PRIVACY_POLICY_URL)}
       >
         {privacyLabel}
       </a>
       <a
         href={TERMS_OF_USE_URL}
-        target="_blank"
-        rel="noopener noreferrer"
         className={linkClass}
         data-testid="terms-of-use-link"
+        onClick={(event) => open(event, TERMS_OF_USE_URL)}
       >
         {termsLabel}
       </a>
@@ -79,7 +87,7 @@ export function PaywallSheet({
         aria-label={closeLabel}
         onClick={onClose}
       />
-      <div className="relative w-full max-w-sm max-h-[min(92dvh,680px)] overflow-y-auto rounded-2xl p-5 panel-solid">
+      <div className="relative z-10 w-full max-w-sm max-h-[min(92dvh,680px)] overflow-y-auto rounded-2xl p-5 panel-solid">
         <h2 id="paywall-title" className="text-base font-semibold text-slate-100 mb-1">
           {subscriptionTitle || title}
         </h2>
@@ -126,6 +134,7 @@ export function PaywallSheet({
           >
             {busy ? '…' : buyLabel}
           </button>
+          <LegalLinks privacyLabel={privacyLabel} termsLabel={termsLabel} className="justify-center" />
           <button
             type="button"
             className="btn-secondary justify-center touch-none"
@@ -134,7 +143,6 @@ export function PaywallSheet({
           >
             {restoreLabel}
           </button>
-          <LegalLinks privacyLabel={privacyLabel} termsLabel={termsLabel} className="justify-center py-1" />
           <button
             type="button"
             className="btn-secondary justify-center touch-none"

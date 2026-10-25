@@ -19,5 +19,8 @@ fi
 
 npm config set maxsockets 3
 npm ci
+# postinstall patches StoreKit quantity, but keep this explicit so a
+# script-skipped install cannot archive the broken purchase path.
+node scripts/patch-native-purchases.mjs
 npm run build
 npx cap sync ios
