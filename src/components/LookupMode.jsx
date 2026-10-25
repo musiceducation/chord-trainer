@@ -18,6 +18,18 @@ import { useI18n } from '../hooks/useI18n.jsx';
 
 const EMPTY_NOTES = new Set();
 
+/** Lookup lights a resolved voicing with Identify's solid mint, not hint gold. */
+export function lookupPianoHighlight(voicing) {
+  if (!voicing?.length) {
+    return { pressed: EMPTY_NOTES, lockedCorrect: EMPTY_NOTES, hintNotes: null };
+  }
+  return {
+    pressed: new Set(voicing),
+    lockedCorrect: new Set(voicing.map((midi) => ((midi % 12) + 12) % 12)),
+    hintNotes: null,
+  };
+}
+
 function chipStyle(active) {
   return {
     background: active
@@ -47,7 +59,7 @@ export function LookupMode({ soundOn, pianoSound, hidden }) {
   const [playing, setPlaying] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
   const [loopRun, setLoopRun] = useState(0);
-  const hintNotes = useMemo(() => (voicing ? new Set(voicing) : null), [voicing]);
+  const pianoHighlight = useMemo(() => lookupPianoHighlight(voicing), [voicing]);
   const nextQueueId = useRef(1);
   const queueRef = useRef(queue);
   queueRef.current = queue;
@@ -430,10 +442,10 @@ export function LookupMode({ soundOn, pianoSound, hidden }) {
 
       <Keyboard
         compact
-        pressed={EMPTY_NOTES}
-        lockedCorrect={EMPTY_NOTES}
+        pressed={pianoHighlight.pressed}
+        lockedCorrect={pianoHighlight.lockedCorrect}
         wrongFlash={null}
-        hintNotes={hintNotes}
+        hintNotes={pianoHighlight.hintNotes}
         keyboardStart={keyboardStart}
         onKey={(midi) => { if (soundOn) playNote(midi); }}
         onShiftKeyboard={shiftKeyboard}
