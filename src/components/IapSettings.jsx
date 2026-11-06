@@ -21,6 +21,7 @@ export function IapSettings({
   onBuyPro,
   onBuySupport,
   onRestore,
+  onAdPrivacy,
 }) {
   const busy = Boolean(busyId);
   const smallPrice = priceText({
@@ -72,6 +73,11 @@ export function IapSettings({
           </button>
         )}
       </div>
+      {labels.adFree && (
+        <p className="text-xs font-semibold text-slate-200 mb-1 px-0.5" data-testid="settings-ad-free">
+          {labels.adFree}
+        </p>
+      )}
       <p className="text-xs text-slate-400 mb-1 px-0.5" data-testid="settings-subscription-length">
         <span className="text-slate-200">{labels.subscriptionTitle}</span>
         {labels.subscriptionLength ? ` · ${labels.subscriptionLength}` : ''}
@@ -97,6 +103,16 @@ export function IapSettings({
         termsLabel={labels.terms}
         className="mb-3"
       />
+      {onAdPrivacy && (
+        <button
+          type="button"
+          className="w-full py-2.5 px-3 rounded-xl text-sm text-slate-300 touch-none active:scale-[0.98] mb-3"
+          style={rowStyle()}
+          onClick={onAdPrivacy}
+        >
+          {labels.adPrivacy}
+        </button>
+      )}
 
       <div className="text-[10px] text-slate-500 uppercase tracking-[0.3em] mb-2.5 font-semibold">
         {labels.supportSection}

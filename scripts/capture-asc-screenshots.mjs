@@ -27,6 +27,7 @@ const devices = {
 
 // Guideline 2.3.7: listing screenshots must not show prices or “free”.
 // IAP product review shots live under docs/app-store/screenshots/iap-review/.
+// Any __SHOT__ capture suppresses AdMob. Do not add a banner to these frames.
 const shots = [
   { file: '02-recognition-piano.png', shot: { tab: 'test', lang: 'zh-Hant' } },
   { file: '03-ear-training.png', shot: { tab: 'ear', lang: 'zh-Hant' } },

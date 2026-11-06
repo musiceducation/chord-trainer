@@ -70,7 +70,7 @@ chord,piano,music,ear training,theory,keyboard,triad,七和弦,聽音,練習
   - `com.musiceducation.chordtrainer.support.large` — USD 4.99
 - Restore Purchases is in Settings (gear icon) and on the Pro paywall. It restores the non-consumable Pro unlock
 - Locked items show a lock badge. Tapping opens the paywall. The paywall does not appear on launch
-- No ads or tracking
+- Free version shows a Google AdMob banner on non-practice screens only (Stats, Settings, paywall chrome, and a mode gate before a round). No banner during Identify, Train, Listen, Roman, ABRSM, or while piano audio is playing. Chord Trainer Pro is ad-free. Screenshot captures stay ad-free.
 - Audio is synthesized with Web Audio (no microphone, camera, or location)
 - iOS will not play sound until the reviewer taps a piano key or Play / Replay — this is expected
 - Five tabs: Identify, Train, Roman (free — Roman numeral chord practice), Progress (Pro), Stats (gear icon: difficulty, language, Chord Trainer Pro, Restore Purchases, and Support the developer)
@@ -82,9 +82,9 @@ chord,piano,music,ear training,theory,keyboard,triad,七和弦,聽音,練習
 
 | Question | Answer |
 |----------|--------|
-| Data collection | Data Not Collected |
-| Tracking | No |
-| Third-party analytics | No |
+| Data collection | Device ID, Advertising Data, Product Interaction (Google AdMob banners) |
+| Tracking | Yes, for personalized ads when the user allows them (UMP consent) |
+| Third-party advertising | Google AdMob. No separate analytics SDK |
 | Account required | No |
 
 ## Export Compliance

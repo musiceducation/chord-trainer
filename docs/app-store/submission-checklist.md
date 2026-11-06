@@ -36,7 +36,7 @@ In Xcode (`ios/App/App.xcworkspace`):
 - [ ] iPad 12.9" screenshots (2048×2732)
 - [ ] Copy metadata from `metadata.md`
 - [ ] Set category: Music
-- [ ] Complete App Privacy: **Data Not Collected**
+- [ ] Complete App Privacy: Device ID, Advertising Data, and Product Interaction from AdMob banners. Tracking is on when the user allows personalized ads. Do not answer Data Not Collected.
 - [ ] Complete age rating questionnaire
 - [ ] Add support and privacy URLs
 - [ ] Export compliance: No non-exempt encryption

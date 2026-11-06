@@ -14,6 +14,7 @@ function renderPaywall(lang, extra = {}) {
     subscriptionLength: strings['pro.subscriptionLength'],
     pricePeriod: strings['pro.pricePeriod'],
     body: strings['pro.paywallBody'],
+    adFree: strings['pro.adFree'],
     trialOffer: strings['pro.trialOffer'],
     price: extra.price,
     priceStatus: extra.priceStatus || (extra.price ? 'ready' : 'failed'),
@@ -50,6 +51,8 @@ describe('subscription paywall disclosure', () => {
       expect(html.indexOf('data-testid="privacy-policy-link"')).toBeLessThan(
         html.indexOf(STRINGS[lang]['pro.restore']),
       );
+      expect(html).toContain(STRINGS[lang]['pro.adFree']);
+      expect(html).toContain('data-testid="paywall-ad-free"');
       expect(html).toContain(STRINGS[lang]['pro.privacy']);
       expect(html).toContain(STRINGS[lang]['pro.terms']);
       expect(html).not.toContain('6.99');

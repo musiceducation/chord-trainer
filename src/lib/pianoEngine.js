@@ -7,6 +7,7 @@ import {
   pianoSampleUrl,
   sampleForMidi,
 } from './pianoSamples.js';
+import { markAudible, resetAudioActivityForTests } from './audioActivity.js';
 
 const bufferCache = new Map();
 const pending = new Map();
@@ -490,6 +491,7 @@ function startSampleVoice(ctx, graph, buffer, sample, spec) {
   gain.connect(graph.input);
   source.start(when);
   source.stop(when + sustain + 0.02);
+  noteBannerClock(ctx, when, sustain);
   const voice = { midi, gain, nodes: [source], releasing: false };
   graph.voices.push(voice);
   source.onended = () => dropVoice(graph, voice);
@@ -555,6 +557,7 @@ function startSynthVoice(ctx, graph, spec) {
     if (n === 1) fundamental = osc;
   }
 
+  noteBannerClock(ctx, when, sustain);
   const voice = { midi, gain, nodes: sources, releasing: false };
   graph.voices.push(voice);
   fundamental.onended = () => dropVoice(graph, voice);
@@ -737,7 +740,14 @@ export function installPrefetchedSampleForTests(file, arrayBuffer = new ArrayBuf
   rawCache.set(cacheKey(file), arrayBuffer);
 }
 
+function noteBannerClock(ctx, when, sustain) {
+  const clock = Number.isFinite(ctx?.currentTime) ? ctx.currentTime : 0;
+  const lead = Math.max(0, (Number(when) || 0) - clock);
+  markAudible((lead + Math.max(0, Number(sustain) || 0) + 0.05) * 1000);
+}
+
 export function resetPianoEngineForTests() {
+  resetAudioActivityForTests();
   activePianoSound = DEFAULT_PIANO_SOUND;
   toneGeneration = 0;
   bufferCache.clear();

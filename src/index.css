@@ -79,10 +79,11 @@ body {
   padding-top: var(--safe-top);
   padding-left: var(--safe-left);
   padding-right: var(--safe-right);
+  padding-bottom: var(--ad-banner-height, 0px);
 }
 
 .app-main {
-  height: calc(100dvh - var(--safe-top));
+  height: calc(100dvh - var(--safe-top) - var(--ad-banner-height, 0px));
 }
 
 .safe-bottom {

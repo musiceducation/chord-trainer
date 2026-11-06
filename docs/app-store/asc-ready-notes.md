@@ -20,7 +20,7 @@ Use this when ASC is open. Archive a **new** 1.0 (build **2**) in Xcode. Do **no
 
 | Field | Paste value |
 |-------|-------------|
-| App Privacy | Data Not Collected |
+| App Privacy | Device ID and Advertising Data via AdMob banners. Tracking when the user allows personalized ads. Pro is ad-free |
 | Tracking | No |
 | Export Compliance | No (uses only exempt encryption; `ITSAppUsesNonExemptEncryption` = false) |
 

@@ -24,6 +24,9 @@ import { setActivePianoSound } from './lib/pianoEngine.js';
 import { LANGUAGES, htmlLangFor } from './lib/i18n.js';
 import { useI18n } from './hooks/useI18n.jsx';
 import { useIap } from './hooks/useIap.js';
+import { useAdBanner } from './hooks/useAdBanner.js';
+import { useAudioPlaying } from './hooks/useAudioPlaying.js';
+import { isPracticeRoundTab, shouldShowBanner } from './lib/ads.js';
 import { IapSettings } from './components/IapSettings.jsx';
 import { SoftReviewDialog } from './components/SoftReviewDialog.jsx';
 import {
@@ -79,6 +82,21 @@ export default function App() {
   const [paywallOpen, setPaywallOpen] = useState(false);
   const iap = useIap();
   const proAccess = Boolean(iap.isPro);
+  const audioPlaying = useAudioPlaying();
+  const showBanner = shouldShowBanner({
+    isPro: proAccess,
+    tab,
+    inPracticeRound: isPracticeRoundTab(tab),
+    audioPlaying,
+    settingsOpen: showSettings,
+    paywallOpen,
+    suppress: shotActive || !iap.ready,
+  });
+  const ads = useAdBanner({
+    show: showBanner,
+    isPro: proAccess,
+    suppress: shotActive || !iap.ready,
+  });
   const practiceDifficulty = difficulty;
   const pianoSound = normalizePianoSound(settings.pianoSound || DEFAULT_PIANO_SOUND);
   const isProRef = useRef(proAccess);
@@ -502,6 +520,8 @@ export default function App() {
                   pricePeriod: t('pro.pricePeriod'),
                   privacy: t('pro.privacy'),
                   terms: t('pro.terms'),
+                  adFree: t('pro.adFree'),
+                  adPrivacy: t('ads.privacyOptions'),
                   supportSection: t('support.section'),
                   supportDisclaimer: t('support.disclaimer'),
                   supportSmall: t('support.small'),
@@ -513,6 +533,7 @@ export default function App() {
                 onBuyPro={() => openPaywall()}
                 onBuySupport={(productId) => iap.buy(productId)}
                 onRestore={iap.restore}
+                onAdPrivacy={ads.privacyOptionsRequired ? ads.openPrivacyOptions : null}
               />
             )}
           </section>
@@ -607,6 +628,7 @@ export default function App() {
         subscriptionLength={t('pro.subscriptionLength')}
         pricePeriod={t('pro.pricePeriod')}
         body={t('pro.paywallBody')}
+        adFree={t('pro.adFree')}
         trialOffer={iap.isPro ? null : t('pro.trialOffer')}
         price={iap.prices[PRODUCT_IDS.pro]}
         priceStatus={iap.priceStatus}

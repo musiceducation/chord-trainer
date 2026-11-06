@@ -112,6 +112,10 @@ describe('i18n', () => {
     expect(STRINGS.en['pro.subscriptionLength']).toMatch(/1 month/i);
     expect(STRINGS.en['pro.subscriptionLength']).toMatch(/auto-renew/i);
     expect(STRINGS.en['pro.paywallBody']).toMatch(/progressions/i);
+    expect(STRINGS.en['pro.paywallBody']).toMatch(/Ad-free/);
+    expect(STRINGS.en['pro.adFree']).toBe('Ad-free');
+    expect(STRINGS['zh-Hant']['pro.adFree']).toMatch(/無廣告/);
+    expect(STRINGS['zh-Hans']['pro.adFree']).toMatch(/无广告/);
     expect(STRINGS.en['pro.subscriptionTitle']).toMatch(/monthly/i);
     expect(STRINGS.en['pro.terms']).toMatch(/EULA/);
     expect(STRINGS['zh-Hant']['pro.trialOffer']).toMatch(/七日/);

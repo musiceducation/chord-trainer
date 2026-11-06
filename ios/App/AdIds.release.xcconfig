@@ -1,0 +1,3 @@
+// Release-only. Production AdMob IDs live in Secrets.xcconfig (untracked).
+// Debug does not include this file; it uses Google's public test IDs.
+#include? "Secrets.xcconfig"

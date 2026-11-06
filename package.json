@@ -16,6 +16,7 @@
     "cap:screenshots": "node scripts/capture-asc-screenshots.mjs"
   },
   "dependencies": {
+    "@capacitor-community/admob": "7.2.0",
     "@capacitor-community/in-app-review": "^7.1.0",
     "@capacitor/browser": "^7.0.5",
     "@capacitor/core": "^7.0.0",

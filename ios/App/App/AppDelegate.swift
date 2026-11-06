@@ -1,5 +1,6 @@
 import UIKit
 import Capacitor
+import GoogleMobileAds
 
 @UIApplicationMain
 class AppDelegate: UIResponder, UIApplicationDelegate {
@@ -7,7 +8,10 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     var window: UIWindow?
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
-        // Override point for customization after application launch.
+        // Banner creatives stay silent and must not retake the piano AVAudioSession.
+        MobileAds.shared.isApplicationMuted = true
+        MobileAds.shared.applicationVolume = 0
+        MobileAds.shared.audioVideoManager.isAudioSessionApplicationManaged = true
         return true
     }
 
