@@ -68,6 +68,16 @@ describe('shouldShowBanner', () => {
     })).toBe(false);
   });
 
+  it('hides for a one-time Ad-free purchase even when the old subscription is inactive', () => {
+    expect(shouldShowBanner({
+      isPro: false,
+      isAdFree: true,
+      tab: 'stats',
+      inPracticeRound: false,
+      audioPlaying: false,
+    })).toBe(false);
+  });
+
   it('hides for Pro on every surface', () => {
     expect(shouldShowBanner({
       isPro: true,

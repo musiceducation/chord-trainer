@@ -32,7 +32,7 @@ async function loadBundledAdConfig() {
  * `show` false hides and pauses it (zero height). Pro removes it.
  * Web and screenshot captures never call the plugin.
  */
-export function useAdBanner({ show, isPro, suppress }) {
+export function useAdBanner({ show, isAdFree, suppress }) {
   const hostRef = useRef(null);
   const [adUnitId, setAdUnitId] = useState('');
   const [privacyOptionsRequired, setPrivacyOptionsRequired] = useState(false);
@@ -73,14 +73,14 @@ export function useAdBanner({ show, isPro, suppress }) {
   useEffect(() => {
     const host = hostRef.current;
     if (!host) return undefined;
-    if (isPro || !show || !adUnitId) {
-      if (isPro) host.remove();
+    if (isAdFree || !show || !adUnitId) {
+      if (isAdFree) host.remove();
       else host.sync({ show: false, adUnitId });
       return undefined;
     }
     host.sync({ show: true, adUnitId });
     return undefined;
-  }, [show, isPro, adUnitId]);
+  }, [show, isAdFree, adUnitId]);
 
   return {
     privacyOptionsRequired: native && privacyOptionsRequired,

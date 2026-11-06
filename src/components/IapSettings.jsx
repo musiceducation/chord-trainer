@@ -8,10 +8,8 @@ function rowStyle() {
 }
 
 export function IapSettings({
-  isPro,
-  trialActive = false,
-  trialStarted = false,
-  trialDaysLeft = 0,
+  isPro = false,
+  isAdFree = false,
   native,
   prices,
   priceStatus,
@@ -24,28 +22,20 @@ export function IapSettings({
   onAdPrivacy,
 }) {
   const busy = Boolean(busyId);
+  const unlocked = Boolean(isAdFree || isPro);
   const smallPrice = priceText({
     price: prices?.[labels.smallId],
     status: priceStatus,
     unavailableLabel: labels.priceUnavailable,
   });
-  const largePrice = priceText({
-    price: prices?.[labels.largeId],
-    status: priceStatus,
-    unavailableLabel: labels.priceUnavailable,
-  });
-  const proStorePrice = prices?.[labels.proId] || '';
-  const proPrice = priceText({
-    price: proStorePrice,
+  const adFreeStorePrice = prices?.[labels.adFreeId] || '';
+  const adFreePrice = priceText({
+    price: adFreeStorePrice,
     status: priceStatus,
     unavailableLabel: labels.priceUnavailable,
   });
 
-  const accessLabel = isPro
-    ? labels.unlocked
-    : trialActive
-      ? (labels.trialActive || '').replace('{n}', String(trialDaysLeft))
-      : null;
+  const accessLabel = unlocked ? labels.unlocked : null;
 
   return (
     <div className="mt-3">
@@ -69,7 +59,7 @@ export function IapSettings({
             disabled={busy || !native}
             onClick={onBuyPro}
           >
-            {labels.buy}{native && proPrice ? ` · ${proPrice}` : ''}
+            {labels.buy}{native && adFreePrice ? ` · ${adFreePrice}` : ''}
           </button>
         )}
       </div>
@@ -78,16 +68,10 @@ export function IapSettings({
           {labels.adFree}
         </p>
       )}
-      <p className="text-xs text-slate-400 mb-1 px-0.5" data-testid="settings-subscription-length">
-        <span className="text-slate-200">{labels.subscriptionTitle}</span>
-        {labels.subscriptionLength ? ` · ${labels.subscriptionLength}` : ''}
-        {native && proStorePrice && labels.pricePeriod ? ` · ${proStorePrice} ${labels.pricePeriod}` : ''}
-      </p>
-      {!isPro && !trialActive && labels.trialOffer && (
-        <p className="text-xs text-slate-400 mb-2 px-0.5">{labels.trialOffer}</p>
-      )}
-      {!isPro && trialStarted && !trialActive && labels.trialEnded && (
-        <p className="text-xs text-slate-500 mb-2 px-0.5">{labels.trialEnded}</p>
+      {labels.modesFree && (
+        <p className="text-xs text-slate-400 mb-2 px-0.5" data-testid="settings-modes-free">
+          {labels.modesFree}
+        </p>
       )}
       <button
         type="button"
@@ -129,18 +113,6 @@ export function IapSettings({
           <span className="text-sm font-semibold text-slate-100">{labels.supportSmall}</span>
           <span className="mono-font text-sm font-bold text-amber-200 shrink-0">
             {native ? (busyId === labels.smallId ? '…' : smallPrice) : ''}
-          </span>
-        </button>
-        <button
-          type="button"
-          className="flex items-center justify-between gap-3 py-2.5 px-3 rounded-xl text-left touch-none active:scale-[0.98] disabled:opacity-60"
-          style={rowStyle()}
-          disabled={busy || !native}
-          onClick={() => onBuySupport(labels.largeId)}
-        >
-          <span className="text-sm font-semibold text-slate-100">{labels.supportLarge}</span>
-          <span className="mono-font text-sm font-bold text-amber-200 shrink-0">
-            {native ? (busyId === labels.largeId ? '…' : largePrice) : ''}
           </span>
         </button>
       </div>

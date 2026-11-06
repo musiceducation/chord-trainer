@@ -41,6 +41,26 @@
       "productID": "com.musiceducation.chordtrainer.support.large",
       "referenceName": "Support (Large)",
       "type": "Consumable"
+    },
+    {
+      "displayPrice": "4.99",
+      "familyShareable": false,
+      "internalID": "C4ADFREE000001A2B3C4D5E6F708192B",
+      "localizations": [
+        {
+          "description": "One-time purchase. Removes ads. All practice modes stay free.",
+          "displayName": "Ad-free",
+          "locale": "en_US"
+        },
+        {
+          "description": "一次購買。移除廣告。所有練習模式維持免費。",
+          "displayName": "無廣告",
+          "locale": "zh_Hant"
+        }
+      ],
+      "productID": "com.musiceducation.chordtrainer.adfree",
+      "referenceName": "Ad-free",
+      "type": "NonConsumable"
     }
   ],
   "settings": {

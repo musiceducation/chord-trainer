@@ -51,7 +51,7 @@ Chord Trainer helps musicians practice chord spelling and ear training on a touc
 - Miss book / Retry misses
 - Triads difficulty, plus session and recent stats
 - Optional Chord Trainer Pro (one-time unlock, $9.99): Sevenths, Extended, Mix, chord progressions, and full stats
-- Optional Support purchases in Settings ($0.99 and $4.99). They unlock no features
+- All modes are free. Settings sells a one-time Ad-free unlock (USD $4.99) and an optional USD $0.99 Support purchase that unlocks nothing. Pro Monthly is not offered to new buyers.
 - Works offline with no account required
 
 ## Keywords (100 chars max, comma-separated)
@@ -69,8 +69,8 @@ chord,piano,music,ear training,theory,keyboard,triad,七和弦,聽音,練習
   - `com.musiceducation.chordtrainer.support.small` — USD 0.99
   - `com.musiceducation.chordtrainer.support.large` — USD 4.99
 - Restore Purchases is in Settings (gear icon) and on the Pro paywall. It restores the non-consumable Pro unlock
-- Locked items show a lock badge. Tapping opens the paywall. The paywall does not appear on launch
-- Free version shows a Google AdMob banner on non-practice screens only (Stats, Settings, paywall chrome, and a mode gate before a round). No banner during Identify, Train, Listen, Roman, ABRSM, or while piano audio is playing. Chord Trainer Pro is ad-free. Screenshot captures stay ad-free.
+- No mode is locked. The paywall sells Ad-free only and does not appear on launch
+- Free version shows a Google AdMob banner on non-practice screens only (Stats, Settings, paywall chrome, and a mode gate before a round). No banner during Identify, Train, Listen, Roman, ABRSM, or while piano audio is playing. Ad-free (one-time purchase, or an existing Pro subscription) removes ads. Screenshot captures stay ad-free.
 - Audio is synthesized with Web Audio (no microphone, camera, or location)
 - iOS will not play sound until the reviewer taps a piano key or Play / Replay — this is expected
 - Five tabs: Identify, Train, Roman (free — Roman numeral chord practice), Progress (Pro), Stats (gear icon: difficulty, language, Chord Trainer Pro, Restore Purchases, and Support the developer)

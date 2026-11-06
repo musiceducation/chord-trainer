@@ -11,7 +11,9 @@ import {
   canAccessProgression,
   canAccessFullStats,
   entitlementFromPurchases,
+  adFreeAfterPurchase,
   entitlementAfterPurchase,
+  entitlementFlagsFromPurchases,
   applyFreeRampCap,
   readProHint,
   writeProHint,
@@ -27,17 +29,14 @@ class MemoryStorage {
 }
 
 describe('free vs Pro gating', () => {
-  it('allows every difficulty tier without Pro; Pro still gates progressions and full stats', () => {
+  it('leaves every mode and difficulty free, including progressions and full stats', () => {
     expect(difficultyAllowed(false, 'basic')).toBe(true);
     expect(difficultyAllowed(false, 'seventh')).toBe(true);
     expect(difficultyAllowed(false, 'extended')).toBe(true);
     expect(difficultyAllowed(false, 'all')).toBe(true);
     expect(clampDifficulty(false, 'seventh')).toBe('seventh');
-    expect(canAccessProgression(false)).toBe(false);
-    expect(canAccessFullStats(false)).toBe(false);
-
-    expect(difficultyAllowed(true, 'extended')).toBe(true);
-    expect(clampDifficulty(true, 'extended')).toBe('extended');
+    expect(canAccessProgression(false)).toBe(true);
+    expect(canAccessFullStats(false)).toBe(true);
     expect(canAccessProgression(true)).toBe(true);
     expect(canAccessFullStats(true)).toBe(true);
   });
@@ -78,8 +77,17 @@ describe('free vs Pro gating', () => {
 describe('support purchases grant nothing', () => {
   it('only the Pro product id grants access', () => {
     expect(accessGrantedByProduct(PRODUCT_IDS.pro)).toBe('pro');
+    expect(accessGrantedByProduct(PRODUCT_IDS.adFree)).toBe('adfree');
     expect(accessGrantedByProduct(PRODUCT_IDS.supportSmall)).toBeNull();
     expect(accessGrantedByProduct(PRODUCT_IDS.supportLarge)).toBeNull();
+    expect(entitlementAfterPurchase({
+      ok: true,
+      productId: PRODUCT_IDS.adFree,
+    }, false)).toBe(false);
+    expect(adFreeAfterPurchase({
+      ok: true,
+      productId: PRODUCT_IDS.adFree,
+    }, false)).toBe(true);
     expect(entitlementAfterPurchase({
       ok: true,
       productId: PRODUCT_IDS.supportSmall,
@@ -196,5 +204,21 @@ describe('subscription and legacy Pro entitlements', () => {
     expect(entitlementFromPurchases([{
       productIdentifier: PRODUCT_IDS.proLegacy,
     }])).toBe(true);
+    expect(entitlementFlagsFromPurchases([{
+      productIdentifier: PRODUCT_IDS.proLegacy,
+    }])).toMatchObject({ isPro: true, isAdFree: true, hasLifetimeAdFree: false });
+  });
+
+  it('treats the $4.99 non-consumable as ad-free without calling it Pro', () => {
+    expect(entitlementFlagsFromPurchases([{
+      productIdentifier: PRODUCT_IDS.adFree,
+    }])).toMatchObject({ isPro: false, hasLifetimeAdFree: true, isAdFree: true });
+    expect(entitlementFlagsFromPurchases([{
+      productIdentifier: PRODUCT_IDS.supportLarge,
+    }])).toMatchObject({ isPro: false, isAdFree: false });
+    expect(entitlementFlagsFromPurchases([{
+      productIdentifier: PRODUCT_IDS.pro,
+      isActive: true,
+    }])).toMatchObject({ isPro: true, isAdFree: true });
   });
 });

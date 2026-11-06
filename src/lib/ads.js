@@ -26,6 +26,7 @@ export function isPracticeRoundTab(tab) {
 /**
  * @param {{
  *   isPro?: boolean,
+ *   isAdFree?: boolean,
  *   tab?: string,
  *   inPracticeRound?: boolean,
  *   audioPlaying?: boolean,
@@ -37,6 +38,7 @@ export function isPracticeRoundTab(tab) {
  */
 export function shouldShowBanner({
   isPro = false,
+  isAdFree = false,
   tab = '',
   inPracticeRound = false,
   audioPlaying = false,
@@ -44,7 +46,7 @@ export function shouldShowBanner({
   paywallOpen = false,
   suppress = false,
 } = {}) {
-  if (suppress || isPro || audioPlaying) return false;
+  if (suppress || isPro || isAdFree || audioPlaying) return false;
   // The paywall covers the round. Its outer chrome is a non-practice surface.
   if (paywallOpen) return true;
   // Opening Settings over Identify / Train / Listen / Roman / ABRSM does not
