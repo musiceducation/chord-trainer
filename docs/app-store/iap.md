@@ -4,53 +4,59 @@ Chord Trainer uses StoreKit via `@capgo/native-purchases`. Prices shown in the a
 
 ## Product IDs (must match App Store Connect exactly)
 
-| Reference | Product ID | Type | US price |
-|-----------|------------|------|----------|
-| Chord Trainer Pro | `com.musiceducation.chordtrainer.pro` | Non-consumable | USD 9.99 |
-| Support (Small) | `com.musiceducation.chordtrainer.support.small` | Consumable | USD 0.99 |
-| Support (Large) | `com.musiceducation.chordtrainer.support.large` | Consumable | USD 4.99 |
+| Reference | Product ID | Type | US price | Offered now |
+|-----------|------------|------|----------|-------------|
+| Ad-free | `com.musiceducation.chordtrainer.adfree` | Non-consumable | USD 4.99 | Yes. Removes ads only. Create this in App Store Connect before review. |
+| Support (Small) | `com.musiceducation.chordtrainer.support.small` | Consumable | USD 0.99 | Yes. Unlocks nothing. |
+| Support (Large) | `com.musiceducation.chordtrainer.support.large` | Consumable | USD 4.99 | Hidden. Not the Ad-free unlock. |
+| Pro Monthly | `com.musiceducation.chordtrainer.pro.monthly` | Auto-renewable | USD 6.99 | Hidden. Existing subscribers stay ad-free. |
+| Legacy Pro | `com.musiceducation.chordtrainer.pro` | Non-consumable | (historical) | Not sold. Existing buyers stay ad-free. |
 
-Display names: **Chord Trainer Pro**, **Support (Small)**, **Support (Large)**.
+All modes, difficulties, chord progressions, and full stats are free. The only paid feature is removing ads. Never use the words Donate or tip.
 
-Pro unlocks Sevenths, Extended, Mix, chord progressions, and full stats/history. Support purchases unlock no features. Never use the words Donate or tip.
+## Free vs Ad-free
 
-## Free vs Pro
+| | Free | Ad-free |
+|--|------|---------|
+| Identify, Train, Listen, Roman, ABRSM, Lookup | yes | yes |
+| Sevenths, Extended, Mix | yes | yes |
+| Chord progressions and full stats | yes | yes |
+| Banner ads on non-practice screens | yes | no |
 
-| | Free | Pro |
-|--|------|-----|
-| Triads | yes | yes |
-| Sevenths, Extended, Mix | locked | yes |
-| Identify and Train | yes | yes |
-| Miss book | yes | yes |
-| First-launch C major flow | yes | yes |
-| Stats | this session / recent | full history |
-| Chord progressions | locked | yes |
-
-Locked rows show a lock badge. Tapping opens a paywall with the StoreKit price, Buy, Restore Purchases, and Close. The paywall does not open on launch.
+The paywall sells the one-time Ad-free unlock. It does not offer Pro Monthly. It does not open on launch.
 
 Restore Purchases is in Settings and on the paywall. It is required for the non-consumable. Consumable Support purchases are not restored as features.
+
+## Release AdMob configuration
+
+Archive uses the Release configuration. Production AdMob values are not in git.
+
+1. Copy `ios/App/Secrets.xcconfig.example` to `ios/App/Secrets.xcconfig` on the build machine. That file is gitignored.
+2. Set the two keys named in the example: the app identifier and the banner unit. Do not commit the file, and do not paste the values into the PR, chat, or review notes.
+3. `scripts/apply-admob-config.sh` fails a Release build when either value is empty, or when either value is Google’s public test publisher. Debug keeps the test IDs in the Xcode Debug configuration only.
+4. This preflight does not create `Secrets.xcconfig` and does not archive.
 
 ## App Store Connect
 
 Do not change App Store Connect from the repo. When submitting:
 
 1. Agreements, Tax, and Banking → Paid Applications agreement, bank, and tax.
-2. Create the three products above (English + Traditional Chinese). Price tiers USD 9.99, 0.99, and 4.99.
+2. Create **Ad-free** `com.musiceducation.chordtrainer.adfree` as a non-consumable at USD 4.99 (English + Traditional Chinese) if it is not in App Store Connect yet. Keep Support (Small) at USD 0.99. Do not offer Pro Monthly or Support (Large) to new buyers.
 3. Review screenshots (any iPhone size):
-   - Settings: Chord Trainer Pro row, **Restore Purchases**, and Support the developer with both consumables and the line that they unlock no features.
-   - Paywall: StoreKit price (not a typed-in dollar amount), Buy, Restore Purchases, and Close.
-4. **Submit the IAPs with the app version in the same review submission** (Add for Review on each product, then Submit). If the binary goes alone and products stay `READY_TO_SUBMIT`, App Review gets Guideline **3.1.1** (buy UI with no purchasable IAP).
-5. App Privacy can stay **Data Not Collected** (Apple processes payment; the app does not store card data or send receipts to a server).
+   - Settings: Ad-free row, **Restore Purchases**, and Support (Small) with the line that it unlocks no features. No monthly subscription and no second $4.99 button.
+   - Paywall: all modes are free, $4.99 removes ads, StoreKit price, Unlock, Restore Purchases, and Close.
+4. **Submit the new Ad-free IAP with the app version** when you are ready to submit. This PR does not submit.
+5. App Privacy must disclose AdMob banner data. Apple processes payment. Ad-free removes ads only.
 
 ## Local testing
 
 `ios/App/App.xcodeproj` scheme **App** → Run → Options uses `ios/App/App/Products.storekit` (USA storefront). Buy in the simulator without a sandbox Apple ID.
 
-1. Run the App scheme. Confirm the paywall price matches the config (USD 9.99) and is not a hardcoded label.
-2. Buy **Chord Trainer Pro**. Sevenths, Extended, Mix, Progress, and full stats unlock. Settings shows **Pro unlocked**.
-3. Delete and reinstall, or use Settings → **Restore Purchases**. Pro returns from StoreKit.
-4. Buy **Support (Small)** and **Support (Large)**. A thank-you toast appears. No feature unlocks.
-5. Cancel a purchase sheet. The app stays quiet and does not unlock.
+1. Run the App scheme. Roman, full stats, and every difficulty are available with no purchase.
+2. Buy **Ad-free**. The banner disappears. Settings shows **Ad-free**. Modes were already available.
+3. Delete and reinstall, or use Settings → **Restore Purchases**. Ad-free returns from StoreKit.
+4. Buy **Support (Small)**. A thank-you toast appears. Ads stay. Support (Large) is not on screen.
+5. Cancel a purchase sheet. The app stays quiet and does not remove ads.
 6. On web, Settings and the paywall say in-app purchases are only in the iOS app.
 
 A dev-only flag simulates Pro in non-production web builds: `localStorage.chordTrainerDevPro = '1'`. It is off unless set, and it is ignored on the iOS binary.
@@ -59,7 +65,7 @@ On a device / TestFlight, use a Sandbox Apple ID (Settings → App Store → San
 
 ## Review notes line to paste
 
-- Pro is a non-consumable (`com.musiceducation.chordtrainer.pro`, USD 9.99). It unlocks Sevenths, Extended, Mix, chord progressions, and full stats/history.
-- Support (Small) and Support (Large) are consumables (`…support.small` USD 0.99, `…support.large` USD 4.99). They unlock nothing.
-- Restore Purchases is in Settings (gear) and on the Pro paywall.
-- Free without purchase: Triads, Identify, Train, miss book, first-launch C major flow, and session/recent stats.
+- All modes are free. Ad-free is a non-consumable (`com.musiceducation.chordtrainer.adfree`, USD 4.99). It only removes ads.
+- Support (Small) is a consumable (`…support.small`, USD 0.99) and unlocks nothing. Support (Large) is hidden.
+- Pro Monthly is not sold to new buyers. An active subscription, or the legacy non-consumable Pro, still removes ads.
+- Restore Purchases is in Settings (gear) and on the Ad-free paywall.

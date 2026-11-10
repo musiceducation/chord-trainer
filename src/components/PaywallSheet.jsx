@@ -48,6 +48,7 @@ export function PaywallSheet({
   subscriptionLength,
   pricePeriod,
   body,
+  adFree,
   trialOffer,
   price,
   priceStatus,
@@ -106,6 +107,9 @@ export function PaywallSheet({
         )}
         {trialOffer && (
           <p className="text-xs text-emerald-300/90 leading-relaxed mb-2">{trialOffer}</p>
+        )}
+        {adFree && (
+          <p className="text-sm font-semibold text-slate-200 mb-2" data-testid="paywall-ad-free">{adFree}</p>
         )}
         {body && (
           <p className="text-sm text-slate-400 mb-3">{body}</p>

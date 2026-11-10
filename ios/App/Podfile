@@ -11,8 +11,9 @@ install! 'cocoapods', :disable_input_output_paths => true
 def capacitor_pods
   pod 'Capacitor', :path => '../../node_modules/@capacitor/ios'
   pod 'CapacitorCordova', :path => '../../node_modules/@capacitor/ios'
-  pod 'CapacitorBrowser', :path => '../../node_modules/@capacitor/browser'
+  pod 'CapacitorCommunityAdmob', :path => '../../node_modules/@capacitor-community/admob'
   pod 'CapacitorCommunityInAppReview', :path => '../../node_modules/@capacitor-community/in-app-review'
+  pod 'CapacitorBrowser', :path => '../../node_modules/@capacitor/browser'
   pod 'CapacitorSplashScreen', :path => '../../node_modules/@capacitor/splash-screen'
   pod 'CapacitorStatusBar', :path => '../../node_modules/@capacitor/status-bar'
   pod 'CapgoNativePurchases', :path => '../../node_modules/@capgo/native-purchases'
@@ -20,9 +21,22 @@ end
 
 target 'App' do
   capacitor_pods
-  # Add your Pods here
+  # Same versions as CapacitorCommunityAdmob 7.2.0 so AppDelegate can mute
+  # ads and keep the piano AVAudioSession.
+  pod 'Google-Mobile-Ads-SDK', '12.12.0'
+  pod 'GoogleUserMessagingPlatform', '3.0.0'
 end
 
 post_install do |installer|
   assertDeploymentTarget(installer)
+  # Target Release uses the generated Pods xcconfig as its base. Fold the
+  # untracked production IDs into that file so Archive sees them.
+  release_xcconfig = File.join(__dir__, 'Pods/Target Support Files/Pods-App/Pods-App.release.xcconfig')
+  include_line = '#include? "../../../AdIds.release.xcconfig"'
+  if File.exist?(release_xcconfig)
+    contents = File.read(release_xcconfig)
+    unless contents.include?(include_line)
+      File.write(release_xcconfig, "#{contents.rstrip}\n#{include_line}\n")
+    end
+  end
 end

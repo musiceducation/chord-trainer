@@ -11,10 +11,11 @@ function renderPaywall(lang, extra = {}) {
     open: true,
     title: strings['pro.paywallTitle'],
     subscriptionTitle: extra.subscriptionTitle || strings['pro.subscriptionTitle'],
-    subscriptionLength: strings['pro.subscriptionLength'],
-    pricePeriod: strings['pro.pricePeriod'],
+    subscriptionLength: '',
+    pricePeriod: '',
     body: strings['pro.paywallBody'],
-    trialOffer: strings['pro.trialOffer'],
+    adFree: strings['pro.adFree'],
+    trialOffer: null,
     price: extra.price,
     priceStatus: extra.priceStatus || (extra.price ? 'ready' : 'failed'),
     unavailableLabel: strings['pro.priceUnavailable'],
@@ -35,14 +36,16 @@ function renderPaywall(lang, extra = {}) {
   }));
 }
 
-describe('subscription paywall disclosure', () => {
+describe('ad-free paywall', () => {
   for (const lang of ['en', 'zh-Hant', 'zh-Hans']) {
-    it(`shows title, length, price, and legal links in ${lang}`, () => {
-      const html = renderPaywall(lang, { price: 'HK$54.00', priceStatus: 'ready' });
+    it(`shows the one-time Ad-free offer, price, and legal links in ${lang}`, () => {
+      const html = renderPaywall(lang, { price: 'HK$38.00', priceStatus: 'ready' });
       expect(html).toContain(STRINGS[lang]['pro.subscriptionTitle']);
-      expect(html).toContain(STRINGS[lang]['pro.subscriptionLength']);
-      expect(html).toContain('HK$54.00');
-      expect(html).toContain(STRINGS[lang]['pro.pricePeriod']);
+      expect(html).toContain(STRINGS[lang]['pro.paywallBody']);
+      expect(html).toContain('HK$38.00');
+      expect(html).not.toContain('1 month');
+      expect(html).not.toContain('auto-renew');
+      expect(html).not.toContain('七日');
       expect(html).toContain(`href="${PRIVACY_POLICY_URL}"`);
       expect(html).toContain(`href="${TERMS_OF_USE_URL}"`);
       expect(html).not.toContain('target="_blank"');
@@ -50,6 +53,8 @@ describe('subscription paywall disclosure', () => {
       expect(html.indexOf('data-testid="privacy-policy-link"')).toBeLessThan(
         html.indexOf(STRINGS[lang]['pro.restore']),
       );
+      expect(html).toContain(STRINGS[lang]['pro.adFree']);
+      expect(html).toContain('data-testid="paywall-ad-free"');
       expect(html).toContain(STRINGS[lang]['pro.privacy']);
       expect(html).toContain(STRINGS[lang]['pro.terms']);
       expect(html).not.toContain('6.99');
@@ -59,12 +64,14 @@ describe('subscription paywall disclosure', () => {
 
   it('uses the StoreKit product title when the store provides one', () => {
     const html = renderPaywall('en', {
-      price: 'HK$54.00',
+      price: 'HK$38.00',
       priceStatus: 'ready',
-      subscriptionTitle: 'Chord Trainer Pro Monthly',
+      subscriptionTitle: 'Ad-free',
     });
-    expect(html).toContain('Chord Trainer Pro Monthly');
-    expect(html).toContain('1 month, auto-renews');
+    expect(html).toContain('Ad-free');
+    expect(html).toContain('All modes are free');
+    expect(html).toContain('$4.99 removes ads');
+    expect(html).not.toContain('1 month');
   });
 
   it('keeps Subscribe disabled and offers retry when the product did not load', () => {
@@ -77,7 +84,8 @@ describe('subscription paywall disclosure', () => {
     expect(html).toContain('data-testid="paywall-retry"');
     expect(html).toContain(STRINGS['zh-Hant']['iap.retry']);
     expect(html).toContain(STRINGS['zh-Hant']['pro.subscriptionTitle']);
-    expect(html).toContain(STRINGS['zh-Hant']['pro.subscriptionLength']);
+    expect(html).toContain(STRINGS['zh-Hant']['pro.paywallBody']);
+    expect(html).not.toContain('自動續訂');
     expect(html).toContain(`href="${PRIVACY_POLICY_URL}"`);
     expect(html).toContain(`href="${TERMS_OF_USE_URL}"`);
     expect(html).not.toContain('target="_blank"');

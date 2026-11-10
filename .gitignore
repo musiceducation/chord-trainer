@@ -9,6 +9,7 @@ ios/fastlane/.env
 ios/fastlane/*.p8
 ios/vendor/
 ios/App/Pods/
+ios/App/Secrets.xcconfig
 ios/App/build/
 ios/App/DerivedData/
 *.xcuserstate

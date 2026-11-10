@@ -73,6 +73,15 @@ describe('native StoreKit path', () => {
     });
     expect(purchaseProduct.mock.calls[0][0].quantity).toBeUndefined();
 
+    const adFree = await client.purchase(PRODUCT_IDS.adFree);
+    expect(adFree.ok).toBe(true);
+    expect(purchaseProduct).toHaveBeenLastCalledWith({
+      productIdentifier: PRODUCT_IDS.adFree,
+      productType: 'inapp',
+      quantity: 1,
+      isConsumable: false,
+    });
+
     const support = await client.purchase(PRODUCT_IDS.supportSmall);
     expect(support.ok).toBe(true);
     expect(purchaseProduct).toHaveBeenLastCalledWith({
@@ -146,8 +155,10 @@ describe('native StoreKit path', () => {
     expect(catalog.prices[PRODUCT_IDS.pro]).toBe('HK$54.00');
     expect(catalog.prices[PRODUCT_IDS.supportSmall]).toBeUndefined();
     expect(catalog.subscriptionReady).toBe(true);
-    expect(catalog.loadFailed).toBe(false);
+    expect(catalog.adFreeReady).toBe(false);
+    expect(catalog.loadFailed).toBe(true);
     expect(catalog.missingProductIds).toEqual(expect.arrayContaining([
+      PRODUCT_IDS.adFree,
       PRODUCT_IDS.supportSmall,
       PRODUCT_IDS.supportLarge,
     ]));
@@ -177,7 +188,8 @@ describe('native StoreKit path', () => {
     });
     const catalog = await client.loadProductPrices();
     expect(catalog.subscriptionReady).toBe(true);
-    expect(catalog.loadFailed).toBe(false);
+    expect(catalog.adFreeReady).toBe(false);
+    expect(catalog.loadFailed).toBe(true);
     expect(catalog.products[PRODUCT_IDS.pro].title).toBe('Chord Trainer Pro Monthly');
     expect(catalog.prices[PRODUCT_IDS.pro]).toBe('HK$54.00');
   });

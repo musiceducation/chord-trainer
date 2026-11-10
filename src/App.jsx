@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import {
-  Volume2, VolumeX, Flame, Settings, Sparkles, Headphones, Ear, BarChart3, ListMusic, Lock, GraduationCap, Search,
+  Volume2, VolumeX, Flame, Settings, Sparkles, Headphones, Ear, BarChart3, ListMusic, GraduationCap, Search,
 } from 'lucide-react';
 import { TestMode } from './components/TestMode.jsx';
 import { AbrsmMode } from './components/AbrsmMode.jsx';
@@ -13,7 +13,7 @@ import { DIFFICULTY_LEVELS, TABS } from './lib/constants.js';
 import { TRAINING_KEYS } from './lib/diatonic.js';
 import { loadStats, saveStats } from './lib/stats.js';
 import { loadSettings, saveSettings } from './lib/settings.js';
-import { applyFreeRampCap, canAccessProgression, PRODUCT_IDS } from './lib/entitlement.js';
+import { applyFreeRampCap, PRODUCT_IDS } from './lib/entitlement.js';
 import {
   DEFAULT_PIANO_SOUND,
   PIANO_SOUND_IDS,
@@ -24,6 +24,9 @@ import { setActivePianoSound } from './lib/pianoEngine.js';
 import { LANGUAGES, htmlLangFor } from './lib/i18n.js';
 import { useI18n } from './hooks/useI18n.jsx';
 import { useIap } from './hooks/useIap.js';
+import { useAdBanner } from './hooks/useAdBanner.js';
+import { useAudioPlaying } from './hooks/useAudioPlaying.js';
+import { isPracticeRoundTab, shouldShowBanner } from './lib/ads.js';
 import { IapSettings } from './components/IapSettings.jsx';
 import { SoftReviewDialog } from './components/SoftReviewDialog.jsx';
 import {
@@ -79,14 +82,29 @@ export default function App() {
   const [paywallOpen, setPaywallOpen] = useState(false);
   const iap = useIap();
   const proAccess = Boolean(iap.isPro);
+  const adFree = Boolean(iap.isAdFree);
+  const audioPlaying = useAudioPlaying();
+  const showBanner = shouldShowBanner({
+    isPro: proAccess,
+    isAdFree: adFree,
+    tab,
+    inPracticeRound: isPracticeRoundTab(tab),
+    audioPlaying,
+    settingsOpen: showSettings,
+    paywallOpen,
+    suppress: shotActive || !iap.ready,
+  });
+  const ads = useAdBanner({
+    show: showBanner,
+    isAdFree: adFree,
+    suppress: shotActive || !iap.ready,
+  });
   const practiceDifficulty = difficulty;
   const pianoSound = normalizePianoSound(settings.pianoSound || DEFAULT_PIANO_SOUND);
-  const isProRef = useRef(proAccess);
   const difficultyRef = useRef(difficulty);
   const rampMissRef = useRef(0);
 
   useEffect(() => { difficultyRef.current = difficulty; }, [difficulty]);
-  useEffect(() => { isProRef.current = proAccess; }, [proAccess]);
   useEffect(() => {
     try {
       localStorage.removeItem('chordTrainerMissBook_v1');
@@ -94,9 +112,6 @@ export default function App() {
       /* storage may be unavailable */
     }
   }, []);
-  useEffect(() => {
-    if (!proAccess && tab === 'progression') setTab('test');
-  }, [proAccess, tab]);
   useEffect(() => {
     setActivePianoSound(pianoSound);
   }, [pianoSound]);
@@ -212,13 +227,13 @@ export default function App() {
     iap.reloadPrices();
   };
 
-  const buyPro = async () => {
-    const result = await iap.buy(PRODUCT_IDS.pro);
+  const buyAdFree = async () => {
+    const result = await iap.buy(PRODUCT_IDS.adFree);
     if (result?.ok) setPaywallOpen(false);
   };
 
-  const proStore = iap.products?.[PRODUCT_IDS.pro];
-  const subscriptionTitle = proStore?.title || t('pro.subscriptionTitle');
+  const adFreeStore = iap.products?.[PRODUCT_IDS.adFree];
+  const adFreeTitle = adFreeStore?.title || t('pro.adFree');
 
   const firstHintReady = !shotActive;
   // Train has no persistent "Listen → play it back" subtitle.
@@ -227,7 +242,7 @@ export default function App() {
     coachLine = t('identify.findRoot');
   }
   const showRampChip = Boolean(tab !== 'abrsm' && tab !== 'lookup' && rampLevel);
-  const showNudgeChip = Boolean(tab !== 'abrsm' && tab !== 'lookup' && rampNudge && !proAccess);
+  const showNudgeChip = Boolean(tab !== 'abrsm' && tab !== 'lookup' && rampNudge && !adFree);
   const showCoachRow = Boolean(coachLine || showRampChip || showNudgeChip);
 
   const closeReviewGate = useCallback((answer) => {
@@ -315,17 +330,12 @@ export default function App() {
           {TABS.map((item) => {
             const active = tab === item.key;
             const Icon = TAB_ICONS[item.key];
-            const locked = item.key === 'progression' && !canAccessProgression(proAccess);
             return (
               <button
                 key={item.key}
                 type="button"
                 aria-current={active ? 'page' : undefined}
                 onClick={() => {
-                  if (locked) {
-                    openPaywall();
-                    return;
-                  }
                   setTab(item.key);
                   setShowSettings(false);
                 }}
@@ -340,7 +350,6 @@ export default function App() {
                 <Icon size={14} aria-hidden="true" />
                 <span className="flex items-center gap-0.5">
                   {t(`tab.${item.key}`)}
-                  {locked && <Lock size={9} className="text-amber-300" aria-hidden="true" />}
                 </span>
               </button>
             );
@@ -479,6 +488,7 @@ export default function App() {
             {!shot?.hideIap && (
               <IapSettings
                 isPro={iap.isPro}
+                isAdFree={adFree}
                 trialActive={false}
                 trialStarted={false}
                 trialDaysLeft={0}
@@ -494,25 +504,21 @@ export default function App() {
                   restore: t('pro.restore'),
                   unavailable: t('iap.unavailable'),
                   priceUnavailable: t('pro.priceUnavailable'),
-                  trialActive: t('pro.trialActive'),
-                  trialEnded: t('pro.trialEnded'),
-                  trialOffer: t('pro.trialOffer'),
-                  subscriptionTitle,
-                  subscriptionLength: t('pro.subscriptionLength'),
-                  pricePeriod: t('pro.pricePeriod'),
+                  modesFree: t('pro.paywallBody'),
                   privacy: t('pro.privacy'),
                   terms: t('pro.terms'),
+                  adFree: t('pro.adFree'),
+                  adPrivacy: t('ads.privacyOptions'),
                   supportSection: t('support.section'),
                   supportDisclaimer: t('support.disclaimer'),
                   supportSmall: t('support.small'),
-                  supportLarge: t('support.large'),
-                  proId: PRODUCT_IDS.pro,
+                  adFreeId: PRODUCT_IDS.adFree,
                   smallId: PRODUCT_IDS.supportSmall,
-                  largeId: PRODUCT_IDS.supportLarge,
                 }}
                 onBuyPro={() => openPaywall()}
                 onBuySupport={(productId) => iap.buy(productId)}
                 onRestore={iap.restore}
+                onAdPrivacy={ads.privacyOptionsRequired ? ads.openPrivacyOptions : null}
               />
             )}
           </section>
@@ -566,7 +572,7 @@ export default function App() {
             stats={stats}
             setStats={setStats}
             onScoreChange={setScoreInfo}
-            hidden={tab !== 'progression' || !proAccess}
+            hidden={tab !== 'progression'}
             autoHint={firstHintReady && !settings.firstHintUsed.progress}
             onAutoHintUsed={() => markHintUsed('progress')}
             onRoundSettled={handleRoundSettled}
@@ -592,7 +598,7 @@ export default function App() {
             stats={stats}
             setStats={setStats}
             hidden={tab !== 'stats'}
-            fullStats={proAccess}
+            fullStats
             sessionStreak={scoreInfo.streak}
             sessionAccuracy={sessionAccuracy}
             onUnlockPro={() => openPaywall()}
@@ -603,12 +609,10 @@ export default function App() {
       <PaywallSheet
         open={paywallOpen}
         title={t('pro.paywallTitle')}
-        subscriptionTitle={subscriptionTitle}
-        subscriptionLength={t('pro.subscriptionLength')}
-        pricePeriod={t('pro.pricePeriod')}
+        subscriptionTitle={adFreeTitle}
         body={t('pro.paywallBody')}
-        trialOffer={iap.isPro ? null : t('pro.trialOffer')}
-        price={iap.prices[PRODUCT_IDS.pro]}
+        adFree={t('pro.adFree')}
+        price={iap.prices[PRODUCT_IDS.adFree]}
         priceStatus={iap.priceStatus}
         unavailableLabel={t('pro.priceUnavailable')}
         storeUnavailableLabel={t('iap.unavailable')}
@@ -620,8 +624,8 @@ export default function App() {
         privacyLabel={t('pro.privacy')}
         termsLabel={t('pro.terms')}
         notice={noticeText}
-        busy={iap.busyId === PRODUCT_IDS.pro || iap.busyId === 'restore'}
-        onBuy={buyPro}
+        busy={iap.busyId === PRODUCT_IDS.adFree || iap.busyId === 'restore'}
+        onBuy={buyAdFree}
         onRestore={iap.restore}
         onRetry={iap.reloadPrices}
         onClose={() => setPaywallOpen(false)}

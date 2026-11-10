@@ -1,11 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   PRODUCT_IDS,
+  adFreeAfterPurchase,
   entitlementAfterPurchase,
   isDevProSimulation,
   isProSubscriptionProduct,
+  readAdFreeHint,
   readProHint,
   resolveEntitlement,
+  writeAdFreeHint,
   writeProHint,
 } from '../lib/entitlement.js';
 import {
@@ -34,12 +37,20 @@ export function useIap({
 } = {}) {
   const native = isNativeStorefront();
   const devPro = isDevProSimulation(storage, { dev: devBuild(), native });
-  const [isPro, setIsPro] = useState(() => resolveEntitlement({
+  const initialPro = resolveEntitlement({
     hint: readProHint(storage),
     devPro,
     native,
     verifyOk: false,
-  }));
+  });
+  const initialLifetime = resolveEntitlement({
+    hint: readAdFreeHint(storage),
+    devPro: false,
+    native,
+    verifyOk: false,
+  });
+  const [isPro, setIsPro] = useState(initialPro);
+  const [isAdFree, setIsAdFree] = useState(initialPro || initialLifetime || devPro);
   const [ready, setReady] = useState(() => devPro || !native);
   const [prices, setPrices] = useState({});
   const [products, setProducts] = useState({});
@@ -48,24 +59,39 @@ export function useIap({
   const [notice, setNotice] = useState('');
   const [toast, setToast] = useState('');
   const isProRef = useRef(isPro);
+  const isAdFreeRef = useRef(isAdFree);
   const pricesRef = useRef(prices);
   const loadSeq = useRef(0);
 
   useEffect(() => { isProRef.current = isPro; }, [isPro]);
+  useEffect(() => { isAdFreeRef.current = isAdFree; }, [isAdFree]);
   useEffect(() => { pricesRef.current = prices; }, [prices]);
 
   const applyVerified = useCallback((result) => {
-    const next = resolveEntitlement({
+    const verifyOk = Boolean(result?.ok);
+    const nextPro = resolveEntitlement({
       hint: readProHint(storage),
       verified: result?.isPro,
-      verifyOk: Boolean(result?.ok),
+      verifyOk,
       devPro,
       native,
     });
-    setIsPro(next);
-    if (result?.ok && native && !devPro) writeProHint(Boolean(result.isPro), storage);
+    const nextLifetime = resolveEntitlement({
+      hint: readAdFreeHint(storage),
+      verified: result?.hasLifetimeAdFree,
+      verifyOk,
+      devPro: false,
+      native,
+    });
+    const nextAdFree = Boolean(nextPro || nextLifetime || devPro);
+    setIsPro(nextPro);
+    setIsAdFree(nextAdFree);
+    if (verifyOk && native && !devPro) {
+      writeProHint(Boolean(result.isPro), storage);
+      writeAdFreeHint(Boolean(result.hasLifetimeAdFree), storage);
+    }
     setReady(true);
-    return next;
+    return nextAdFree;
   }, [devPro, native, storage]);
 
   useEffect(() => {
@@ -88,7 +114,7 @@ export function useIap({
     setProducts(catalog?.products || {});
     pricesRef.current = nextPrices;
     if (!native || !catalog?.storeAvailable) setPriceStatus(native ? 'failed' : 'unavailable');
-    else if (nextPrices[PRODUCT_IDS.pro]) setPriceStatus('ready');
+    else if (nextPrices[PRODUCT_IDS.adFree]) setPriceStatus('ready');
     else setPriceStatus('failed');
     return catalog;
   }, [native]);
@@ -124,7 +150,7 @@ export function useIap({
     setNotice('');
     setBusyId(productId);
     try {
-      if (native && isProSubscriptionProduct(productId) && !pricesRef.current[productId]) {
+      if (native && productId === PRODUCT_IDS.adFree && !pricesRef.current[productId]) {
         const catalog = await reloadPrices();
         if (!catalog?.prices?.[productId]) {
           setNotice('productUnavailable');
@@ -133,9 +159,16 @@ export function useIap({
       }
       const result = await purchase(productId);
       const nextPro = entitlementAfterPurchase(result, isProRef.current);
+      const nextAdFree = nextPro || adFreeAfterPurchase(result, isAdFreeRef.current);
       if (nextPro !== isProRef.current) {
         setIsPro(nextPro);
         if (native && !devPro) writeProHint(nextPro, storage);
+      }
+      if (nextAdFree !== isAdFreeRef.current) {
+        setIsAdFree(nextAdFree);
+        if (native && !devPro && result?.productId === PRODUCT_IDS.adFree) {
+          writeAdFreeHint(nextAdFree, storage);
+        }
       }
       if (result?.ok) setToast('thanks');
       else if (result?.reason === 'pending') setNotice('pending');
@@ -167,18 +200,30 @@ export function useIap({
         setNotice(result?.reason === 'unavailable' ? 'unavailable' : 'restoreFailed');
         return result;
       }
-      const next = resolveEntitlement({
+      const nextPro = resolveEntitlement({
         hint: false,
         verified: result.isPro,
         verifyOk: true,
         devPro,
         native,
       });
-      setIsPro(next);
-      if (native && !devPro) writeProHint(next, storage);
-      if (next) setToast('restored');
+      const nextLifetime = resolveEntitlement({
+        hint: false,
+        verified: result.hasLifetimeAdFree,
+        verifyOk: true,
+        devPro: false,
+        native,
+      });
+      const nextAdFree = Boolean(nextPro || nextLifetime || devPro);
+      setIsPro(nextPro);
+      setIsAdFree(nextAdFree);
+      if (native && !devPro) {
+        writeProHint(nextPro, storage);
+        writeAdFreeHint(Boolean(result.hasLifetimeAdFree), storage);
+      }
+      if (nextAdFree) setToast('restored');
       else setNotice('restoreNone');
-      return { ...result, isPro: next };
+      return { ...result, isPro: nextPro, isAdFree: nextAdFree };
     } finally {
       setBusyId(null);
     }
@@ -186,6 +231,7 @@ export function useIap({
 
   return {
     isPro,
+    isAdFree,
     ready,
     native,
     devPro,

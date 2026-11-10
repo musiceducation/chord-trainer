@@ -3,7 +3,7 @@ import {
   ALL_PRODUCT_IDS,
   PRODUCT_IDS,
   PRO_PRODUCT_IDS,
-  entitlementFromPurchases,
+  entitlementFlagsFromPurchases,
   isProSubscriptionProduct,
   isSupportProduct,
 } from './entitlement.js';
@@ -210,10 +210,12 @@ export function createIapClient(deps = {}) {
 
       const missingProductIds = ALL_PRODUCT_IDS.filter((id) => !prices[id]);
       const subscriptionReady = Boolean(prices[PRODUCT_IDS.pro]);
+      const adFreeReady = Boolean(prices[PRODUCT_IDS.adFree]);
       return {
         storeAvailable: true,
-        loadFailed: !subscriptionReady,
+        loadFailed: !adFreeReady,
         subscriptionReady,
+        adFreeReady,
         prices,
         products,
         missingProductIds,
@@ -223,6 +225,7 @@ export function createIapClient(deps = {}) {
         storeAvailable: true,
         loadFailed: true,
         subscriptionReady: false,
+        adFreeReady: false,
         prices: {},
         products: {},
         missingProductIds: [...ALL_PRODUCT_IDS],
@@ -298,36 +301,49 @@ export function createIapClient(deps = {}) {
 
   async function verifyProEntitlement() {
     if (!isNative()) {
-      return { ok: true, isPro: false, source: 'unavailable', purchases: [] };
+      return {
+        ok: true,
+        isPro: false,
+        isAdFree: false,
+        hasLifetimeAdFree: false,
+        source: 'unavailable',
+        purchases: [],
+      };
     }
     try {
       const { NativePurchases, PURCHASE_TYPE } = await nativeModule();
       const { purchases, okCount } = await collectPurchases(NativePurchases, PURCHASE_TYPE);
       if (okCount === 0) {
-        return { ok: false, isPro: null, source: 'error', purchases: [] };
+        return { ok: false, isPro: null, isAdFree: null, source: 'error', purchases: [] };
       }
+      const flags = entitlementFlagsFromPurchases(purchases);
       return {
         ok: true,
-        isPro: entitlementFromPurchases(purchases),
+        isPro: flags.isPro,
+        isAdFree: flags.isAdFree,
+        hasLifetimeAdFree: flags.hasLifetimeAdFree,
         source: 'storekit',
         purchases,
       };
     } catch {
-      return { ok: false, isPro: null, source: 'error', purchases: [] };
+      return { ok: false, isPro: null, isAdFree: null, source: 'error', purchases: [] };
     }
   }
 
   async function restore() {
     if (!isNative()) {
-      return { ok: false, reason: 'unavailable', isPro: false };
+      return { ok: false, reason: 'unavailable', isPro: false, isAdFree: false };
     }
     try {
       const { NativePurchases, PURCHASE_TYPE } = await nativeModule();
       await NativePurchases.restorePurchases();
       const collected = await collectPurchases(NativePurchases, PURCHASE_TYPE);
+      const flags = entitlementFlagsFromPurchases(collected.purchases);
       return {
         ok: true,
-        isPro: entitlementFromPurchases(collected.purchases),
+        isPro: flags.isPro,
+        isAdFree: flags.isAdFree,
+        hasLifetimeAdFree: flags.hasLifetimeAdFree,
         purchases: collected.purchases,
       };
     } catch (error) {

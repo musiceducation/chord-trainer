@@ -15,6 +15,7 @@ import {
 import { ROOTS } from '../lib/constants.js';
 import { canShiftKeyboard } from '../lib/keyboardRange.js';
 import { useI18n } from '../hooks/useI18n.jsx';
+import { setAudioHold } from '../lib/audioActivity.js';
 
 const EMPTY_NOTES = new Set();
 
@@ -64,6 +65,12 @@ export function LookupMode({ soundOn, pianoSound, hidden }) {
   const queueRef = useRef(queue);
   queueRef.current = queue;
   const queueEmpty = queue.length === 0;
+
+  useEffect(() => {
+    const held = Boolean(playing && !hidden);
+    setAudioHold('lookup', held);
+    return () => setAudioHold('lookup', false);
+  }, [playing, hidden]);
 
   const stopLoop = () => {
     setPlaying(false);
