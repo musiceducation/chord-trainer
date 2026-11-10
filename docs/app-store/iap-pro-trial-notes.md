@@ -1,5 +1,7 @@
 # Chord Trainer Pro — monthly subscription + 7-day free trial (ASC)
 
+> Historical. 1.0.8 does not sell this subscription. New buyers get non-consumable `com.musiceducation.chordtrainer.adfree` (USD $4.99), which only removes ads. An active monthly subscription is still honored as ad-free.
+
 ## Products
 
 | Role | Product ID | Type | Price |

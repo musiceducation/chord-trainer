@@ -20,9 +20,9 @@ The bundle development region is English. A fresh install with no saved language
 
 ## Promotional Text (170 chars max)
 
-**zh-Hant:** 在互動鋼琴上練習和弦辨識與聽音。可選一次買斷 Pro，解鎖七和弦、進行與完整統計。
+**zh-Hant:** 在互動鋼琴上練習和弦辨識與聽音。所有模式免費。一次購買無廣告（USD $4.99）只移除廣告。
 
-**en:** Practice chord recognition and ear training. Optional one-time Pro unlocks sevenths, progressions, and full stats.
+**en:** Practice chord recognition and ear training. All modes are free. One-time Ad-free (USD $4.99) only removes ads.
 
 ## Description
 
@@ -34,9 +34,9 @@ Chord Trainer 是一款專為音樂學習者設計的和弦訓練 App。
 - 辨識模式：看和弦名稱，在鋼琴上彈出正確音符
 - 聽音訓練：聽和弦後在鍵盤上重現
 - 錯題本／重練錯題
-- 三和弦難度，以及本局／近期統計
-- 可選 Chord Trainer Pro（一次買斷，$9.99）：七和弦、延伸、全混合、和弦進行，以及完整統計
-- 可選「支持開發者」購買（$0.99 / $4.99），不會解鎖任何功能
+- 所有難度、和弦進行與完整統計均免費
+- 可選一次購買「無廣告」（USD $4.99），只移除廣告
+- 可選「支持開發者」USD $0.99，不會解鎖任何功能
 - 離線可用：無需帳號，進度儲存在裝置本機
 
 適合鋼琴初學者、音樂 theory 學生，以及想加強和弦聽力的玩家。
@@ -49,9 +49,9 @@ Chord Trainer helps musicians practice chord spelling and ear training on a touc
 - Recognition mode: read a chord name and play it on the keyboard
 - Ear training: listen and reproduce the chord
 - Miss book / Retry misses
-- Triads difficulty, plus session and recent stats
-- Optional Chord Trainer Pro (one-time unlock, $9.99): Sevenths, Extended, Mix, chord progressions, and full stats
-- All modes are free. Settings sells a one-time Ad-free unlock (USD $4.99) and an optional USD $0.99 Support purchase that unlocks nothing. Pro Monthly is not offered to new buyers.
+- All difficulties, chord progressions, and full stats are free
+- Optional one-time Ad-free unlock (USD $4.99) removes ads only
+- Optional Support purchase (USD $0.99) unlocks nothing. Pro Monthly is not offered to new buyers.
 - Works offline with no account required
 
 ## Keywords (100 chars max, comma-separated)
@@ -63,17 +63,16 @@ chord,piano,music,ear training,theory,keyboard,triad,七和弦,聽音,練習
 ## Review Notes
 
 - No login, account, or demo credentials required
-- Free without purchase: Triads difficulty, Identify, Train, miss book / Retry misses, first-launch C major flow, and session/recent stats
-- Pro is a non-consumable one-time unlock (`com.musiceducation.chordtrainer.pro`, USD 9.99). It unlocks Sevenths, Extended, Mix, chord progressions, and full stats/history
-- Support purchases are consumables and unlock nothing:
-  - `com.musiceducation.chordtrainer.support.small` — USD 0.99
-  - `com.musiceducation.chordtrainer.support.large` — USD 4.99
-- Restore Purchases is in Settings (gear icon) and on the Pro paywall. It restores the non-consumable Pro unlock
+- Free without purchase: every mode, every difficulty, chord progressions, and full stats. Banner ads appear only off the practice surface
+- Ad-free is a non-consumable (`com.musiceducation.chordtrainer.adfree`, USD 4.99). It removes ads and unlocks no modes. Create this product in App Store Connect before review
+- Support (Small) is a consumable (`com.musiceducation.chordtrainer.support.small`, USD 0.99) and unlocks nothing. Support (Large) is not shown
+- Pro Monthly is not sold to new buyers. An active subscription, or the legacy non-consumable Pro, still removes ads
+- Restore Purchases is in Settings and on the Ad-free paywall. It restores the non-consumable Ad-free unlock
 - No mode is locked. The paywall sells Ad-free only and does not appear on launch
 - Free version shows a Google AdMob banner on non-practice screens only (Stats, Settings, paywall chrome, and a mode gate before a round). No banner during Identify, Train, Listen, Roman, ABRSM, or while piano audio is playing. Ad-free (one-time purchase, or an existing Pro subscription) removes ads. Screenshot captures stay ad-free.
 - Audio is synthesized with Web Audio (no microphone, camera, or location)
 - iOS will not play sound until the reviewer taps a piano key or Play / Replay — this is expected
-- Five tabs: Identify, Train, Roman (free — Roman numeral chord practice), Progress (Pro), Stats (gear icon: difficulty, language, Chord Trainer Pro, Restore Purchases, and Support the developer)
+- Tabs include Identify, Train, Listen, Roman, Progress, Lookup, and Stats. None are locked. Settings has language, Ad-free, Restore Purchases, and Support (Small)
 - Progress is stored only on-device (no cloud, no analytics)
 - Privacy policy: https://chord-trainer-legal.vercel.app/privacy.html
 - Support: https://chord-trainer-legal.vercel.app/support.html
@@ -114,4 +113,4 @@ chord,piano,music,ear training,theory,keyboard,triad,七和弦,聽音,練習
 | Support email | kennethchan3868@hotmail.com |
 | Marketing URL | optional |
 
-Hosted on Vercel (`chord-trainer-legal`). Local HTML copies remain in `docs/app-store/` for reference.
+The live privacy and support URLs are the separate `chord-trainer-legal` project, not this app’s Vercel deployment. Publish `docs/app-store/privacy.html` and `docs/app-store/support.html` there before review. Until that deploy, production still describes a no-advertising app.

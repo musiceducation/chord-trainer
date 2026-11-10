@@ -27,6 +27,15 @@ The paywall sells the one-time Ad-free unlock. It does not offer Pro Monthly. It
 
 Restore Purchases is in Settings and on the paywall. It is required for the non-consumable. Consumable Support purchases are not restored as features.
 
+## Release AdMob configuration
+
+Archive uses the Release configuration. Production AdMob values are not in git.
+
+1. Copy `ios/App/Secrets.xcconfig.example` to `ios/App/Secrets.xcconfig` on the build machine. That file is gitignored.
+2. Set the two keys named in the example: the app identifier and the banner unit. Do not commit the file, and do not paste the values into the PR, chat, or review notes.
+3. `scripts/apply-admob-config.sh` fails a Release build when either value is empty, or when either value is Google’s public test publisher. Debug keeps the test IDs in the Xcode Debug configuration only.
+4. This preflight does not create `Secrets.xcconfig` and does not archive.
+
 ## App Store Connect
 
 Do not change App Store Connect from the repo. When submitting:

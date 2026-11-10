@@ -53,7 +53,7 @@
 	<key>AdMobBannerAdUnitId</key>
 	<string>$(ADMOB_BANNER_AD_UNIT_ID)</string>
 	<key>NSUserTrackingUsageDescription</key>
-	<string>This identifier is used to deliver personalized ads. Chord Trainer Pro is ad-free.</string>
+	<string>This identifier is used to deliver personalized ads. Ad-free removes ads.</string>
 	<key>SKAdNetworkItems</key>
 	<array>
 		<dict>
